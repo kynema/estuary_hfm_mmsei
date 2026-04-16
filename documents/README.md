@@ -1,0 +1,1 @@
+Miscellaneous documents, such as Word and Powerpoint files.
