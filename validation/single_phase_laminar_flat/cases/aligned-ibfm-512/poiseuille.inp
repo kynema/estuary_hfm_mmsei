@@ -1,0 +1,89 @@
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            SIMULATION STOP            #
+#.......................................#
+time.stop_time               =   100.0     # Max (simulated) time to evolve
+time.max_step                =   100000    # Max number of time steps
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#         TIME STEP COMPUTATION         #
+#.......................................#
+time.fixed_dt         =   0.005            # Use this constant dt if > 0
+time.cfl              =   0.95            # CFL factor
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            INPUT AND OUTPUT           #
+#.......................................#
+time.plot_interval            =  2000     # Steps between plot files
+time.checkpoint_interval      =  -5       # Steps between checkpoint files
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#               PHYSICS                 #
+#.......................................#
+incflo.gravity          =   0.  0. -9.81  # Gravitational force (3D)
+incflo.density             = 1.0          # Reference density 
+incflo.use_godunov = 1
+incflo.godunov_type = "weno"
+incflo.diffusion_type = 2
+
+transport.viscosity = 1.0e-2
+transport.laminar_prandtl = 0.7
+transport.turbulent_prandtl = 0.3333
+transport.reference_temperature = 300.0
+
+turbulence.model = Laminar
+
+incflo.physics = ABL TerrainDrag
+incflo.velocity = 1.0 0.0 0.0
+
+ICNS.source_terms = DragForcing
+
+DragForcing.is_laminar = true
+
+ABL.perturb_velocity = false
+ABL.perturb_temperature = false
+ABL.initial_wind_profile = true
+ABL.rans_1dprofile_file = "initProfile.dat"
+ABL.bndry_file = "./bndry_files"
+ABL.bndry_io_mode = 1
+ABL.bndry_var_names = velocity 
+ABL.bndry_output_format = native
+ABL.temperature_heights = 0.0 0.5
+ABL.temperature_values = 300.0 300.0
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#        ADAPTIVE MESH REFINEMENT       #
+#.......................................#
+amr.n_cell              = 512 8 96    # Grid cells at coarsest AMRlevel
+amr.max_level           = 0           # Max AMR level in hierarchy
+amr.blocking_factor     = 4
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              GEOMETRY                 #
+#.......................................#
+geometry.prob_lo        =   0.0  0.0   -0.25  # Lo corner coordinates
+geometry.prob_hi        =   4.0  0.0625  0.5   # Hi corner coordinates
+geometry.is_periodic    =   0   1   0   # Periodicity x y z (0/1)
+
+# Boundary conditions
+xlo.type =   "mass_inflow"
+xlo.density = 1.0
+xlo.temperature = 300.0
+xlo.velocity = 10.0 0.0 0.0
+xhi.type =   "pressure_outflow"
+zlo.type =   "slip_wall"
+zhi.type =   "slip_wall"
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#           SOLVER SETTINGS             #
+#.......................................#
+nodal_proj.mg_atol = 1.0E-8
+mac_proj.mg_atol = 1.0E-8
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              VERBOSITY                #
+#.......................................#
+incflo.verbose          =   0          # incflo_level
