@@ -1,27 +1,26 @@
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            SIMULATION STOP            #
 #.......................................#
-time.stop_time               =   100.0     # Max (simulated) time to evolve
-time.max_step                =   100000    # Max number of time steps
+time.stop_time =  100.0     # Max (simulated) time to evolve
+time.max_step  =  100000    # Max number of time steps
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
 #.......................................#
-time.fixed_dt         =   0.005            # Use this constant dt if > 0
-time.cfl              =   0.95            # CFL factor
+time.fixed_dt  =  0.005            # Use this constant dt if > 0
+time.cfl       =  0.95             # CFL factor
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
-time.plot_interval            =  100     # Steps between plot files
+time.plot_interval            =  10     # Steps between plot files
 time.checkpoint_interval      =  -5       # Steps between checkpoint files
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #               PHYSICS                 #
 #.......................................#
-incflo.gravity          =   0.0 0.0 0.0 
-incflo.velocity         =   0.9914 0.0 0.1305 
-incflo.density          = 1.0             # Reference density
+incflo.gravity = 0.0 0.0 0.0 
+incflo.density = 1.0 # Reference density
 incflo.use_godunov = 1
 incflo.godunov_type = "weno"
 incflo.diffusion_type = 2
@@ -34,13 +33,15 @@ transport.reference_temperature = 300.0
 turbulence.model = Laminar
 
 incflo.physics = ChannelBuilder
+#incflo.velocity = 0.9914 0.0 0.1305 
+incflo.velocity = 0.0 0.0 0.0
+
 ICNS.source_terms = DragForcing
 DragForcing.is_laminar = true
 
-# Channel configuration for slanted Poiseuille flow at angle 7.5 degrees (pi/24)
+# Channel configuration for slanted Poiseuille flow
 # Walls are slanted; flow is parallel to walls
 ChannelBuilder.segment_labels = s1
-
 ChannelBuilder.s1.flow_speed = 1.0
 ChannelBuilder.s1.velocity_profile = Parabolic
 ChannelBuilder.s1.type = Trapezoid
@@ -50,13 +51,24 @@ ChannelBuilder.s1.bottom_width_start = 1.0
 ChannelBuilder.s1.bottom_width_end = 1.0
 ChannelBuilder.s1.height_start = 1.0086
 ChannelBuilder.s1.height_end = 1.0086
-ChannelBuilder.s1.segment_start_point = -0.1317 0.031250 0.5870
-ChannelBuilder.s1.segment_end_point = 4.1317 0.031250 1.1483
+ChannelBuilder.s1.segment_start_point = -0.1316524975873958 0.0312500000000000 0.5869821001690771
+ChannelBuilder.s1.segment_end_point = 4.1316524975873961 0.0312500000000000 1.1482568507606590
+
+#ABL.perturb_velocity = false
+#ABL.perturb_temperature = false
+#ABL.initial_wind_profile = true
+#ABL.rans_1dprofile_file = "initProfile.dat"
+#ABL.bndry_file = "./bndry_files"
+#ABL.bndry_io_mode = 1
+#ABL.bndry_var_names = velocity 
+#ABL.bndry_output_format = native
+#ABL.temperature_heights = 0.0 0.5
+#ABL.temperature_values = 300.0 300.0
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
-amr.n_cell              = 256 4 140   # Grid cells at coarsest AMR level
+amr.n_cell              = 256 4 128   # Grid cells at coarsest AMR level
 amr.max_level           = 0           # Max AMR level in hierarchy
 amr.blocking_factor     = 4
 
@@ -64,15 +76,15 @@ amr.blocking_factor     = 4
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #              GEOMETRY                 #
 #.......................................#
-geometry.prob_lo        =   0.0  0.0   0.0  # Lo corner coordinates
-geometry.prob_hi        =   4.0 0.062500 2.1352   # Hi corner coordinates
-geometry.is_periodic    =   0   1   0   # Periodicity x y z (0/1)
+geometry.prob_lo     = 0.0 0.000000 0.0
+geometry.prob_hi     = 4.0 0.062500 2.0
+geometry.is_periodic = 0 1 0 
 
 # Boundary conditions
 xlo.type =   "mass_inflow"
 xlo.density = 1.0
 xlo.temperature = 300.0
-xlo.velocity = 0.9914 0.0 0.1305 
+#xlo.velocity = 0.9914 0.0 0.1305 
 xhi.type =   "pressure_outflow"
 zlo.type =   "slip_wall"
 zhi.type =   "slip_wall"
