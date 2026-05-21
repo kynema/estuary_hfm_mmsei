@@ -1,9 +1,10 @@
 """
-Generate slanted channel configuration based on wall angle theta.
+Generate input parameters for slanted channel configuration based on wall 
+angle theta.
 
 This script calculates:
 1. Domain bounds (geometry.prob_lo/hi)
-2. Segment start/end points (centered vertically in channel)
+2. Segment parameters (centered vertically in channel)
 3. amr.n_cell for isotropic mesh
 """
 
@@ -53,10 +54,8 @@ def calculate_slanted_channel_config(
     # Shift channel up by H/10 to avoid boundary issues and ensure terrain cells
     channel_shift = H / 10.0
     
-    # Domain extent in z (vertical)
-    # z_hi = (x_hi - x_lo)*tan(theta) + H/cos(theta) + shift
-    # Extended to give extra margin
-    z_hi = 1.2 * ((x_hi - x_lo) * np.tan(theta) + H / np.cos(theta) + channel_shift)
+    # Domain height in z, extended to give extra margin beyond channel height
+    z_hi = 1.1 * ((x_hi - x_lo) * np.tan(theta) + H / np.cos(theta) + channel_shift)
     
     # Mesh resolution: compute cell size from nx
     cell_size = (x_hi - x_lo) / nx
@@ -66,18 +65,25 @@ def calculate_slanted_channel_config(
     n_y = int(np.round(y_hi / cell_size))
     n_z = int(np.round((z_hi - z_lo) / cell_size))
     
-    # Ensure n_y is at least blocking_factor (typical for thin domains)
+    # Ensure n_y is at least blocking_factor
     n_y = max(n_y, blocking_factor)
     
     # Round all n_cell to be divisible by blocking_factor
-    n_x = int(np.ceil(n_x / blocking_factor) * blocking_factor)
-    n_y = int(np.ceil(n_y / blocking_factor) * blocking_factor)
-    n_z = int(np.ceil(n_z / blocking_factor) * blocking_factor)
+    def round_to_blocking_factor(n):
+        return int(np.ceil(n / blocking_factor) * blocking_factor)
+    n_x = round_to_blocking_factor(n_x)
+    n_y = round_to_blocking_factor(n_y)
+    n_z = round_to_blocking_factor(n_z)
     
     # Recalculate actual cell sizes based on rounded n_cell
-    actual_dx = (x_hi - x_lo) / n_x
-    actual_dy = y_hi / n_y
-    actual_dz = (z_hi - z_lo) / n_z
+    dx = (x_hi - x_lo) / n_x
+    
+    # Adjust y_hi and z_hi to ensure uniform grid spacing using dx
+    y_hi = dx * n_y
+    z_hi = z_lo + dx * n_z
+    
+    dy = y_hi / n_y
+    dz = (z_hi - z_lo) / n_z
     
     # Segment points: run from bottom-left to upper-right corner of domain
     # For well-defined channel at corners, segment should be within domain bounds
@@ -124,9 +130,9 @@ def calculate_slanted_channel_config(
         'nx': nx,
         'blocking_factor': blocking_factor,
         'cell_size': cell_size,
-        'actual_dx': actual_dx,
-        'actual_dy': actual_dy,
-        'actual_dz': actual_dz,
+        'dx': dx,
+        'dy': dy,
+        'dz': dz,
         'H': H,
         'channel_shift': channel_shift,
         'height_start': height_start,
@@ -169,9 +175,9 @@ def print_config(config):
     print(f"  nx = {config['nx']}")
     print(f"  amr.n_cell = {config['n_cell'][0]} {config['n_cell'][1]} {config['n_cell'][2]}")
     print(f"  Cell sizes:")
-    print(f"    Δx = {config['actual_dx']:.6f}")
-    print(f"    Δy = {config['actual_dy']:.6f}")
-    print(f"    Δz = {config['actual_dz']:.6f}")
+    print(f"    Δx = {config['dx']:.6f}")
+    print(f"    Δy = {config['dy']:.6f}")
+    print(f"    Δz = {config['dz']:.6f}")
     
     print(f"\nConfigurable Parameters for .inp file:")
     print(f"\n  geometry.prob_lo = {config['domain_lo'][0]:.1f} {config['domain_lo'][1]:.6f} {config['domain_lo'][2]:.1f}")

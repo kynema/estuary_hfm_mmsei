@@ -54,16 +54,14 @@ ChannelBuilder.s1.height_end = 1.0086
 ChannelBuilder.s1.segment_start_point = -0.1316524975873958 0.0312500000000000 0.5869821001690771
 ChannelBuilder.s1.segment_end_point = 4.1316524975873961 0.0312500000000000 1.1482568507606590
 
-#ABL.perturb_velocity = false
-#ABL.perturb_temperature = false
-#ABL.initial_wind_profile = true
-#ABL.rans_1dprofile_file = "initProfile.dat"
-#ABL.bndry_file = "./bndry_files"
-#ABL.bndry_io_mode = 1
-#ABL.bndry_var_names = velocity 
-#ABL.bndry_output_format = native
-#ABL.temperature_heights = 0.0 0.5
-#ABL.temperature_values = 300.0 300.0
+incflo.field_boundaries = BoundaryPlane
+BoundaryPlane.planes =  xlo
+BoundaryPlane.file = bndry_plane
+BoundaryPlane.var_names = velocity
+BoundaryPlane.output_format = native
+BoundaryPlane.is_static = true
+BoundaryPlane.output_and_use_initial_plane = true
+BoundaryPlane.io_mode = 1
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
