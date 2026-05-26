@@ -17,8 +17,9 @@ def calculate_slanted_channel_config(
     theta_rad=None,
     x_hi=4.0,
     y_hi=0.0625,
+    z_hi=2.0,
     H=1.0,
-    nx=512,
+    nx=256,
     blocking_factor=4,
 ):
     """
@@ -28,9 +29,10 @@ def calculate_slanted_channel_config(
         theta_deg: Channel angle in degrees (relative to x-axis)
         theta_rad: Channel angle in radians
         x_hi: Domain length in x-direction
-        y_hi: Domain extent in y-direction (typically very small for 2D)
+        y_hi: Domain length in y-direction (typically very small for 2D)
+        z_hi: Domain length in z-direction
         H: Channel height (perpendicular distance between walls)
-        nx: Number of cells in x-direction (default: 512)
+        nx: Number of cells in x-direction (default: 256)
         blocking_factor: AMR blocking factor (all n_cell must be divisible by this)
     
     Returns:
@@ -50,12 +52,6 @@ def calculate_slanted_channel_config(
     y_lo = 0.0
     z_lo = 0.0
     y_mid = y_hi / 2.0
-    
-    # Shift channel up by H/10 to avoid boundary issues and ensure terrain cells
-    channel_shift = H / 10.0
-    
-    # Domain height in z, extended to give extra margin beyond channel height
-    z_hi = 1.1 * ((x_hi - x_lo) * np.tan(theta) + H / np.cos(theta) + channel_shift)
     
     # Mesh resolution: compute cell size from nx
     cell_size = (x_hi - x_lo) / nx
@@ -92,6 +88,9 @@ def calculate_slanted_channel_config(
     x_start = x_lo - H * np.tan(theta)
     x_end = x_hi + H * np.tan(theta)
     
+    # Shift channel up by H/10 to avoid boundary issues and ensure terrain cells
+    channel_shift = H / 10.0
+
     # z rises along the slant: tan(theta) per unit x
     # Center the channel at z = H/(2*cos(theta)) + channel_shift at x = x_lo
     z_at_xlo = H / (2.0 * np.cos(theta)) + channel_shift
@@ -104,20 +103,16 @@ def calculate_slanted_channel_config(
     
     seg_start = [x_start, y_mid, z_start]
     seg_end = [x_end, y_mid, z_end]
-    
+
+    # Slope of the channel
+    seg_slope = (z_end - z_start) / (x_end - x_start)
+    seg_intercept = z_start - seg_slope * x_start
+
     # For sloped segment, the perpendicular cross-section height must be
-    # H / cos(theta) to achieve z-extent of H in world coordinates.
+    # H / cos(theta) to achieve z-length of H in world coordinates.
     # Keep this constant along the entire segment.
     height_start = H / np.cos(theta)
     height_end = H / np.cos(theta)
-    
-    # Initial velocity aligned with segment direction
-    # For a segment sloped at angle theta in the xz-plane,
-    # a unit vector along the segment is (cos(theta), 0, sin(theta))
-    # With flow_speed = 1.0, velocity components are:
-    velocity_x = 1.0 * np.cos(theta)
-    velocity_y = 0.0
-    velocity_z = 1.0 * np.sin(theta)
     
     config = {
         'theta_deg': np.rad2deg(theta) if theta_rad is None else theta_deg,
@@ -126,6 +121,8 @@ def calculate_slanted_channel_config(
         'domain_hi': [x_hi, y_hi, z_hi],
         'segment_start': seg_start,
         'segment_end': seg_end,
+        'segment_slope': seg_slope,
+        'segment_intercept': seg_intercept,
         'n_cell': [n_x, n_y, n_z],
         'nx': nx,
         'blocking_factor': blocking_factor,
@@ -137,9 +134,6 @@ def calculate_slanted_channel_config(
         'channel_shift': channel_shift,
         'height_start': height_start,
         'height_end': height_end,
-        'velocity_x': velocity_x,
-        'velocity_y': velocity_y,
-        'velocity_z': velocity_z,
     }
     
     return config
@@ -169,26 +163,28 @@ def print_config(config):
     e = config['segment_end']
     print(f"  Start: ({s[0]:.4f}, {s[1]:.6f}, {s[2]:.4f})")
     print(f"  End:   ({e[0]:.4f}, {e[1]:.6f}, {e[2]:.4f})")
-    
+
+    print(f"\nSegment Line:")
+    print(f"  z = {config['segment_slope']:.6f} * x + {config['segment_intercept']:.6f}")
+    print(f"  tan(θ) = {np.tan(config['theta_rad']):.6f}")
     
     print(f"\nMesh Resolution (isotropic cell size):")
-    print(f"  nx = {config['nx']}")
     print(f"  amr.n_cell = {config['n_cell'][0]} {config['n_cell'][1]} {config['n_cell'][2]}")
     print(f"  Cell sizes:")
     print(f"    Δx = {config['dx']:.6f}")
     print(f"    Δy = {config['dy']:.6f}")
     print(f"    Δz = {config['dz']:.6f}")
     
-    print(f"\nConfigurable Parameters for .inp file:")
-    print(f"\n  geometry.prob_lo = {config['domain_lo'][0]:.1f} {config['domain_lo'][1]:.6f} {config['domain_lo'][2]:.1f}")
-    print(f"  geometry.prob_hi = {config['domain_hi'][0]:.1f} {config['domain_hi'][1]:.6f} {config['domain_hi'][2]:.4f}")
-    print(f"\n  incflo.gravity = 0.0 0.0 0.0")
-    print(f"  incflo.velocity = {config['velocity_x']:.4f} {config['velocity_y']:.1f} {config['velocity_z']:.4f}  # Aligned with segment")
-    print(f"\n  amr.n_cell = {config['n_cell'][0]} {config['n_cell'][1]} {config['n_cell'][2]}")
-    print(f"\n  ChannelBuilder.s1.segment_start_point = {config['segment_start'][0]:.16f} {config['segment_start'][1]:.16f} {config['segment_start'][2]:.16f}")
-    print(f"  ChannelBuilder.s1.segment_end_point = {config['segment_end'][0]:.16f} {config['segment_end'][1]:.16f} {config['segment_end'][2]:.16f}")
-    print(f"\n  ChannelBuilder.s1.height_start = {config['height_start']:.4f}")
-    print(f"  ChannelBuilder.s1.height_end = {config['height_end']:.4f}")
+    print("\n" +"="*70)
+    print(f"Configurable Parameters for .inp file:")
+    print("="*70)
+    print(f"\ngeometry.prob_lo = {config['domain_lo'][0]:.1f} {config['domain_lo'][1]:.6f} {config['domain_lo'][2]:.1f}")
+    print(f"geometry.prob_hi = {config['domain_hi'][0]:.1f} {config['domain_hi'][1]:.6f} {config['domain_hi'][2]:.4f}")
+    print(f"\namr.n_cell = {config['n_cell'][0]} {config['n_cell'][1]} {config['n_cell'][2]}")
+    print(f"\nChannelBuilder.s1.segment_start_point = {config['segment_start'][0]:.16f} {config['segment_start'][1]:.6f} {config['segment_start'][2]:.16f}")
+    print(f"ChannelBuilder.s1.segment_end_point = {config['segment_end'][0]:.16f} {config['segment_end'][1]:.6f} {config['segment_end'][2]:.16f}")
+    print(f"\nChannelBuilder.s1.height_start = {config['height_start']:.4f}")
+    print(f"ChannelBuilder.s1.height_end = {config['height_end']:.4f}")
     
     print("\n" + "="*70 + "\n")
 
@@ -199,17 +195,18 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python slanted_channel_config.py --theta_deg 7.5
-  python slanted_channel_config.py --theta_deg 15 --nx 256
-  python slanted_channel_config.py --theta_rad 0.2618 --nx 512
-  python slanted_channel_config.py --theta_deg 30 --x_hi 5.0 --H 2.0 --nx 1024
+  python SlantedChannelConfig.py --theta_deg 7.5
+  python SlantedChannelConfig.py --theta_deg 15 --nx 256
+  python SlantedChannelConfig.py --theta_rad 0.2618 --nx 512
+  python SlantedChannelConfig.py --theta_deg 30 --x_hi 5.0 --H 2.0 --nx 1024
         """
     )
     
     parser.add_argument('--theta_deg', type=float, help='Wall angle in degrees')
     parser.add_argument('--theta_rad', type=float, help='Wall angle in radians')
     parser.add_argument('--x_hi', type=float, default=4.0, help='Domain length in x (default: 4.0)')
-    parser.add_argument('--y_hi', type=float, default=0.0625, help='Domain extent in y (default: 0.0625)')
+    parser.add_argument('--y_hi', type=float, default=0.0625, help='Domain length in y (default: 0.0625)')
+    parser.add_argument('--z_hi', type=float, default=2.0, help='Domain length in z (default: 2.0)')
     parser.add_argument('--H', type=float, default=1.0, help='Channel height perpendicular (default: 1.0)')
     parser.add_argument('--nx', type=int, default=512, help='Number of cells in x-direction (default: 512)')
     parser.add_argument('--blocking_factor', type=int, default=4, help='AMR blocking factor (default: 4)')
