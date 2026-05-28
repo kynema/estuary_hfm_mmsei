@@ -27,7 +27,7 @@ Post processing is handled by running each cell of the `SlantedChannelPostProces
 
 ## Analytical Solution
 
-Provided a 2D domain in the $x$-$z$ plane with periodic boundaries in $y$,the analytical solution for fully-developed parabolic (Poiseuille) channel flow in a tilted, vertically-shifted configuration is:
+Provided a 2D domain in the x-z plane with periodic boundaries in $y$,the analytical solution for fully-developed parabolic (Poiseuille) channel flow in a tilted, vertically-shifted configuration is:
 
 $$u(r) = U_{\max} \left(1 - \left(\frac{2r}{H}\right)^2\right)$$
 
@@ -37,15 +37,13 @@ where:
 - $H$ = pipe diameter
 - $u(r) = 0$ for $r > H/2$ (at pipe wall)
 
-Here, $r$ is measured in the $x$-$z$ plane perpendicular to the tilted centerline as:
+Here, $r$ is measured in the x-z plane perpendicular to the tilted centerline as:
 
 $$r = |x\sin\theta - (z-s)\cos\theta|.$$
 
-The centerline is shifted vertically by $s$ in the $z$-direction, and rotated at an angle $\theta$ about the point $(0, 0, s)$ in $x$-$z$ plane:
-$$\mathbf{C}(t) = 
-\begin{bmatrix}
-t\cos\theta, &0, &s + t\sin\theta
-\end{bmatrix}, \quad t > 0$$
+The centerline is shifted vertically by $s$ in the $z$-direction, and rotated at an angle $\theta$ about the point $(0, 0, s)$ in x-z plane:
+
+$$\mathbf{C}(t) = [t\cos\theta, \quad 0, \quad s + t\sin\theta], \quad t > 0$$
 
 Flow is along the tilted centerline in the x-z plane:
 
