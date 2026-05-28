@@ -39,15 +39,15 @@ where:
 
 Here, $r$ is measured in the x-z plane perpendicular to the tilted centerline as:
 
-$$r = |x\sin\theta - (z-s)\cos\theta|.$$
+$$r = |x\sin\theta - (z-z_s)\cos\theta|.$$
 
-The centerline is shifted vertically by $s$ in the $z$-direction, and rotated at an angle $\theta$ about the point $(0, 0, s)$ in x-z plane:
+The centerline is shifted vertically by $z_s$ in the $z$-direction, 
 
-$$\mathbf{C}(t) = [t\cos\theta, \quad 0, \quad s + t\sin\theta], \quad t > 0$$
+$$z_s = \frac{H}{2\cos\theta} + \sigma$$
 
-Flow is along the tilted centerline in the x-z plane:
+and rotated at an angle $\theta$ about the point $(0, 0, \sigma)$ in x-z plane. Here, $\sigma is height in the $z$-direction where the bottom left corner of the channel intersects the domain boundary at $x = x_lo$.
 
-$$\mathbf{u}(x,z) = u(r) \cdot (\cos\theta, \sin\theta)$$
+The equation for the centerline is given by:
 
-$$u_x = u(r)\cos\theta, \quad u_z = u(r)\sin\theta$$
+$$z = x\tan\theta + z_s.$$
 

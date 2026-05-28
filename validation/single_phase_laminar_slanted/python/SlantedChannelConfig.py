@@ -21,6 +21,7 @@ def calculate_slanted_channel_config(
     H=1.0,
     nx=256,
     blocking_factor=4,
+    channel_shift=None,
 ):
     """
     Calculate slanted channel configuration.
@@ -34,6 +35,7 @@ def calculate_slanted_channel_config(
         H: Channel height (perpendicular distance between walls)
         nx: Number of cells in x-direction (default: 256)
         blocking_factor: AMR blocking factor (all n_cell must be divisible by this)
+        channel_shift: Vertical shift to move channel up from domain bottom (default: 0.1)
     
     Returns:
         dict with configuration parameters
@@ -88,8 +90,10 @@ def calculate_slanted_channel_config(
     x_start = x_lo - H * np.tan(theta)
     x_end = x_hi + H * np.tan(theta)
     
-    # Shift channel up by H/10 to avoid boundary issues and ensure terrain cells
-    channel_shift = H / 10.0
+    # Shift channel up by a configurable amount to avoid boundary issues
+    # and ensure terrain cells. Default is 0.1.
+    if channel_shift is None:
+        channel_shift = 0.1
 
     # z rises along the slant: tan(theta) per unit x
     # Center the channel at z = H/(2*cos(theta)) + channel_shift at x = x_lo
@@ -108,11 +112,10 @@ def calculate_slanted_channel_config(
     seg_slope = (z_end - z_start) / (x_end - x_start)
     seg_intercept = z_start - seg_slope * x_start
 
-    # For sloped segment, the perpendicular cross-section height must be
-    # H / cos(theta) to achieve z-length of H in world coordinates.
-    # Keep this constant along the entire segment.
-    height_start = H / np.cos(theta)
-    height_end = H / np.cos(theta)
+    # For trapezoidal segments in ChannelBuilder, the velocity profile uses
+    # vertical distance (z-coordinate) to compute the parabolic profile
+    height_start = H
+    height_end = H
     
     config = {
         'theta_deg': np.rad2deg(theta) if theta_rad is None else theta_deg,
@@ -210,6 +213,7 @@ Examples:
     parser.add_argument('--H', type=float, default=1.0, help='Channel height perpendicular (default: 1.0)')
     parser.add_argument('--nx', type=int, default=512, help='Number of cells in x-direction (default: 512)')
     parser.add_argument('--blocking_factor', type=int, default=4, help='AMR blocking factor (default: 4)')
+    parser.add_argument('--channel_shift', type=float, default=0.1, help='Vertical shift of channel up from domain bottom (default: 0.1)')
     
     args = parser.parse_args()
     
@@ -225,6 +229,7 @@ Examples:
         H=args.H,
         nx=args.nx,
         blocking_factor=args.blocking_factor,
+        channel_shift=args.channel_shift,
     )
     
     print_config(config)
