@@ -48,8 +48,8 @@ ChannelBuilder.s1.top_width_start = 1.0
 ChannelBuilder.s1.top_width_end = 1.0
 ChannelBuilder.s1.bottom_width_start = 1.0
 ChannelBuilder.s1.bottom_width_end = 1.0
-ChannelBuilder.s1.height_start = 1.0086
-ChannelBuilder.s1.height_end = 1.0086
+ChannelBuilder.s1.height_start = 1.0
+ChannelBuilder.s1.height_end = 1.0
 ChannelBuilder.s1.segment_start_point = -0.1316524975873958 0.0312500000000000 0.5869821001690771
 ChannelBuilder.s1.segment_end_point = 4.1316524975873961 0.0312500000000000 1.1482568507606590
 
