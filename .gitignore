@@ -1,2 +1,6 @@
 plt*
 chk*
+__pycache__
+post_processing
+Backtrace.*
+bndry_plane
