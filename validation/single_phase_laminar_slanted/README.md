@@ -2,7 +2,7 @@
 
 This is a laminar channel flow in a single phase with a channel that has been slanted at an angle $\theta$ as measured in the $x$-direction.  The flow is represented as a half-channel using a symmetry plane.  The analytical solution for velocity is applied as Dirichlet inflow.  The outflow is Dirichlet on pressure, and a pressure gradient naturally forms.
 
-<img src="figures/slanted_geometry_setup.png" alt="domain" width="500">
+![Domain](figures/slanted_geometry_setup.png)
 
 ## Input Files and Organization
 
