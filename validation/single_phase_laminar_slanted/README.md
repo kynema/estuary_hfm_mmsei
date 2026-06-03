@@ -2,6 +2,10 @@
 
 This is a laminar channel flow in a single phase with a channel that has been slanted at an angle $\theta$ as measured in the $x$-direction.  The flow is represented as a half-channel using a symmetry plane.  The analytical solution for velocity is applied as Dirichlet inflow.  The outflow is Dirichlet on pressure, and a pressure gradient naturally forms.
 
+![Domain](figures/slanted_geometry_setup.png)
+
+## Input Files and Organization
+
 Each subdirectory in the `cases` directory contains an input file with two lines:
 
 ~~~
@@ -51,3 +55,57 @@ The equation for the centerline is given by:
 
 $$z = x\tan\theta + z_s.$$
 
+# Results
+
+The following results are from running four cases with the following number of FVM cells in each spatial direction:
+
+| Case | $N_x$ | $N_y$ | $N_z$ |
+| ---- | ----- | ----- | ----- |
+| 1    | 64    | 4     | 32    |
+| 2    | 128   | 4     | 64    |
+| 3    | 256   | 4     | 128   |
+| 4    | 512   | 8     | 256   |
+
+## Numerical Velocity Field
+
+The following shows the axial velocity, 
+
+$$u_r (x,z) = u\cos\theta + w\sin\theta,$$
+
+of the numerical simulations from the coarsest to finest grid:
+
+![Loaded Velocity](figures/loaded_velocity_visualization.png)
+
+## Error Convergence Analysis
+
+The error is calculated globally for all $x <= x_\text{mid}$ for each grid. The downstream domain is excluded from this analysis due to numerical errors arising from the Dirichlet pressure boundary condition at the outlet, which contradicts the analytical solution where pressure has no radial variation. See the figure below for more details:
+
+![Pressure-BC](figures/pressure-error.png)
+
+
+The plot below shows both the maximum ($L_\infty$) and $L_2$ norms of the error across all four grid resolutions for all $x < x_{mid}$:
+
+![Error Convergence](figures/error_convergence.png)
+
+
+## Error Field Visualization
+
+The spatial distribution of axial velocity error across all four cases:
+
+![Error Field](figures/error_field_visualization.png)
+
+The colormaps show where the largest errors occur, with careful attention to near-wall regions where boundary conditions are imposed.
+
+## Wall Error Analysis
+
+Detailed convergence analysis of errors in overall domain vs. near-wall regions (quarter-height from boundary) for both ($L_\infty$) and $L_2$ norms:
+
+![Wall Error Analysis](figures/wall_error_analysis.png)
+
+## Velocity Profile Comparison
+
+Comparison of analytical and numerical axial velocity profiles at four streamwise locations (start, 1/5, 2/5, and midway) for the finest grid resolution:
+
+![Velocity Profile Comparison](figures/velocity_profile_comparison.png)
+
+Left column shows the velocity profiles with analytical solution (markers) overlaid on numerical solution (line). Right column shows the error growth along the domain.
