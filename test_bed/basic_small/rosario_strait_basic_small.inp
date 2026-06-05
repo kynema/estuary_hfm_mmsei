@@ -1,0 +1,126 @@
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            SIMULATION STOP            #
+#.......................................#
+time.stop_time               =  -1.     # Max (simulated) time to evolve
+time.max_step                =  2000          # Max number of time steps
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#         TIME STEP COMPUTATION         #
+#.......................................#
+time.fixed_dt         =   0.35       # Use this constant dt if > 0
+time.cfl              =   0.95       # CFL factor
+time.use_force_cfl    =   0
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            INPUT AND OUTPUT           #
+#.......................................#
+time.plot_interval            =  10       # Steps between plot files
+time.checkpoint_interval      =  -3        # Steps between checkpoint files
+
+mac_proj.num_pre_smooth = 4
+mac_proj.num_post_smooth = 4
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#               PHYSICS                 #
+#.......................................#
+incflo.gravity        =  0.0  0.0 -9.81  # Gravitational force (3D)
+
+transport.model = TwoPhaseTransport
+turbulence.model = Laminar
+
+incflo.field_boundaries = BoundaryPlane
+BoundaryPlane.planes =  xlo ylo
+BoundaryPlane.file = bndry_plane
+BoundaryPlane.var_names = velocity vof density
+BoundaryPlane.output_format = native
+BoundaryPlane.is_static = true
+BoundaryPlane.output_and_use_initial_plane = true
+BoundaryPlane.io_mode = 1
+
+incflo.physics = MultiPhase ChannelBuilder
+MultiPhase.density_fluid1 = 1000.
+MultiPhase.density_fluid2 = 1.225
+ICNS.source_terms = GravityForcing DragForcing
+ICNS.use_perturb_pressure = true
+ChannelBuilder.segment_labels = s1 s3 s2
+
+ChannelBuilder.s1.flow_speed = 1.5
+ChannelBuilder.s1.velocity_profile = Uniform
+ChannelBuilder.s1.type = Trapezoid
+ChannelBuilder.s1.top_width_start = 1280
+ChannelBuilder.s1.top_width_end = 1280
+ChannelBuilder.s1.bottom_width_start = 1020
+ChannelBuilder.s1.bottom_width_end = 1020
+ChannelBuilder.s1.height_start = 110
+ChannelBuilder.s1.height_end = 110
+ChannelBuilder.s1.segment_start_point = -150. 0. -25.
+ChannelBuilder.s1.segment_end_point = 300. -100. -25.
+
+ChannelBuilder.s2.flow_speed = 1.5
+ChannelBuilder.s2.velocity_profile = Uniform
+ChannelBuilder.s2.type = Trapezoid
+ChannelBuilder.s2.top_width_start = 1280
+ChannelBuilder.s2.top_width_end = 1280
+ChannelBuilder.s2.bottom_width_start = 1020
+ChannelBuilder.s2.bottom_width_end = 1020
+ChannelBuilder.s2.height_start = 110
+ChannelBuilder.s2.height_end = 110
+ChannelBuilder.s2.segment_start_point = 300. -50. -25.
+ChannelBuilder.s2.segment_end_point = 600. 50. -25.
+
+ChannelBuilder.s3.flow_speed = 1.5
+ChannelBuilder.s3.velocity_profile = Uniform
+ChannelBuilder.s3.type = Trapezoid
+ChannelBuilder.s3.top_width_start = 1280
+ChannelBuilder.s3.top_width_end = 1280
+ChannelBuilder.s3.bottom_width_start = 1020
+ChannelBuilder.s3.bottom_width_end = 1020
+ChannelBuilder.s3.height_start = 110
+ChannelBuilder.s3.height_end = 110
+ChannelBuilder.s3.segment_start_point = 550. 0. -25.
+ChannelBuilder.s3.segment_end_point = 1100. 400. -25.
+
+ChannelBuilder.water_level = 0.
+ChannelBuilder.land_level = 10.
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#        ADAPTIVE MESH REFINEMENT       #
+#.......................................#
+amr.n_cell              = 64 64 32 # Grid cells at coarsest AMRlevel
+amr.max_level           = 0           # Max AMR level in hierarchy
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              GEOMETRY                 #
+#.......................................#
+geometry.prob_lo        =   0.       0.  -100.  # Lo corner coordinates
+geometry.prob_hi        =   771.   771.   28.5  # Hi corner coordinates
+geometry.is_periodic    =   0   0   0   # Periodicity x y z (0/1)
+# Boundary conditions
+xlo.type =   "mass_inflow"
+xlo.density = 1.225
+xlo.vof     = 0
+xhi.type =   "pressure_outflow"
+ylo.type =   "mass_inflow"
+ylo.density = 1.225
+ylo.vof     = 0
+yhi.type =   "pressure_outflow"
+zlo.type =   "slip_wall"
+zhi.type =   "pressure_outflow"
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#        ADAPTIVE MESH REFINEMENT       #
+#.......................................#
+incflo.post_processing = line_sampling
+line_sampling.output_interval     = 10
+line_sampling.output_format        = native
+line_sampling.fields               = velocity vof
+line_sampling.int_fields           = terrain_blank
+line_sampling.labels               = STBM SS
+line_sampling.STBM.type            = LineSampler
+line_sampling.STBM.num_points      = 121
+line_sampling.STBM.start           = 512. 341. -100.
+line_sampling.STBM.end             = 512. 341. 20.
+line_sampling.SS.type              = LineSampler
+line_sampling.SS.num_points        = 121
+line_sampling.SS.start             = 520. 206. -100.
+line_sampling.SS.end               = 520. 206. 20.
+
+
