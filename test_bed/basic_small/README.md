@@ -28,6 +28,15 @@ Choosing a fixed timestep size is difficult because the flow takes a long time t
 
 The flow looks reasonable; see video of velocity field at hub height (17m below free surface). A recirculation region starts to form along the edge of the shore, and the fastest flow shows up just upstream of that region.
 
+![Underwater flow at hub height](https://github.com/user-attachments/assets/52a62a5c-e53d-41b8-977e-1be24c9bc6ec)
+
 This case also illustrated some other less important aspects of the simulation that are helpful to be aware of. Though the simulation begins with a flat interface, and the inflow conditions feature a flat interface as well, the accelerations in flow create pressure perturbations which lead to perturbations in the interface location (surface waves). These reflect off the boundaries and the terrain, and there is no mechanism to dampen them. They are likely inconsequential, and they could potentially be diminished with finer mesh resolution.
 
+![Free surface elevation](https://github.com/user-attachments/assets/aa9f9580-4199-47de-b460-554e51a5421d)
+
 Similarly, the motion of the water induces flow in the air. Because of the much higher momentum of the water pushing on the air, it is possible for the fastest velocities to be produced in the air. There is only a small buffer of air above the water, and the resulting flow patterns in the air are poorly resolved on this mesh, making them appear oscillatory. The motion of the surface waves appears correlated to the air velocities, despite the small amplitude of the waves.
+
+![Velocity vectors in air, thresholded to above 2 m/s](https://github.com/user-attachments/assets/4e644699-f092-4425-b35d-52ecd6f095df)
+
+![Velocity magnitude at slice x = 300m, black line is free surface](https://github.com/user-attachments/assets/4c5c120d-be34-4402-82fe-178621cba904)
+
