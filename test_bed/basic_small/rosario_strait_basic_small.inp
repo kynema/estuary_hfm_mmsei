@@ -1,12 +1,12 @@
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            SIMULATION STOP            #
 #.......................................#
-time.stop_time               =  -1.     # Max (simulated) time to evolve
-time.max_step                =  2000          # Max number of time steps
+time.stop_time               =  700.       # Max (simulated) time to evolve
+time.max_step                =  -1         # Max number of time steps
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
 #.......................................#
-time.fixed_dt         =   0.35       # Use this constant dt if > 0
+time.initial_dt       =   0.35       
 time.cfl              =   0.95       # CFL factor
 time.use_force_cfl    =   0
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#

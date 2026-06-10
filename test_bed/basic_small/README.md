@@ -22,7 +22,7 @@ Finally, the domain was rotated to match the typical CFD convention of flow from
 
 Without any modifications to the projection parameters, the MAC projection took around 100 iterations for every timestep. By modifying the number of pre and post smoothing iterations, the MAC took fewer iterations (around 10) and sped up.
 
-Choosing a fixed timestep size is difficult because the flow takes a long time to develop. After running a few tests to choose the timestep of 0.35, the simulation eventually exceeded a CFL of 1 later on, after over 1000 steps. However, this did not lead to any stability issues in that particular run.
+Choosing a fixed timestep size is difficult because the flow takes a long time to develop. After running a few tests to choose the timestep of 0.35, the simulation eventually exceeded a CFL of 1 later on, after over 1000 steps. However, this did not lead to any stability issues in that particular run. The timestep has been changed to adaptive instead.
 
 ## Flow observations
 
