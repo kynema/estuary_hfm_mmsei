@@ -73,7 +73,7 @@ def plot_rms_velocities():
         ax.plot(data.iloc[:, 0], data.iloc[:, 1], 'o', markersize=8, markeredgewidth=1, fillstyle='none', label=f'DNS - ${component}$')
     
     ax.set_xlabel('$y^+$', fontsize=16)
-    ax.set_ylabel('RMS velocity', fontsize=16)
+    ax.set_ylabel(r'$u_{rms}$, $v_{rms}$, $w_{rms}$', fontsize=16)
     ax.set_title(f'RMS Velocity Profiles - Re$_\\tau$ = {args.Re}', fontsize=16)
     ax.tick_params(axis='both', which='major', labelsize=16)
     ax.legend(fontsize=14)
