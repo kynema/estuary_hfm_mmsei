@@ -6,7 +6,11 @@ For all cases, the configurartion is periodic in the $x$ and $y$ directions and 
 
 ![Coordinate System](figures/CoordinateSystem.png)
 
-## DNS results at Re = 180
+The flow is driven by a pressure gradient, which is implemented using a body force in the momentum equation. The body force acceleration is calculated as:
+
+$$a_x = -\frac{1}{\rho}\frac{\partial p}{\partial x}.$$
+
+## DNS(ish) results at Re = 180
 The channel half width is set to $\delta = 0.005$ m. For simulations without IB, the upper and lower walls in the $z$ direction are set at $\pm \delta$, respectively. For simulations with IB, the computational domain is extended $\pm 0.0052$ m in $z$ with IB intersecting the domain at $\pm \delta$. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. The base grid and two levels of refinement is described in the table below:
 
 
@@ -19,17 +23,17 @@ The channel half width is set to $\delta = 0.005$ m. For simulations without IB,
 
 The fluid in the simulation is air at ambient pressure and a temperature of 750 K. The physical properties used in the simulation are provided in the table below:
 
-| Pressure (Pa) | Temperature (K) | Density  | $\mu$      | $\nu$      |
-| ------------- | --------------- | -------- | ---------- | ---------- |
-| 101325.0      | 750.0           | 0.468793 | 3.57816e-5 | 7.63271e-5 |
+| Pressure (Pa) | Temperature (K) | Density  | $\mu$      |
+| ------------- | --------------- | -------- | ---------- |
+| 101325.0      | 750.0           | 0.468793 | 3.57816e-5 |
 
 The characteristics of the flows are reported below:
 
 | $\text{Re}_\tau$ | $u_\tau$ | $\tau_w$ | $dp/dx$ | $t^* = \delta/u_\tau$ |
 | ---------------- | -------- | -------- | ------- | --------------------- |
-| 180.2            | 2.75122  | 3.5485   | -709.79 | 1.817e-3              |
+| 180              | 2.7478   | 3.5395   | -709.79 | 1.8197e-03            |
 
-Two levels of refinement, targeted on the EB, are employed in order to sufficiently resolve the boundary layer. The mesh characteristics are summarized in the table below. The $y^+$ value is that of the cell center of the first full cell (uncut by the IB).
+Two levels of refinement, targeted on the walls, are employed in order to sufficiently resolve the boundary layer. The mesh characteristics are summarized in the table below. The $y^+$ value is that of the cell center of the first full cell (uncut by the IB).
 
 **Mesh characteristics**
 
@@ -38,3 +42,7 @@ Two levels of refinement, targeted on the EB, are employed in order to sufficien
 | 180.2 |  | |  |  M |
 
 Simulations are carried out for 20 eddy turn over time $t^*$ to reach statistically steady conditions and data are then spatially averaged in the periodic directions and averaged in time over 10 $t^*$ to get the velocity statistics in the direction normal to the wall.
+
+## ChannelFlow
+
+Currently, the simulations are initialized using `incflo.physics = ChannelFlow`. However, when `turbulence.model = Laminar`, the perturbation parameters that seed turbulence growth in `ChannelFlow` are disabled, and the body forcing alone cannot seed turbulence from a laminar state. As a work around, I have set `turbulence.model = Smagorinsky` with a very low coefficient `Smagorinsky_turbulence.cs = 0.05`.

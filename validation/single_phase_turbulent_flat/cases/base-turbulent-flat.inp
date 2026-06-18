@@ -1,0 +1,83 @@
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            SIMULATION STOP            #
+#.......................................#
+time.stop_time =  10.0     # Max (simulated) time to evolve
+time.max_step  =  10000    # Max number of time steps
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#         TIME STEP COMPUTATION         #
+#.......................................#
+#time.fixed_dt  =  0.005            # Use this constant dt if > 0
+time.cfl       =  0.95             # CFL factor
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            INPUT AND OUTPUT           #
+#.......................................#
+time.plot_interval            =  100     # Steps between plot files
+time.checkpoint_interval      =  1000    # Steps between checkpoint files
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#               PHYSICS                 #
+#.......................................#
+incflo.gravity = 0.0 0.0 0.0 
+incflo.density = 0.468793 # Reference density (air at 750K)
+incflo.constant_density = true
+incflo.use_godunov    = 1
+incflo.diffusion_type = 0
+incflo.godunov_type = "weno_z"
+incflo.physics = ChannelFlow
+
+turbulence.model = Smagorinsky
+Smagorinsky_coeffs.Cs = 0.1
+transport.viscosity = 3.57816e-5 # dynamic viscosity (air at 750K) Pa.s
+transport.laminar_prandtl = 0.7
+transport.turbulent_prandtl = 0.3333
+transport.reference_temperature = 750.0
+
+ICNS.source_terms = BodyForce
+BodyForce.magnitude = 1514.0797750819656358 0.0 0.0 # Force value in m/s^2
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#       CHANNEL FLOW PARAMETERS         #
+#.......................................#
+ChannelFlow.re_tau = 180.0
+ChannelFlow.normal_direction = 2 # z is wall-normal
+ChannelFlow.flow_direction = 0
+ChannelFlow.perturb_velocity = true
+ChannelFlow.perturb_factor = 0.1
+ChannelFlow.perturb_y_period = 4.0
+ChannelFlow.perturb_z_period = 4.0
+ChannelFlow.error_log_file = "" 
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#        ADAPTIVE MESH REFINEMENT       #
+#.......................................#
+amr.n_cell              = 384 192 120 # Grid cells at coarsest AMR level
+amr.max_level           = 0           # Max AMR level in hierarchy
+amr.blocking_factor     = 8
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              GEOMETRY                 #
+#.......................................#
+geometry.prob_lo = 0.0 0.000000 -0.005000
+geometry.prob_hi = 0.031200 0.015600 0.005000
+geometry.is_periodic = 1 1 0 
+
+# Boundary conditions
+zlo.type =   "no_slip_wall"
+zlo.density = 0.468793
+zhi.type =   "no_slip_wall"
+zhi.density = 0.468793
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#           SOLVER SETTINGS             #
+#.......................................#
+nodal_proj.mg_atol = 1.0E-8
+mac_proj.mg_atol = 1.0E-8
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              VERBOSITY                #
+#.......................................#
+incflo.verbose = 0 # incflo_level
