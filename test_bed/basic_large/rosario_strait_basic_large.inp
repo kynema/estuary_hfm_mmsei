@@ -106,47 +106,47 @@ ChannelBuilder.s9.bottom_width_end = 600
 ChannelBuilder.s10.bottom_width_start = 400
 ChannelBuilder.s10.bottom_width_end = 300
 
-ChannelBuilder.s1.segment_start_point = 395. -555. -20.
-ChannelBuilder.s1.segment_end_point = 1759. 1369. -30.
-ChannelBuilder.s2.segment_start_point = 2556. -555. -35.
-ChannelBuilder.s2.segment_end_point = 2043. 1318. -65.
-ChannelBuilder.s3.segment_start_point = 3353. -188. -30.
-ChannelBuilder.s3.segment_end_point = 2643. 2576. -25.
-ChannelBuilder.s4.segment_start_point = 4202. -486. -15.
-ChannelBuilder.s4.segment_end_point = 4498. 2507. 0.
-ChannelBuilder.s5.segment_start_point = 1648. 971. -50.
-ChannelBuilder.s5.segment_end_point = 1848. 2279. -60.
-ChannelBuilder.s6.segment_start_point = 2408. 541. -55.
-ChannelBuilder.s6.segment_end_point = 2123. 2309. -50.
-ChannelBuilder.s7.segment_start_point = 4849. 2269. 0.
-ChannelBuilder.s7.segment_end_point = 3672. 3022. -15.
-ChannelBuilder.s8.segment_start_point = 2783. 2368. -25.
-ChannelBuilder.s8.segment_end_point = 1362. 5797. -10.
-ChannelBuilder.s9.segment_start_point = 1648. -500. -20.
-ChannelBuilder.s9.segment_end_point = 1800. 500. -30.
-ChannelBuilder.s10.segment_start_point = 2023. 2168. -50.
-ChannelBuilder.s10.segment_end_point = 202. 5597. -30.
+ChannelBuilder.s1.segment_start_point = 395. -555. -15.
+ChannelBuilder.s1.segment_end_point = 1759. 1369. -25.
+ChannelBuilder.s2.segment_start_point = 2556. -555. -30.
+ChannelBuilder.s2.segment_end_point = 2043. 1318. -60.
+ChannelBuilder.s3.segment_start_point = 3353. -188. -25.
+ChannelBuilder.s3.segment_end_point = 2643. 2576. -20.
+ChannelBuilder.s4.segment_start_point = 4202. -486. -10.
+ChannelBuilder.s4.segment_end_point = 4498. 2507. 5.
+ChannelBuilder.s5.segment_start_point = 1648. 971. -45.
+ChannelBuilder.s5.segment_end_point = 1848. 2279. -55.
+ChannelBuilder.s6.segment_start_point = 2408. 541. -50.
+ChannelBuilder.s6.segment_end_point = 2123. 2309. -45.
+ChannelBuilder.s7.segment_start_point = 4849. 2269. 5.
+ChannelBuilder.s7.segment_end_point = 3672. 3022. -10.
+ChannelBuilder.s8.segment_start_point = 2783. 2368. -20.
+ChannelBuilder.s8.segment_end_point = 1362. 5797. -5.
+ChannelBuilder.s9.segment_start_point = 1648. -500. -15.
+ChannelBuilder.s9.segment_end_point = 1800. 500. -25.
+ChannelBuilder.s10.segment_start_point = 2023. 2168. -45.
+ChannelBuilder.s10.segment_end_point = 202. 5597. -25.
 
-ChannelBuilder.s1.height_start = 40
-ChannelBuilder.s1.height_end = 80
-ChannelBuilder.s2.height_start = 90
-ChannelBuilder.s2.height_end = 150
-ChannelBuilder.s3.height_start = 60
-ChannelBuilder.s3.height_end = 70
-ChannelBuilder.s4.height_start = 50
-ChannelBuilder.s4.height_end = 20
-ChannelBuilder.s5.height_start = 120
-ChannelBuilder.s5.height_end = 140
-ChannelBuilder.s6.height_start = 140
-ChannelBuilder.s6.height_end = 120
-ChannelBuilder.s7.height_start = 20
-ChannelBuilder.s7.height_end = 50
-ChannelBuilder.s8.height_start = 70
-ChannelBuilder.s8.height_end = 40
-ChannelBuilder.s9.height_start = 50
-ChannelBuilder.s9.height_end = 80
-ChannelBuilder.s10.height_start = 120
-ChannelBuilder.s10.height_end = 80
+ChannelBuilder.s1.height_start = 50
+ChannelBuilder.s1.height_end = 90
+ChannelBuilder.s2.height_start = 100
+ChannelBuilder.s2.height_end = 160
+ChannelBuilder.s3.height_start = 70
+ChannelBuilder.s3.height_end = 80
+ChannelBuilder.s4.height_start = 60
+ChannelBuilder.s4.height_end = 30
+ChannelBuilder.s5.height_start = 130
+ChannelBuilder.s5.height_end = 150
+ChannelBuilder.s6.height_start = 150
+ChannelBuilder.s6.height_end = 130
+ChannelBuilder.s7.height_start = 30
+ChannelBuilder.s7.height_end = 60
+ChannelBuilder.s8.height_start = 80
+ChannelBuilder.s8.height_end = 50
+ChannelBuilder.s9.height_start = 60
+ChannelBuilder.s9.height_end = 90
+ChannelBuilder.s10.height_start = 130
+ChannelBuilder.s10.height_end = 90
 
 ChannelBuilder.water_level = 0.
 ChannelBuilder.land_level = 5.
@@ -155,7 +155,12 @@ ChannelBuilder.land_level = 5.
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
 amr.n_cell              = 256 256 32 # Grid cells at coarsest AMRlevel
-amr.max_level           = 0           # Max AMR level in hierarchy
+amr.max_level           = 2           # Max AMR level in hierarchy
+
+tagging.labels = terrain
+tagging.terrain.type = FieldRefinement
+tagging.terrain.field_name = terrain_blank
+tagging.terrain.grad_error = 0.1 0.1 0.1 0.1
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #              GEOMETRY                 #
@@ -172,7 +177,6 @@ ylo.vof     = 0
 yhi.type =   "pressure_outflow"
 zlo.type =   "slip_wall"
 zhi.type =   "pressure_outflow"
-
 
 
 
