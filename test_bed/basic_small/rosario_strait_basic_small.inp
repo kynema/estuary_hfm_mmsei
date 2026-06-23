@@ -106,7 +106,7 @@ zlo.type =   "slip_wall"
 zhi.type =   "pressure_outflow"
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
-#        ADAPTIVE MESH REFINEMENT       #
+#            POST-PROCESSING            #
 #.......................................#
 incflo.post_processing = line_sampling
 line_sampling.output_interval     = 10
