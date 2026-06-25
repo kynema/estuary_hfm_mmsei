@@ -2,7 +2,15 @@
 
 ## Setup and design choices
 
-This is a test bed for a large section of the Rosario Strait. It is basic because it uses the channel builder for the bathymetry and velocity setup as opposed to FVCOM or field data. It is based on snapshots of FVCOM data, including the ![velocity as a function of depth](figures/FVCOM_image_velocity_cross_sections.png) and the ![bathymetry](figures/FVCOM_image_initial_segments.png), which were approximated using channel builder ![segments](figures/FVCOM_image_modified_segments.png) (a two more segments were added to better approximate portions of the domain).
+This is a test bed for a large section of the Rosario Strait. It is basic because it uses the channel builder for the bathymetry and velocity setup as opposed to FVCOM or field data. It is based on snapshots of FVCOM data, including the velocity as a function of depth and the bathymetry, as seen below:
+
+![Velocity as a function of depth](figures/FVCOM_image_velocity_cross_sections.png) 
+
+![Bathymetry overlaid with preliminary segments for channel builder](figures/FVCOM_image_initial_segments.png)
+
+These 8 segments were modified so that they could overlap, and two more segments (not shown) were added to better approximate portions of the domain:
+
+![Modified segments](figures/FVCOM_image_modified_segments.png)
 
 ## Computational observations
 
