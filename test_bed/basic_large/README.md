@@ -13,3 +13,5 @@ These modifications helped the amr.max_level = 1 case run, but the amr.max_level
 ## Flow observations
 
 From the longest run performed, which shows the velocity at hub height (z = -17 m), the flow appears to develop well, but the free surface motion is significant and impactful at this depth, which is a concern. Because it is not in our interests to fully resolve the surface waves, we will need to add some functionality to handle this spurious phenomenon, which will likely be a type of relaxation zone for the free surface.
+
+![Hub height velocity video, amr.max_level = 1](https://github.com/user-attachments/assets/387e5052-a72e-4d83-a3e7-73131a9d50be)
