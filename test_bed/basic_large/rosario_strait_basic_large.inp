@@ -1,7 +1,7 @@
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            SIMULATION STOP            #
 #.......................................#
-time.stop_time               =  700.       # Max (simulated) time to evolve
+time.stop_time               =  7000.       # Max (simulated) time to evolve
 time.max_step                =  -1         # Max number of time steps
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
@@ -12,11 +12,13 @@ time.use_force_cfl    =   0
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
-time.plot_interval            =  10       # Steps between plot files
-time.checkpoint_interval      =  -3        # Steps between checkpoint files
+time.plot_interval            =  100       # Steps between plot files
+time.checkpoint_interval      =  500        # Steps between checkpoint files
 
 mac_proj.num_pre_smooth = 4
 mac_proj.num_post_smooth = 4
+nodal_proj.num_pre_smooth = 8
+nodal_proj.num_post_smooth = 8
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #               PHYSICS                 #
@@ -156,11 +158,23 @@ ChannelBuilder.land_level = 5.
 #.......................................#
 amr.n_cell              = 256 256 32 # Grid cells at coarsest AMRlevel
 amr.max_level           = 2           # Max AMR level in hierarchy
+amr.blocking_factor_z   = 2
 
-tagging.labels = terrain
+tagging.labels = terrain interface
 tagging.terrain.type = FieldRefinement
 tagging.terrain.field_name = terrain_blank
 tagging.terrain.grad_error = 0.1 0.1 0.1 0.1
+
+tagging.interface.type = GeometryRefinement
+tagging.interface.shapes = b0
+tagging.interface.min_level  = 0
+tagging.interface.max_level  = 1
+
+tagging.interface.b0.type = box
+tagging.interface.b0.origin = 0.0 0.0 -5.0
+tagging.interface.b0.xaxis = 6000.0 0.0 0.0
+tagging.interface.b0.yaxis = 0.0 6000.0 0.0
+tagging.interface.b0.zaxis = 0.0 0.0 10.0
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #              GEOMETRY                 #
