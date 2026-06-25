@@ -8,7 +8,7 @@ This is a test bed for a large section of the Rosario Strait. It is basic becaus
 
 ![Bathymetry overlaid with preliminary segments for channel builder](figures/FVCOM_image_initial_segments.png)
 
-These 8 segments were modified so that they could overlap, and two more segments (not shown) were added to better approximate portions of the domain:
+The bathymetry above is overlaid with preliminary segments for the channel builder setup. These 8 segments were modified so that they could overlap, and two more segments (not shown) were added to better approximate portions of the domain:
 
 ![Modified segments](figures/FVCOM_image_modified_segments.png)
 
