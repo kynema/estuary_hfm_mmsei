@@ -1,46 +1,15 @@
-README not updated yet
-
-<!--
-# Basic small test bed
+# Basic large test bed
 
 ## Setup and design choices
 
-This is a test bed for a portion of the Rosario Strait that includes where the field measurements took place. It is basic because it uses the channel builder for the bathymetry and velocity setup as opposed to FVCOM or field data. It is small because it is very limited in geographical extent.
-
-Though the eventual case will likely cover a bigger section of the strait, this case can still be useful for testing refinement zones, setting up post-processing pathways, and becoming familiar with simulations in this context.
-
-This particular test bed was set up to mimic the section of the strait that is highlighted in the experimental campaign, shown in the image below. The channel builder parameters were chosen to approximate the dimensions of the channel here, and line samplers are included for the positions of the STBM and SS instruments. 
-
-![Lateral extents and instrument locations](figures/setup_slide1.png)
-
-The initial and boundary velocities were chosen based on the approximate average flow speed measured in the mobile survey, as well as the depth of the channel.
-
-![Estimated velocities and depth](figures/setup_slide2.png)
-
-Finally, the domain was rotated to match the typical CFD convention of flow from negative x to positive x.
-
-![Rotated coordinates](figures/setup_slide3.png)
+This is a test bed for a large section of the Rosario Strait. It is basic because it uses the channel builder for the bathymetry and velocity setup as opposed to FVCOM or field data. It is based on snapshots of FVCOM data, including the ![velocity as a function of depth](figures/FVCOM_image_velocity_cross_sections.png) and the ![bathymetry](figures/FVCOM_image_initial_segments.png), which were approximated using channel builder ![segments](figures/FVCOM_image_modified_segments.png) (a two more segments were added to better approximate portions of the domain).
 
 ## Computational observations
 
-Without any modifications to the projection parameters, the MAC projection took around 100 iterations for every timestep. By modifying the number of pre and post smoothing iterations, the MAC took fewer iterations (around 10) and sped up.
+With no additional refinements (using amr.max_level = 0), the projections converged easily without much parameter modification. Adding mesh refinements proved to be more difficult for the solver. Using field refinement alone to add cells at the terrain boundary, both amr.max_level = 1 and amr.max_level = 2 simulations could be brought to converge, but the nodal projection would stall out (use the maximum number of iterations) later on. Introducing a uniform mesh resolution across the interface fixed this, but this does increase the total number of cells.
 
-Choosing a fixed timestep size is difficult because the flow takes a long time to develop. After running a few tests to choose the timestep of 0.35, the simulation eventually exceeded a CFL of 1 later on, after over 1000 steps. However, this did not lead to any stability issues in that particular run. The timestep has been changed to adaptive instead.
+These modifications helped the amr.max_level = 1 case run, but the amr.max_level = 2 case blew up immediately. Will continue to investigate.
 
 ## Flow observations
 
-The flow looks reasonable; see video of velocity field at hub height (17m below free surface). A recirculation region starts to form along the edge of the shore, and the fastest flow shows up just upstream of that region.
-
-![Underwater flow at hub height](https://github.com/user-attachments/assets/52a62a5c-e53d-41b8-977e-1be24c9bc6ec)
-
-This case also illustrated some other less important aspects of the simulation that are helpful to be aware of. Though the simulation begins with a flat interface, and the inflow conditions feature a flat interface as well, the accelerations in flow create pressure perturbations which lead to perturbations in the interface location (surface waves). These reflect off the boundaries and the terrain, and there is no mechanism to dampen them. They are likely inconsequential, and they could potentially be diminished with finer mesh resolution.
-
-![Free surface elevation](https://github.com/user-attachments/assets/aa9f9580-4199-47de-b460-554e51a5421d)
-
-Similarly, the motion of the water induces flow in the air. Because of the much higher momentum of the water pushing on the air, it is possible for the fastest velocities to be produced in the air. There is only a small buffer of air above the water, and the resulting flow patterns in the air are poorly resolved on this mesh, making them appear oscillatory. The motion of the surface waves appears correlated to the air velocities, despite the small amplitude of the waves.
-
-![Velocity vectors in air, thresholded to above 2 m/s](https://github.com/user-attachments/assets/4e644699-f092-4425-b35d-52ecd6f095df)
-
-![Velocity magnitude at slice x = 300m, black line is free surface](https://github.com/user-attachments/assets/4c5c120d-be34-4402-82fe-178621cba904)
-
---!>
+From the longest run performed, which shows the velocity at hub height (z = -17 m), the flow appears to develop well, but the free surface motion is significant and impactful at this depth, which is a concern. Because it is not in our interests to fully resolve the surface waves, we will need to add some functionality to handle this spurious phenomenon, which will likely be a type of relaxation zone for the free surface.
