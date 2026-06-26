@@ -12,6 +12,10 @@ The bathymetry above is overlaid with preliminary segments for the channel build
 
 ![Modified segments](figures/FVCOM_image_modified_segments.png)
 
+Using these segments, the computational domain looks like this (on a coarse mesh), reasonably mimicking the actual bathymetry from the FVCOM data.
+
+![Coarse top view](figures/top_view_coarse_bathymetry.png)
+
 Due to the large lateral extent of the domain, the overall domain has a high aspect ratio (looks like a pancake), as seen below in the 3D image and 2D slice:
 
 ![3D image at an angle](figures/3D_pancake.png)
