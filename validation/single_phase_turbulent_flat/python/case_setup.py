@@ -5,7 +5,9 @@ Based on DNS configuration at Re_tau = 180
 This script calculates:
 1. Domain bounds (geometry.prob_lo/hi)
 2. Grid resolution (amr.n_cell) - divisible by blocking factor
-3. Cell spacing maintained isotropic in all directions
+3. Cell spacing approximately isotropic in all directions 
+4. Flow characteristics (Re_tau, u_tau, tau_w, dpdx, t_star)
+5. AMR refinement boxes for buffer layer and viscous sublayer for DNS-like resolution.
 """
 
 import argparse
