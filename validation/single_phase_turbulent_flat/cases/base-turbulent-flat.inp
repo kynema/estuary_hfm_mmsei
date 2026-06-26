@@ -44,31 +44,10 @@ ChannelFlow.re_tau = 180.0
 ChannelFlow.normal_direction = 2 # z is wall-normal
 ChannelFlow.flow_direction = 0
 ChannelFlow.perturb_velocity = true
-ChannelFlow.perturb_factor = 0.1
-ChannelFlow.perturb_y_period = 4.0
-ChannelFlow.perturb_z_period = 4.0
+ChannelFlow.perturb_factor = 5.0
+#ChannelFlow.perturb_y_period = 4.0
+#ChannelFlow.perturb_z_period = 4.0
 ChannelFlow.error_log_file = "" 
-
-#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
-#        ADAPTIVE MESH REFINEMENT       #
-#.......................................#
-amr.n_cell              = 384 192 120 # Grid cells at coarsest AMR level
-amr.max_level           = 0           # Max AMR level in hierarchy
-amr.blocking_factor     = 8
-
-#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
-#              GEOMETRY                 #
-#.......................................#
-geometry.prob_lo = 0.0 0.000000 -0.005000
-geometry.prob_hi = 0.031200 0.015600 0.005000
-geometry.is_periodic = 1 1 0 
-
-# Boundary conditions
-zlo.type =   "no_slip_wall"
-zlo.density = 0.468793
-zhi.type =   "no_slip_wall"
-zhi.density = 0.468793
-
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #           SOLVER SETTINGS             #

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Setup domain parameters for turbulent channel flow validation case.
 Based on DNS configuration at Re_tau = 180
@@ -10,6 +9,7 @@ This script calculates:
 """
 
 import argparse
+import numpy as np
 
 
 def get_pressure_gradient(Re):
@@ -32,92 +32,105 @@ def get_pressure_gradient(Re):
     return Re_to_dpdx[Re]
 
 
-def get_refinement_boxes(delta, Lx, Ly, density, mu, u_tau, IB=False):
+def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=False, ref_ratio=2):
     """
-    Define AMR refinement boxes for boundary layer capture.
-    Refinement extents scale with Reynolds number via viscous length scale.
-    
-    Two levels of refinement:
-    - Level 1: Outer wall boxes capturing buffer layer (y+ ~ 50)
-    - Level 2: Inner wall boxes capturing viscous sublayer (y+ ~ 5)
-    
-    The refinement extent is based on the viscous length scale:
+    Define AMR refinement boxes aligned with the base grid cells and verify cell spacing.
+    """
+    # Extract domain dimensions and grid resolution
+    Lx = prob_hi[0] - prob_lo[0]
+    Ly = prob_hi[1] - prob_lo[1]
+    Lz = prob_hi[2] - prob_lo[2]
+    Nz = n_cell[2]
+
+    # Viscous Length Scale
+    nu = mu / density
     l_nu = nu / u_tau
-    
-    Parameters
-    ----------
-    delta : float
-        Channel half width in meters
-    Lx, Ly : float
-        Domain extent in x and y
-    density, mu, u_tau : float
-        Fluid properties (density, dynamic viscosity, friction velocity)
-    IB : bool
-        Use immersed boundary
-    
-    Returns
-    -------
-    dict
-        Refinement box configuration for input file
-    """
-    
-    # Calculate viscous length scale from provided parameters
-    nu = mu / density  # Kinematic viscosity
-    l_nu = nu / u_tau  # Viscous length scale
-    
-    # Refinement box extents in wall units (y+ value)
-    # Level 1: Capture buffer layer up to y+ ~ 40-60
-    # Level 2: Capture viscous sublayer up to y+ ~ 5
-    yplus_level1 = 50.0
-    yplus_level2 = 5.0
-    
-    # Convert from wall units to physical distance
-    z_extent_level1 = yplus_level1 * l_nu
-    z_extent_level2 = yplus_level2 * l_nu
-    
-    # Ensure not larger than delta
-    z_extent_level1 = min(z_extent_level1, 0.5 * delta)
-    z_extent_level2 = min(z_extent_level2, 0.25 * delta)
-    
-    if IB:
-        z_max = 0.0052
-    else:
-        z_max = delta
-    
+
+    # Grid Spacing at each AMR level
+    dz_base = Lz / Nz
+    dz_l1 = dz_base / ref_ratio
+    dz_l2 = dz_l1 / ref_ratio
+
+    # Convert cell spacings to wall units (dz+)
+    dz_plus_base = dz_base / l_nu
+    dz_plus_l1 = dz_l1 / l_nu
+    dz_plus_l2 = dz_l2 / l_nu
+
+    # First cell center off the wall (y+ of first node)
+    z1_plus_base = 0.5 * dz_plus_base
+    z1_plus_l1 = 0.5 * dz_plus_l1
+    z1_plus_l2 = 0.5 * dz_plus_l2
+
+    # Target Box Extents (Where we want refinement to reach)
+    yplus_target_l1 = 40.0  # Captures up to y+ ~ 40
+    yplus_target_l2 = 5.0   # Captures up to y+ ~ 5
+
+    # Convert target y+ to physical distance
+    z_extent_l1 = yplus_target_l1 * l_nu
+    z_extent_l2 = yplus_target_l2 * l_nu
+
+    # Align to base grid cell spacing (dz_base) to ensure boxes align with grid
+    cells_l1 = max(1, int(np.ceil(z_extent_l1 / dz_base)))
+    cells_l2 = max(1, int(np.ceil(z_extent_l2 / dz_base)))
+    z_extent_l1 = cells_l1 * dz_base
+    z_extent_l2 = cells_l2 * dz_base
+
+    # Limit to half/quarter channel height to avoid overlapping with center
+    z_extent_l1 = min(z_extent_l1, 0.5 * delta)
+    z_extent_l2 = min(z_extent_l2, 0.25 * delta)
+
+    # Actual physical bounds of the boxes in wall units
+    l1_box_extent_plus = z_extent_l1 / l_nu
+    l2_box_extent_plus = z_extent_l2 / l_nu
+
+    # Check adequcate resolution for first cell center off the wall
+    if z1_plus_l2 >= 1.0:
+        print(f"Warning: First cell center off the wall at Level 2 (z1⁺ = {z1_plus_l2:.2f}) > 1.0!")
+        print(f"   Consider increasing Nz (base grid) or using a higher ref_ratio.")
+
     boxes = {
         'level1_bottom': {
-            'origin': [0.0, 0.0, -z_max],
+            'origin': [prob_lo[0], prob_lo[1], prob_lo[2]],
             'xaxis': [Lx, 0.0, 0.0],
             'yaxis': [0.0, Ly, 0.0],
-            'zaxis': [0.0, 0.0, z_extent_level1],
+            'zaxis': [0.0, 0.0, z_extent_l1],
         },
         'level1_top': {
-            'origin': [0.0, 0.0, z_max - z_extent_level1],
+            'origin': [prob_lo[0], prob_lo[1], prob_hi[2] - z_extent_l1],
             'xaxis': [Lx, 0.0, 0.0],
             'yaxis': [0.0, Ly, 0.0],
-            'zaxis': [0.0, 0.0, z_extent_level1],
+            'zaxis': [0.0, 0.0, z_extent_l1],
         },
         'level2_bottom': {
-            'origin': [0.0, 0.0, -z_max],
+            'origin': [prob_lo[0], prob_lo[1], prob_lo[2]],
             'xaxis': [Lx, 0.0, 0.0],
             'yaxis': [0.0, Ly, 0.0],
-            'zaxis': [0.0, 0.0, z_extent_level2],
+            'zaxis': [0.0, 0.0, z_extent_l2],
         },
         'level2_top': {
-            'origin': [0.0, 0.0, z_max - z_extent_level2],
+            'origin': [prob_lo[0], prob_lo[1], prob_hi[2] - z_extent_l2],
             'xaxis': [Lx, 0.0, 0.0],
             'yaxis': [0.0, Ly, 0.0],
-            'zaxis': [0.0, 0.0, z_extent_level2],
+            'zaxis': [0.0, 0.0, z_extent_l2],
         },
         'viscous_length_scale': l_nu,
-        'z_extent_level1_yplus': yplus_level1,
-        'z_extent_level2_yplus': yplus_level2,
+        'dz_base': dz_base,
+        'dz_l1': dz_l1,
+        'dz_l2': dz_l2,
+        'dz_plus_base': dz_plus_base,
+        'dz_plus_l1': dz_plus_l1,
+        'dz_plus_l2': dz_plus_l2,
+        'z1_plus_base': z1_plus_base,
+        'z1_plus_l1': z1_plus_l1,
+        'z1_plus_l2': z1_plus_l2,
+        'l1_box_extent_plus': l1_box_extent_plus,
+        'l2_box_extent_plus': l2_box_extent_plus,
     }
-    
     return boxes
 
 
-def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=8, Re=180):
+
+def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180):
     """
     Compute domain boundaries and grid parameters for turbulent channel case.
     
@@ -161,6 +174,17 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=8, Re=180):
     Ny = (Ny // blocking_factor) * blocking_factor
     Nz = (Nz // blocking_factor) * blocking_factor
     
+    # Recalculate cell spacings after blocking factor adjustment (now slightly different)
+    dx = Lx / Nx
+    dy = Ly / Ny
+    dz = Lz / Nz
+
+    # Check that Lz ~= 2.0δ (no IB) or 2.08δ (with IB)
+    if IB:
+        assert np.isclose(Lz, Lz_ib, rtol=1e-3), f"Lz={Lz:.6f} m not close to expected {Lz_ib:.6f} m for IB"
+    else:
+        assert np.isclose(Lz, Lz_no_ib, rtol=1e-3), f"Lz={Lz:.6f} m not close to expected {Lz_no_ib:.6f} m for no IB"
+    
     # Domain boundaries
     # Center domain in y (periodic), asymmetric in z (walls)
     if IB:
@@ -175,20 +199,23 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=8, Re=180):
     assert Nx % blocking_factor == 0, f"Nx={Nx} not divisible by {blocking_factor}"
     assert Ny % blocking_factor == 0, f"Ny={Ny} not divisible by {blocking_factor}"
     assert Nz % blocking_factor == 0, f"Nz={Nz} not divisible by {blocking_factor}"
+    n_cell = [Nx, Ny, Nz]
     
     # Get flow characteristics for specified stress Reynolds number
     density = 0.468793
     mu = 3.57816e-5  # Dynamic viscosity (air at 750K)
-    u_tau = Re * mu / (density * delta)  # Friction velocity
-    tau_w = density * u_tau**2  # Wall shear stress
-    t_star = delta / u_tau  # Time scale based on friction velocity and channel half-width
     dpdx = get_pressure_gradient(Re)
+    tau_w = - delta * dpdx # Wall shear stress
+    u_tau = np.sqrt(tau_w / density)  # Friction velocity
+    u_tau = Re * mu / (density * delta)  # Friction velocity
+    Re_tau = u_tau * delta / (mu / density)  # Re_tau calculated
+    t_star = delta / u_tau  # Time scale based on friction velocity and channel half-width
 
     # Body force acceleration: F = |dp/dx| / rho (units: m/s^2)
     body_force = -dpdx / density
     
     # Get refinement boxes (using computed physical parameters)
-    refinement_boxes = get_refinement_boxes(delta, Lx, Ly, density, mu, u_tau, IB=IB)
+    refinement_boxes = get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=IB)
     
     return {
         'delta': delta,
@@ -201,9 +228,11 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=8, Re=180):
         'Ly': Ly,
         'Lz': Lz,
         'dx': dx,
+        'dy': dy,
+        'dz': dz,
         'prob_lo': prob_lo,
         'prob_hi': prob_hi,
-        'Re': Re,
+        'Re': Re_tau,
         'density': density,
         'mu': mu,
         'u_tau': u_tau,
@@ -227,10 +256,9 @@ def print_config(config):
     print(f"  Wall shear stress (τ_w):       {config['tau_w']:.4f} Pa")
     print(f"  Pressure gradient (dp/dx):     {config['dpdx']:.2f} Pa/m")
     print(f"  Time scale (t* = δ/u_τ):       {config['t_star']:.4e} s")
-    print(f"  Density:                  {config['density']} kg/m^3")
-    print(f"  Dynamic viscosity:        {config['mu']:.5e} Pa.s")
-    
-
+    print(f"  Viscous length scale (l_ν):    {config['refinement_boxes']['viscous_length_scale']:.6e} m")
+    print(f"  Density:                       {config['density']} kg/m^3")
+    print(f"  Dynamic viscosity:             {config['mu']:.5e} Pa.s")
     
     
     print(f"\nDomain Dimensions:")
@@ -244,46 +272,56 @@ def print_config(config):
     
     print(f"\nMesh Resolution:")
     print(f"  Blocking Factor: {config['blocking_factor']}")
-    print(f"  L0 = {config['Nx']} {config['Ny']} {config['Nz']}")
-    print(f"  L1 = {config['Nx']*2} {config['Ny']*2} {config['Nz']*2}")
-    print(f"  L2 = {config['Nx']*4} {config['Ny']*4} {config['Nz']*4}")
-    print(f"  Cell spacing (L0): dx = dy = dz = {config['dx']:.8f} m")
+    print(f"  n_cell.L0 = {config['Nx']} {config['Ny']} {config['Nz']}")
+    print(f"  n_cell.L1 = {config['Nx']*2} {config['Ny']*2} {config['Nz']*2}")
+    print(f"  n_cell.L2 = {config['Nx']*4} {config['Ny']*4} {config['Nz']*4}")
+    print(f"  Cell spacing (L0): dx = {config['dx']:.8f} m, dy = {config['dy']:.8f} m, dz = {config['dz']:.8f} m")
     
-    print("\n" + "="*60)
-    print("Parameters for base-turbulent-flat.inp file:")
-    print("="*60)
-    print(f"\ngeometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.6f}")
-    print(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.6f}")
-    print(f"\namr.n_cell = {config['Nx']} {config['Ny']} {config['Nz']}")
+    # Grid resolution analysis
+    boxes = config['refinement_boxes']
+    print(f"  L0: dz⁺ = {boxes['dz_plus_base']:.2f}")
+    print(f"  L1: dz⁺ = {boxes['dz_plus_l1']:.2f}")
+    print(f"  L2: dz⁺ = {boxes['dz_plus_l2']:.2f}" \
+          f"  z1+ = {boxes['z1_plus_l2']:.2f}")
     
-    print(f"\nICNS.source_terms = BodyForce")
-
     print("\n" + "="*60)
     fname = f"turbulent-flat-re-{config['Re']}"
     if config['IB']:
         fname += "-IB"
     print(f"Parameters for {fname}.inp file:")
     print("="*60)
-    print(f"time.stop_time = {20*config['t_star']:.6f}  # ~20 flow-through time")
+    print(f"\ntime.stop_time = {20*config['t_star']:.6f}  # ~20 flow-through time")
     print(f"#time.stop_time = {30*config['t_star']:.6f}  # ~30 flow-through time for statistics")
-    print(f"\nBodyForce.magnitude = {config['body_force']:.16f} 0.0 0.0 # Force acceleration in m/s^2")
+
+    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
+          "\n#              GEOMETRY                 #" \
+          "\n#.......................................#")
+    print(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.6f}")
+    print(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.6f}")
+
+    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
+          "\n#               PHYSICS                 #" \
+          "\n#.......................................#")
+    print(f"BodyForce.magnitude = {config['body_force']:.16f} 0.0 0.0 # Force acceleration in m/s^2")
+
+    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
+          "\n#       CHANNEL FLOW PARAMETERS         #" \
+          "\n#.......................................#")
+    print(f"ChannelFlow.re_tau = {config['Re']}")
     
-    boxes = config['refinement_boxes']
-    l_nu = boxes['viscous_length_scale']
-    yp1 = boxes['z_extent_level1_yplus']
-    yp2 = boxes['z_extent_level2_yplus']
-    
-    z_ext_l1 = boxes['level1_bottom']['zaxis'][2]
-    z_ext_l2 = boxes['level2_bottom']['zaxis'][2]
-    
-    print(f"\n# Viscous length scale (l_ν = ν/u_τ): {l_nu:.2e} m")
-    print(f"# Level 1 extent: y⁺ ≈ {yp1:.1f} → z_extent = {z_ext_l1:.6f} m ({z_ext_l1/config['delta']:.3f}δ)")
-    print(f"# Level 2 extent: y⁺ ≈ {yp2:.1f} → z_extent = {z_ext_l2:.6f} m ({z_ext_l2/config['delta']:.3f}δ)")
-    
+    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
+          "\n#        ADAPTIVE MESH REFINEMENT       #" \
+          "\n#.......................................#")
+    # Extents of refinement boxes in wall units
+    l1_box_extent_plus = boxes['l1_box_extent_plus']
+    l2_box_extent_plus = boxes['l2_box_extent_plus']
+    print(f"amr.n_cell = {config['Nx']} {config['Ny']} {config['Nz']}")
+    print(f"amr.blocking_factor = {config['blocking_factor']}")
+    print(f"amr.max_level = 2")
     print(f"\ntagging.labels = l1 l2")
     
     # Level 1 Refinement (buffer layer)
-    print(f"\n# Level 1 Refinement (buffer layer, y⁺ ~ {yp1:.0f})")
+    print(f"\n# Level 1 Refinement (buffer layer, z⁺ ~ {l1_box_extent_plus:.1f})")
     print(f"tagging.l1.type = GeometryRefinement")
     print(f"tagging.l1.shapes = bottom top")
     print(f"tagging.l1.max_level = 1")
@@ -300,7 +338,7 @@ def print_config(config):
     print(f"tagging.l1.top.zaxis = {boxes['level1_top']['zaxis'][0]:.6f} {boxes['level1_top']['zaxis'][1]:.6f} {boxes['level1_top']['zaxis'][2]:.6f}")
     
     # Level 2 Refinement (viscous sublayer)
-    print(f"\n# Level 2 Refinement (viscous sublayer, y⁺ ~ {yp2:.0f})")
+    print(f"\n# Level 2 Refinement (viscous sublayer, z⁺ ~ {l2_box_extent_plus:.1f})")
     print(f"tagging.l2.type = GeometryRefinement")
     print(f"tagging.l2.shapes = bottom top")
     print(f"tagging.l2.max_level = 2")
@@ -315,8 +353,6 @@ def print_config(config):
     print(f"tagging.l2.top.xaxis = {boxes['level2_top']['xaxis'][0]:.6f} {boxes['level2_top']['xaxis'][1]:.6f} {boxes['level2_top']['xaxis'][2]:.6f}")
     print(f"tagging.l2.top.yaxis = {boxes['level2_top']['yaxis'][0]:.6f} {boxes['level2_top']['yaxis'][1]:.6f} {boxes['level2_top']['yaxis'][2]:.6f}")
     print(f"tagging.l2.top.zaxis = {boxes['level2_top']['zaxis'][0]:.6f} {boxes['level2_top']['zaxis'][1]:.6f} {boxes['level2_top']['zaxis'][2]:.6f}")
-    
-    print(f"\namr.max_level = 2  # Max AMR level in hierarchy")
 
 
 def main():

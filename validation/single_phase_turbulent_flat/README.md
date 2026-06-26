@@ -17,9 +17,9 @@ The channel half width is set to $\delta = 0.005$ m. For simulations without IB,
 |           | $x$   | $y$   | $z$                |
 |---------- | ----- | ----- | ------------------ |
 |Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.0 $\delta$ or 2.08 $\delta$ (IB) |
-| Level 0   | 384   | 192   | ___ or 128 (IB) |
-| Level 1   | 768   | 384   | ___ or 256 (IB) |
-| Level 2   | 1536  | 768   | ___ or 512 (IB) |
+| Level 0   | 384   | 192   | 120 or 128 (IB) |
+| Level 1   | 768   | 384   | 240 or 256 (IB) |
+| Level 2   | 1536  | 768   | 480 or 512 (IB) |
 
 The fluid in the simulation is air at ambient pressure and a temperature of 750 K. The physical properties used in the simulation are provided in the table below:
 
@@ -35,11 +35,11 @@ The characteristics of the flows are reported below:
 
 Two levels of refinement, targeted on the walls, are employed in order to sufficiently resolve the boundary layer. The mesh characteristics are summarized in the table below. The $y^+$ value is that of the cell center of the first full cell (uncut by the IB).
 
-**Mesh characteristics**
+**Mesh characteristics (without IB)**
 
 | $\text{Re}_\tau$ | $\Delta z^+$ (L0) | $\Delta z^+$ (L2) | $z^+$ | Cells count |
 | ---- | ---- | ---- | ---- | ---- |
-| 180.2 |  | |  |  M |
+| 180.0 | 3.0 | 0.75 | 0.37 |  M |
 
 Simulations are carried out for 20 eddy turn over time $t^*$ to reach statistically steady conditions and data are then spatially averaged in the periodic directions and averaged in time over 10 $t^*$ to get the velocity statistics in the direction normal to the wall.
 
