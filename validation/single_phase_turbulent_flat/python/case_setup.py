@@ -34,9 +34,15 @@ def get_pressure_gradient(Re):
     return Re_to_dpdx[Re]
 
 
-def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=False, ref_ratio=2):
+def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=False, dns=False, ref_ratio=2):
     """
     Define AMR refinement boxes aligned with the base grid cells and verify cell spacing.
+    
+    Parameters
+    ----------
+    dns : bool
+        If True, create 2 levels of refinement (L1 buffer layer + L2 viscous sublayer)
+        If False, create 1 level of refinement (L1 buffer layer only, y+ ~ 40)
     """
     # Extract domain dimensions and grid resolution
     Lx = prob_hi[0] - prob_lo[0]
@@ -63,32 +69,28 @@ def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB
     z1_plus_l1 = 0.5 * dz_plus_l1
     z1_plus_l2 = 0.5 * dz_plus_l2
 
-    # Target Box Extents (Where we want refinement to reach)
-    yplus_target_l1 = 40.0  # Captures up to y+ ~ 40
-    yplus_target_l2 = 5.0   # Captures up to y+ ~ 5
-
-    # Convert target y+ to physical distance
+    # Level 1 refinement always targets y+ ~ 40 (buffer layer)
+    yplus_target_l1 = 40.0
     z_extent_l1 = yplus_target_l1 * l_nu
-    z_extent_l2 = yplus_target_l2 * l_nu
-
-    # Align to base grid cell spacing (dz_base) to ensure boxes align with grid
     cells_l1 = max(1, int(np.ceil(z_extent_l1 / dz_base)))
-    cells_l2 = max(1, int(np.ceil(z_extent_l2 / dz_base)))
     z_extent_l1 = cells_l1 * dz_base
-    z_extent_l2 = cells_l2 * dz_base
-
-    # Limit to half/quarter channel height to avoid overlapping with center
     z_extent_l1 = min(z_extent_l1, 0.5 * delta)
-    z_extent_l2 = min(z_extent_l2, 0.25 * delta)
-
-    # Actual physical bounds of the boxes in wall units
     l1_box_extent_plus = z_extent_l1 / l_nu
-    l2_box_extent_plus = z_extent_l2 / l_nu
 
-    # Check adequcate resolution for first cell center off the wall
-    if z1_plus_l2 >= 1.0:
-        print(f"Warning: First cell center off the wall at Level 2 (z1⁺ = {z1_plus_l2:.2f}) > 1.0!")
-        print(f"   Consider increasing Nz (base grid) or using a higher ref_ratio.")
+    # Level 2 refinement (only for DNS) targets y+ ~ 5 (viscous sublayer)
+    l2_box_extent_plus = None
+    z_extent_l2 = None
+    if dns:
+        yplus_target_l2 = 5.0
+        z_extent_l2 = yplus_target_l2 * l_nu
+        cells_l2 = max(1, int(np.ceil(z_extent_l2 / dz_base)))
+        z_extent_l2 = cells_l2 * dz_base
+        z_extent_l2 = min(z_extent_l2, 0.25 * delta)
+        l2_box_extent_plus = z_extent_l2 / l_nu
+
+        if z1_plus_l2 >= 1.0:
+            print(f"Warning: First cell center off the wall at Level 2 (z1⁺ = {z1_plus_l2:.2f}) > 1.0!")
+            print(f"   Consider increasing Nz (base grid) or using a higher ref_ratio.")
 
     boxes = {
         'level1_bottom': {
@@ -103,36 +105,44 @@ def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB
             'yaxis': [0.0, Ly, 0.0],
             'zaxis': [0.0, 0.0, z_extent_l1],
         },
-        'level2_bottom': {
-            'origin': [prob_lo[0], prob_lo[1], prob_lo[2]],
-            'xaxis': [Lx, 0.0, 0.0],
-            'yaxis': [0.0, Ly, 0.0],
-            'zaxis': [0.0, 0.0, z_extent_l2],
-        },
-        'level2_top': {
-            'origin': [prob_lo[0], prob_lo[1], prob_hi[2] - z_extent_l2],
-            'xaxis': [Lx, 0.0, 0.0],
-            'yaxis': [0.0, Ly, 0.0],
-            'zaxis': [0.0, 0.0, z_extent_l2],
-        },
         'viscous_length_scale': l_nu,
         'dz_base': dz_base,
         'dz_l1': dz_l1,
-        'dz_l2': dz_l2,
         'dz_plus_base': dz_plus_base,
         'dz_plus_l1': dz_plus_l1,
-        'dz_plus_l2': dz_plus_l2,
         'z1_plus_base': z1_plus_base,
         'z1_plus_l1': z1_plus_l1,
-        'z1_plus_l2': z1_plus_l2,
         'l1_box_extent_plus': l1_box_extent_plus,
-        'l2_box_extent_plus': l2_box_extent_plus,
+        'dns': dns,
     }
+
+    # Add L2 boxes only if DNS mode
+    if dns:
+        boxes.update({
+            'level2_bottom': {
+                'origin': [prob_lo[0], prob_lo[1], prob_lo[2]],
+                'xaxis': [Lx, 0.0, 0.0],
+                'yaxis': [0.0, Ly, 0.0],
+                'zaxis': [0.0, 0.0, z_extent_l2],
+            },
+            'level2_top': {
+                'origin': [prob_lo[0], prob_lo[1], prob_hi[2] - z_extent_l2],
+                'xaxis': [Lx, 0.0, 0.0],
+                'yaxis': [0.0, Ly, 0.0],
+                'zaxis': [0.0, 0.0, z_extent_l2],
+            },
+            'dz_l2': dz_l2,
+            'dz_plus_l2': dz_plus_l2,
+            'z1_plus_l2': z1_plus_l2,
+            'l2_box_extent_plus': l2_box_extent_plus,
+        })
+
     return boxes
 
 
 
-def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180):
+
+def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180, dns=False):
     """
     Compute domain boundaries and grid parameters for turbulent channel case.
     
@@ -148,6 +158,8 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180):
         AMR blocking factor (default 8; must divide Nx, Ny, Nz)
     Re : int
         Stress Reynolds number Re_tau (default 180)
+    dns : bool
+        If True, use DNS-level refinement (2 levels); if False, use LES (1 level)
     
     Returns
     -------
@@ -217,7 +229,7 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180):
     body_force = -dpdx / density
     
     # Get refinement boxes (using computed physical parameters)
-    refinement_boxes = get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=IB)
+    refinement_boxes = get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=IB, dns=dns)
     
     return {
         'delta': delta,
@@ -246,10 +258,129 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180):
     }
 
 
+def get_channel_builder_params(config):
+    """
+    Compute ChannelBuilder parameters for immersed boundary cases.
+    
+    Parameters
+    ----------
+    config : dict
+        Configuration dictionary from domain_and_flow()
+    
+    Returns
+    -------
+    dict
+        Dictionary with ChannelBuilder parameters
+    """
+    if not config['IB']:
+        return None
+    
+    # Extract domain parameters
+    delta = config['delta']
+    Lx = config['Lx']
+    Ly = config['Ly']
+    
+    # Channel geometry:
+    # - Runs along x-direction from 0 to Lx
+    # - Centered in y-direction at Ly/2
+    # - Centered in z-direction at z=0
+    # - Width = Ly (spanwise)
+    # - Height = 2*delta (wall-normal, from -delta to +delta)
+    
+    x_start = 0.0
+    x_end = Lx
+    y_center = Ly / 2.0
+    z_center = 0.0
+    
+    channel_width = Ly
+    channel_height = 2.0 * delta
+    
+    return {
+        'segment_start_point': [x_start, y_center, z_center],
+        'segment_end_point': [x_end, y_center, z_center],
+        'top_width': channel_width,
+        'bottom_width': channel_width,
+        'height': channel_height,
+    }
+
+
+
+def print_averaging_config(config, dns=False):
+    """Print statistics/averaging configuration parameters.
+    
+    Parameters
+    ----------
+    config : dict
+        Configuration dictionary from domain_and_flow()
+    dns : bool
+        If True, use 2 levels of refinement (DNS-level); otherwise use 1 level
+    """
+    delta = config['delta']
+    Lx = config['Lx']
+    Ly = config['Ly']
+    t_star = config['t_star']
+    
+    # Determine max refinement level and finest grid resolution
+    max_level = 2 if dns else 1
+    refinement_factor = 2 ** max_level
+    
+    # Calculate sampling planes based on finest grid level
+    Nz_finest = config['Nz'] * refinement_factor
+    num_planes = Nz_finest
+    
+    # Generate z-offsets spanning the full domain uniformly
+    offsets = np.linspace(-delta + delta/num_planes, delta - delta/num_planes, num_planes)
+    
+    # Compute finest grid resolution for x,y sampling
+    Nx_finest = config['Nx'] * refinement_factor
+    Ny_finest = config['Ny'] * refinement_factor
+    
+    # PlaneSampler parameters - sample at finest resolution
+    num_points_x = int(Nx_finest / 2)  # Match finest resolution in x
+    num_points_y = int(Ny_finest / 2)  # Match finest resolution in y
+    
+    print("\n" + "="*60)
+    level_str = "DNS" if dns else "STANDARD"
+    print(f"AVERAGING CONFIGURATION ({level_str}, Re_τ = {config['Re']})")
+    print("="*60)
+    
+    print(f"\ntime.stop_time = {30*t_star:.6f}  # ~30 flow-through times for statistics")
+    print(f"#time.stop_time = {40*t_star:.6f}  # ~40 flow-through times for statistics")
+    
+    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#")
+    print("#             Statistics                #")
+    print("#.......................................#")
+    
+    print(f"incflo.post_processing = sampling")
+    print(f"sampling.fields = velocity")
+    print(f"sampling.output_interval = 100")
+    print(f"sampling.output_format = native")
+    
+    print(f"\nsampling.labels = channel_stats")
+    print(f"sampling.channel_stats.type = PlaneSampler")
+    print(f"sampling.channel_stats.fields = velocity")
+    
+    print(f"\nsampling.channel_stats.num_points = {num_points_x} {num_points_y}")
+    print(f"sampling.channel_stats.origin = {0.0:.1f} {0.0:.1f} {-delta:.6f}")
+    print(f"sampling.channel_stats.axis1 = {Lx:.6f} {0.0:.1f} {0.0:.1f}")
+    print(f"sampling.channel_stats.axis2 = {0.0:.1f} {Ly:.6f} {0.0:.1f}")
+    
+    print(f"\nsampling.channel_stats.axis_normal = 2")
+    print(f"sampling.channel_stats.start = {-delta:.6f}  # Bottom wall Z coordinate")
+    print(f"sampling.channel_stats.end = {delta:.6f}  # Top wall Z coordinate")
+    
+    print(f"\n# Define the stack of Z-offsets ({num_planes} planes total from z = {-delta:.6f} to z = {delta:.6f})")
+    print(f"# Finest grid level: L{max_level} with {num_planes} z-planes")
+    print(f"sampling.channel_stats.offset_vector = 0.0 0.0 1.0")
+    print(f"sampling.channel_stats.offsets = " + " ".join([f"{o:.6f}" for o in offsets]))
+    print()
+
+
+
 def print_config(config):
     """Print configuration in a readable format."""
     print("\n" + "="*60)
-    print("TURBULENT CHANNEL CONFIGURATION")
+    print("Turbulent Channel Configuration")
     print("="*60)
     
     print(f"\nFlow characteristics:")
@@ -267,6 +398,7 @@ def print_config(config):
     lo = config['prob_lo']
     hi = config['prob_hi']
     print(f"  Immersed Boundary (IB):     {config['IB']}")
+    print(f"  Turbulence Model:           {'DNS' if config['refinement_boxes']['dns'] else 'LES'}")
     print(f"  Channel half-width (δ):     {config['delta']:.6f} m")
     print(f"  X: [{lo[0]:.6f}, {hi[0]:.6f}] m, Lx = {config['Lx']/config['delta']:.2f}δ")
     print(f"  Y: [{lo[1]:.6f}, {hi[1]:.6f}] m, Ly = {config['Ly']/config['delta']:.2f}δ")
@@ -276,15 +408,22 @@ def print_config(config):
     print(f"  Blocking Factor: {config['blocking_factor']}")
     print(f"  n_cell.L0 = {config['Nx']} {config['Ny']} {config['Nz']}")
     print(f"  n_cell.L1 = {config['Nx']*2} {config['Ny']*2} {config['Nz']*2}")
-    print(f"  n_cell.L2 = {config['Nx']*4} {config['Ny']*4} {config['Nz']*4}")
-    print(f"  Cell spacing (L0): dx = {config['dx']:.8f} m, dy = {config['dy']:.8f} m, dz = {config['dz']:.8f} m")
     
     # Grid resolution analysis
     boxes = config['refinement_boxes']
+    is_dns = boxes.get('dns', False)
+    
+    if is_dns:
+        print(f"  n_cell.L2 = {config['Nx']*4} {config['Ny']*4} {config['Nz']*4}")
+    
+    print(f"  Cell spacing (L0): dx = {config['dx']:.8f} m, dy = {config['dy']:.8f} m, dz = {config['dz']:.8f} m")
+    
     print(f"  L0: dz⁺ = {boxes['dz_plus_base']:.2f}")
     print(f"  L1: dz⁺ = {boxes['dz_plus_l1']:.2f}")
-    print(f"  L2: dz⁺ = {boxes['dz_plus_l2']:.2f}" \
-          f"  z1+ = {boxes['z1_plus_l2']:.2f}")
+    
+    if is_dns:
+        print(f"  L2: dz⁺ = {boxes['dz_plus_l2']:.2f}" \
+              f"  z1+ = {boxes['z1_plus_l2']:.2f}")
     
     print("\n" + "="*60)
     fname = f"turbulent-flat-re-{config['Re']}"
@@ -294,6 +433,7 @@ def print_config(config):
     print("="*60)
     print(f"\ntime.stop_time = {20*config['t_star']:.6f}  # ~20 flow-through time")
     print(f"#time.stop_time = {30*config['t_star']:.6f}  # ~30 flow-through time for statistics")
+    print(f"#time.stop_time = {40*config['t_star']:.6f}  # ~40 flow-through time for statistics")
 
     print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
           "\n#              GEOMETRY                 #" \
@@ -310,19 +450,39 @@ def print_config(config):
           "\n#       CHANNEL FLOW PARAMETERS         #" \
           "\n#.......................................#")
     print(f"ChannelFlow.re_tau = {config['Re']}")
-    
+
+    if config['IB']:
+        cb_params = get_channel_builder_params(config)
+        print("\n# Immersed Boundary Channel Parameters")
+        print(f"ChannelBuilder.initialize_velocity = false")
+        print(f"ChannelBuilder.zero_velocity_where_blanked = true")
+        print(f"ChannelBuilder.initialize_drag_cells = true")
+        print(f"ChannelBuilder.segment_labels = s1")
+        print(f"ChannelBuilder.s1.type = Trapezoid")
+        print(f"ChannelBuilder.s1.segment_start_point = {cb_params['segment_start_point'][0]:.4f} {cb_params['segment_start_point'][1]:.6f} {cb_params['segment_start_point'][2]:.6f}")
+        print(f"ChannelBuilder.s1.segment_end_point = {cb_params['segment_end_point'][0]:.6f} {cb_params['segment_end_point'][1]:.6f} {cb_params['segment_end_point'][2]:.6f}")
+        print(f"ChannelBuilder.s1.top_width = {cb_params['top_width']:.6f}")
+        print(f"ChannelBuilder.s1.bottom_width = {cb_params['bottom_width']:.6f}")
+        print(f"ChannelBuilder.s1.height = {cb_params['height']:.6f}")
+
     print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
           "\n#        ADAPTIVE MESH REFINEMENT       #" \
           "\n#.......................................#")
-    # Extents of refinement boxes in wall units
+    
+    is_dns = boxes.get('dns', False)
     l1_box_extent_plus = boxes['l1_box_extent_plus']
-    l2_box_extent_plus = boxes['l2_box_extent_plus']
+    
     print(f"amr.n_cell = {config['Nx']} {config['Ny']} {config['Nz']}")
     print(f"amr.blocking_factor = {config['blocking_factor']}")
-    print(f"amr.max_level = 2")
-    print(f"\ntagging.labels = l1 l2")
     
-    # Level 1 Refinement (buffer layer)
+    if is_dns:
+        print(f"amr.max_level = 2")
+        print(f"\ntagging.labels = l1 l2")
+    else:
+        print(f"amr.max_level = 1")
+        print(f"\ntagging.labels = l1")
+    
+    # Level 1 Refinement (buffer layer, always present)
     print(f"\n# Level 1 Refinement (buffer layer, z⁺ ~ {l1_box_extent_plus:.1f})")
     print(f"tagging.l1.type = GeometryRefinement")
     print(f"tagging.l1.shapes = bottom top")
@@ -339,22 +499,24 @@ def print_config(config):
     print(f"tagging.l1.top.yaxis = {boxes['level1_top']['yaxis'][0]:.6f} {boxes['level1_top']['yaxis'][1]:.6f} {boxes['level1_top']['yaxis'][2]:.6f}")
     print(f"tagging.l1.top.zaxis = {boxes['level1_top']['zaxis'][0]:.6f} {boxes['level1_top']['zaxis'][1]:.6f} {boxes['level1_top']['zaxis'][2]:.6f}")
     
-    # Level 2 Refinement (viscous sublayer)
-    print(f"\n# Level 2 Refinement (viscous sublayer, z⁺ ~ {l2_box_extent_plus:.1f})")
-    print(f"tagging.l2.type = GeometryRefinement")
-    print(f"tagging.l2.shapes = bottom top")
-    print(f"tagging.l2.max_level = 2")
-    print(f"\ntagging.l2.bottom.type = box")
-    print(f"tagging.l2.bottom.origin = {boxes['level2_bottom']['origin'][0]:.6f} {boxes['level2_bottom']['origin'][1]:.6f} {boxes['level2_bottom']['origin'][2]:.6f}")
-    print(f"tagging.l2.bottom.xaxis = {boxes['level2_bottom']['xaxis'][0]:.6f} {boxes['level2_bottom']['xaxis'][1]:.6f} {boxes['level2_bottom']['xaxis'][2]:.6f}")
-    print(f"tagging.l2.bottom.yaxis = {boxes['level2_bottom']['yaxis'][0]:.6f} {boxes['level2_bottom']['yaxis'][1]:.6f} {boxes['level2_bottom']['yaxis'][2]:.6f}")
-    print(f"tagging.l2.bottom.zaxis = {boxes['level2_bottom']['zaxis'][0]:.6f} {boxes['level2_bottom']['zaxis'][1]:.6f} {boxes['level2_bottom']['zaxis'][2]:.6f}")
-    
-    print(f"\ntagging.l2.top.type = box")
-    print(f"tagging.l2.top.origin = {boxes['level2_top']['origin'][0]:.6f} {boxes['level2_top']['origin'][1]:.6f} {boxes['level2_top']['origin'][2]:.6f}")
-    print(f"tagging.l2.top.xaxis = {boxes['level2_top']['xaxis'][0]:.6f} {boxes['level2_top']['xaxis'][1]:.6f} {boxes['level2_top']['xaxis'][2]:.6f}")
-    print(f"tagging.l2.top.yaxis = {boxes['level2_top']['yaxis'][0]:.6f} {boxes['level2_top']['yaxis'][1]:.6f} {boxes['level2_top']['yaxis'][2]:.6f}")
-    print(f"tagging.l2.top.zaxis = {boxes['level2_top']['zaxis'][0]:.6f} {boxes['level2_top']['zaxis'][1]:.6f} {boxes['level2_top']['zaxis'][2]:.6f}")
+    # Level 2 Refinement (viscous sublayer, only for DNS)
+    if is_dns:
+        l2_box_extent_plus = boxes['l2_box_extent_plus']
+        print(f"\n# Level 2 Refinement (viscous sublayer, z⁺ ~ {l2_box_extent_plus:.1f})")
+        print(f"tagging.l2.type = GeometryRefinement")
+        print(f"tagging.l2.shapes = bottom top")
+        print(f"tagging.l2.max_level = 2")
+        print(f"\ntagging.l2.bottom.type = box")
+        print(f"tagging.l2.bottom.origin = {boxes['level2_bottom']['origin'][0]:.6f} {boxes['level2_bottom']['origin'][1]:.6f} {boxes['level2_bottom']['origin'][2]:.6f}")
+        print(f"tagging.l2.bottom.xaxis = {boxes['level2_bottom']['xaxis'][0]:.6f} {boxes['level2_bottom']['xaxis'][1]:.6f} {boxes['level2_bottom']['xaxis'][2]:.6f}")
+        print(f"tagging.l2.bottom.yaxis = {boxes['level2_bottom']['yaxis'][0]:.6f} {boxes['level2_bottom']['yaxis'][1]:.6f} {boxes['level2_bottom']['yaxis'][2]:.6f}")
+        print(f"tagging.l2.bottom.zaxis = {boxes['level2_bottom']['zaxis'][0]:.6f} {boxes['level2_bottom']['zaxis'][1]:.6f} {boxes['level2_bottom']['zaxis'][2]:.6f}")
+        
+        print(f"\ntagging.l2.top.type = box")
+        print(f"tagging.l2.top.origin = {boxes['level2_top']['origin'][0]:.6f} {boxes['level2_top']['origin'][1]:.6f} {boxes['level2_top']['origin'][2]:.6f}")
+        print(f"tagging.l2.top.xaxis = {boxes['level2_top']['xaxis'][0]:.6f} {boxes['level2_top']['xaxis'][1]:.6f} {boxes['level2_top']['xaxis'][2]:.6f}")
+        print(f"tagging.l2.top.yaxis = {boxes['level2_top']['yaxis'][0]:.6f} {boxes['level2_top']['yaxis'][1]:.6f} {boxes['level2_top']['yaxis'][2]:.6f}")
+        print(f"tagging.l2.top.zaxis = {boxes['level2_top']['zaxis'][0]:.6f} {boxes['level2_top']['zaxis'][1]:.6f} {boxes['level2_top']['zaxis'][2]:.6f}")
 
 
 def main():
@@ -367,6 +529,9 @@ Examples:
   python case_setup.py --Nx 512 --IB
   python case_setup.py --delta 0.005 --Nx 256
   python case_setup.py --blocking-factor 8 --Nx 512
+  python case_setup.py --avg                          # Print averaging parameters (1 refinement level)
+  python case_setup.py --avg --DNS                    # DNS-level averaging (2 refinement levels)
+  python case_setup.py --avg --Re 395                 # Averaging parameters for Re=395
         """
     )
     
@@ -380,6 +545,10 @@ Examples:
                         help='AMR blocking factor (default: 8)')
     parser.add_argument('--Re', type=int, default=180,
                         help='Stress Reynolds number (Re_tau) - options: 180, 395, 934 (default: 180)')
+    parser.add_argument('--avg', action='store_true',
+                        help='Print averaging/statistics parameters instead of full configuration')
+    parser.add_argument('--DNS', action='store_true',
+                        help='Use DNS-level refinement (2 levels) for averaging; default is 1 level')
     
     args = parser.parse_args()
     
@@ -388,10 +557,14 @@ Examples:
         Nx=args.Nx,
         IB=args.IB,
         blocking_factor=args.blocking_factor,
-        Re=args.Re
+        Re=args.Re,
+        dns=args.DNS
     )
     
-    print_config(params)
+    if args.avg:
+        print_averaging_config(params, dns=args.DNS)
+    else:
+        print_config(params)
 
 
 if __name__ == "__main__":
