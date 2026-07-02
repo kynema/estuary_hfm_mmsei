@@ -63,7 +63,7 @@ def plot_mean_velocity_profile(re_number, yplus_sim=None, Uplus_sim=None,
     
     # Plot simulation data if provided
     if yplus_sim is not None and Uplus_sim is not None:
-        ax.semilogx(yplus_sim, Uplus_sim, "o-", label=label_sim, markersize=4)
+        ax.semilogx(yplus_sim, Uplus_sim, "-", label=label_sim, linewidth=2)
     
     # Add reference lines with appropriate ranges
     y_all = data.iloc[:, 0]

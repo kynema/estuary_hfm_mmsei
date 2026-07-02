@@ -22,11 +22,11 @@ Examples
 
 Re=180 case without IB::
 
-    python3 post_process.py --Re 180
+    python post_process.py --Re 180
 
 Re=180 case with IB::
 
-    python3 post_process.py --Re 180 --IB
+    python post_process.py --Re 180 --IB
 
 Output directories:
     - figures/ReTau180/          (for Re=180 without IB)
@@ -51,8 +51,9 @@ import numpy as np
 import case_setup
 from plot_data import plot_mean_velocity_profile, plot_rms_velocity_profiles
 
-# ---- Plotfile loading ----
-
+# --------------------------------------------------------------------
+# Plotfile loading
+# --------------------------------------------------------------------
 
 def find_pltavg_files(Re: int, IB: bool = False) -> list[Path]:
     """
@@ -135,7 +136,7 @@ def load_pltavg_velocity(plt_path: Path, IB: bool = False):
     time : float
         Simulation time
     """
-    import yt  # type: ignore
+    import yt 
 
     yt.set_log_level("error")
     
@@ -145,15 +146,21 @@ def load_pltavg_velocity(plt_path: Path, IB: bool = False):
         p = p.parent
     
     ds = yt.load(str(p))
-    cg = ds.covering_grid(level=0,
-                          left_edge=ds.domain_left_edge,
-                          dims=ds.domain_dimensions)
     
+    # Get dimensions at the finest AMR level
+    max_level = ds.max_level
+    ref_ratio = 2  # AMRex default refinement ratio
+    fine_dims = ds.domain_dimensions * (ref_ratio ** max_level)
+    
+    # Create covering grid at finest level resolution
+    cg = ds.covering_grid(level=max_level,
+                          left_edge=ds.domain_left_edge,
+                          dims=fine_dims)
+
     # Load velocity components
-    # kynema-sgf coordinate system: x (flow), y (width), z (wall-normal)
     u = np.asarray(cg["boxlib", "velocityx"])  # flow direction
-    v = np.asarray(cg["boxlib", "velocityz"])  # wall-normal (maps to y in data coords)
-    w = np.asarray(cg["boxlib", "velocityy"])  # width (maps to z in data coords)
+    v = np.asarray(cg["boxlib", "velocityy"])  # width (maps to z in data coords)
+    w = np.asarray(cg["boxlib", "velocityz"])  # wall-normal (maps to y in data coords)
     
     # For IB cases, mask out solid cells using terrain_blank
     if IB:
@@ -173,10 +180,11 @@ def load_pltavg_velocity(plt_path: Path, IB: bool = False):
     
     return u, v, w, prob_lo, prob_hi, time
 
-# ---- Statistics ----
+# --------------------------------------------------------------------
+# Statistics
+# --------------------------------------------------------------------
 
-
-def per_z_stats(u, v, w, periodic_axes=(0, 1), IB: bool = False):
+def wall_normal_stats(u, v, w, periodic_axes=(0, 1), IB: bool = False):
     """
     Spatially average over periodic axes (x, y by default) to get
     per-z profiles of mean and variance.
@@ -186,8 +194,9 @@ def per_z_stats(u, v, w, periodic_axes=(0, 1), IB: bool = False):
     Returns
     -------
     dict
+        Dicts of arrays indexed by wall-normal index k:
         Keys: U_bar, V_bar, W_bar, U_var, V_var, W_var
-        Values: 1D arrays indexed by wall-normal index k (length Nz)
+        Values: 1D arrays (length Nz for non-IB, slightly less for IB due to NaN masking)
     """
     if IB:
         # Use nanmean/nanvar to skip solid cells
@@ -211,8 +220,9 @@ def per_z_stats(u, v, w, periodic_axes=(0, 1), IB: bool = False):
     }
 
 
-# ---- Main ----
-
+# --------------------------------------------------------------------
+# Main and plotting
+# --------------------------------------------------------------------
 
 def main() -> int:
     ap = argparse.ArgumentParser(
@@ -230,7 +240,7 @@ def main() -> int:
                          "from case_setup (default); wall_stress uses dU/dz at wall")
     args = ap.parse_args()
 
-    # ---- Automatically find pltAvg files and set output dir ----
+    # Find pltAvg files and set output dir
     try:
         pltavg_files = find_pltavg_files(args.Re, IB=args.IB)
     except FileNotFoundError as e:
@@ -243,7 +253,7 @@ def main() -> int:
     print(f"Found {len(pltavg_files)} pltAvg files")
     print(f"Output directory: {outdir}\n")
 
-    # ---- Get flow parameters from case_setup ----
+    # Get flow parameters from case_setup
     config = case_setup.domain_and_flow(Re=args.Re, IB=args.IB)
     delta = config['delta']
     density = config['density']
@@ -256,23 +266,23 @@ def main() -> int:
     print(f"  mu = {mu:.6e} Pa·s")
     print(f"  |dP/dx| = {dpdx_magnitude:.2f} Pa/m\n")
 
-    # ---- Load and accumulate statistics ----
+    # Load and accumulate statistics
     accum = None
     accum_count = 0
     geom = None
     
     for pf in pltavg_files:
-        u, v, w, plo, phi, t = load_pltavg_velocity(pf, IB=args.IB)
+        u, v, w, prob_lo, prob_hi, t = load_pltavg_velocity(pf, IB=args.IB)
         
         if geom is None:
-            geom = (u.shape, plo, phi)
+            geom = (u.shape, prob_lo, prob_hi)
         else:
             if u.shape != geom[0]:
                 print(f"shape mismatch for {pf}: {u.shape} vs {geom[0]}",
                       file=sys.stderr)
                 return 2
         
-        stats = per_z_stats(u, v, w, periodic_axes=(0, 1), IB=args.IB)
+        stats = wall_normal_stats(u, v, w, periodic_axes=(0, 1), IB=args.IB)
         
         if accum is None:
             accum = {k: v.copy() for k, v in stats.items()}
@@ -294,26 +304,36 @@ def main() -> int:
     print(f"  time-averaged {accum_count} files\n")
 
     Nz = accum["U_bar"].size
-    shape, plo, phi = geom
+    shape, prob_lo, prob_hi = geom
 
-    # ---- Wall-normal physical coordinate (z) ----
-    # In kynema-sgf: walls at z = ±delta (plo[2] and phi[2])
-    # Treat as full channel: wall distance is min distance to either boundary
+    # Wall-normal physical coordinate (z)
+    # In kynema-sgf: walls at z = ±delta (prob_lo[2] and prob_hi[2])
+    # Measure distance from lower wall only (to centerline)
     k = np.arange(Nz)
-    dz = (phi[2] - plo[2]) / shape[2]
-    z_cc = plo[2] + (k + 0.5) * dz  # cell-center coordinates
+    dz = (prob_hi[2] - prob_lo[2]) / shape[2]
+    z_cc = prob_lo[2] + (k + 0.5) * dz  # cell-center coordinates
     
-    # Wall distance: minimum distance to either z boundary
-    zw = np.minimum(z_cc - plo[2], phi[2] - z_cc)
+    # Wall distance: distance from lower wall
+    zw = z_cc - prob_lo[2]
+    
+    # Keep only lower wall to centerline (zw <= delta)
+    mask = zw <= delta
+    zw = zw[mask]
+    U_bar_filt = accum["U_bar"][mask]
+    V_bar_filt = accum["V_bar"][mask]
+    W_bar_filt = accum["W_bar"][mask]
+    U_var_filt = accum["U_var"][mask]
+    V_var_filt = accum["V_var"][mask]
+    W_var_filt = accum["W_var"][mask]
 
-    # ---- Friction velocity ----
+    # Friction velocity
     if args.utau_source == "gradP":
         u_tau = math.sqrt(dpdx_magnitude * delta / density)
     else:
         # Use velocity gradient at wall: tau_w = mu * dU/dz
         order = np.argsort(zw)
         k0 = order[0]
-        dU_dz_wall = accum["U_bar"][k0] / zw[k0]
+        dU_dz_wall = U_bar_filt[k0] / zw[k0]
         tau_w = mu * abs(dU_dz_wall)
         u_tau = math.sqrt(tau_w / density)
     
@@ -324,40 +344,38 @@ def main() -> int:
     print(f"  delta = {delta:.5g}")
     print(f"  Re_tau = {u_tau * delta / nu:.3f}\n")
 
-    # ---- Wall-units rescale ----
+    # Wall-units rescale
     yplus = zw * u_tau / nu  # y+ in data coordinate frame
-    Uplus = accum["U_bar"] / u_tau
-    urms_p = np.sqrt(np.maximum(accum["U_var"], 0.0)) / u_tau
-    vrms_p = np.sqrt(np.maximum(accum["V_var"], 0.0)) / u_tau
-    wrms_p = np.sqrt(np.maximum(accum["W_var"], 0.0)) / u_tau
+    Uplus = U_bar_filt / u_tau
+    urms_p = np.sqrt(np.maximum(U_var_filt, 0.0)) / u_tau
+    vrms_p = np.sqrt(np.maximum(V_var_filt, 0.0)) / u_tau
+    wrms_p = np.sqrt(np.maximum(W_var_filt, 0.0)) / u_tau
 
     # Sort by y+ for clean plotting
     order = np.argsort(yplus)
-    z_phys_o = z_cc[order]
     yplus_o = yplus[order]
     Uplus_o = Uplus[order]
     urms_o = urms_p[order]
     vrms_o = vrms_p[order]
     wrms_o = wrms_p[order]
 
-    # ---- Output ----
+    # Output
     outdir.mkdir(parents=True, exist_ok=True)
 
     # CSV file with profiles
     csv_path = outdir / "profiles.csv"
     with csv_path.open("w") as fh:
-        fh.write("# z_phys, y_plus, U_plus, urms_plus, vrms_plus, wrms_plus\n")
+        fh.write("# y_plus, U_plus, urms_plus, vrms_plus, wrms_plus\n")
         fh.write(f"# u_tau = {u_tau:.6g}  nu = {nu:.6g}  "
                  f"Re_tau = {u_tau * delta / nu:.3f}\n")
-        for k in range(Nz):
-            fh.write(f"{z_phys_o[k]:.6e}, {yplus_o[k]:.6e}, "
-                     f"{Uplus_o[k]:.6e}, {urms_o[k]:.6e}, "
-                     f"{vrms_o[k]:.6e}, {wrms_o[k]:.6e}\n")
+        for k in range(len(yplus_o)):
+            fh.write(f"{yplus_o[k]:.6e}, {Uplus_o[k]:.6e}, "
+                     f"{urms_o[k]:.6e}, {vrms_o[k]:.6e}, {wrms_o[k]:.6e}\n")
     print(f"Output files:")
     print(f"  wrote {csv_path}")
 
     # Plot with experimental data overlay
-    fig_u = plot_mean_velocity_profile(
+    plot_mean_velocity_profile(
         args.Re,
         yplus_sim=yplus_o,
         Uplus_sim=Uplus_o,
@@ -366,12 +384,13 @@ def main() -> int:
     )
     print(f"  wrote {outdir / 'Uplus.png'}")
 
-    fig_rms = plot_rms_velocity_profiles(
+    # Plot RMS velocity profiles with simulation data overlay
+    plot_rms_velocity_profiles(
         args.Re,
         yplus_sim=yplus_o,
         urms_sim=urms_o,
-        vrms_sim=vrms_o,
-        wrms_sim=wrms_o,
+        vrms_sim=vrms_o,  # V_var = spanwise (velocityy in kynema-sgf)
+        wrms_sim=wrms_o,  # W_var = wall-normal (velocityz in kynema-sgf)
         label_sim="kynema-sgf",
         outpath=outdir / "VelRMSplus.png"
     )
