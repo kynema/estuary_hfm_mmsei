@@ -1,0 +1,39 @@
+cases:
+  - name: 2d_bump_ufr2_smag_islam0_dpdx3
+    label: Smagorinsky 256 x 128 x 88
+    format: netcdf
+    path: ../../test_bed/2d_bump_ufr2_smag_islam0_dpdx3
+    point_sample_file: psampling00000.nc
+    plane_sample_file: sampling00000.nc
+    probe_plots: true
+    plane_processing: true
+    opt: [37,67,67, 90.0, 0.3785]
+
+
+data:
+  parent_dir: ../../external_data/ufrdata
+  variables: ['U','V','uu','vv','uv']
+  profile: periodic_hill_ufr.csv
+  sources:
+  - xval: 0.0014
+    files: ['UFR3-30_X_10600_data_CR-001.dat']
+  - xval: 0.014
+    files: ['UFR3-30_X_10600_data_CR-002.dat']
+  - xval: 0.028
+    files: ['UFR3-30_X_10600_data_CR-003.dat']
+  - xval: 0.056
+    files: ['UFR3-30_X_10600_data_CR-004.dat']
+  - xval: 0.084
+    files: ['UFR3-30_X_10600_data_CR-005.dat']
+  - xval: 0.112
+    files: ['UFR3-30_X_10600_data_CR-006.dat']
+  - xval: 0.14
+    files: ['UFR3-30_X_10600_data_CR-007.dat']
+  - xval: 0.168 
+    files: ['UFR3-30_X_10600_data_CR-008.dat']
+  - xval: 0.196
+    files: ['UFR3-30_X_10600_data_CR-009.dat']
+  - xval: 0.224
+    files: ['UFR3-30_X_10600_data_CR-010.dat']
+
+        
