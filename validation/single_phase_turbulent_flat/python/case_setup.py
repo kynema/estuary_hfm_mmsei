@@ -306,7 +306,7 @@ def get_channel_builder_params(config):
 
 
 def print_averaging_config(config, dns=False):
-    """Print statistics/averaging configuration parameters.
+    """Print statistics/averaging configuration parameters as a standalone file.
     
     Parameters
     ----------
@@ -342,7 +342,7 @@ def print_averaging_config(config, dns=False):
     num_points_y = Ny_finest  # Sample at finest mesh resolution in y
     
     print("\n" + "="*70)
-    fname = f"turbulent-flat-re-{config['Re']}"
+    fname = f"turbulent-flat-re-{int(config['Re'])}"
     if config['IB']:
         fname += "-ib"
     print(f"Parameters for {fname}-averaging.inp file:")
@@ -381,17 +381,8 @@ def print_averaging_config(config, dns=False):
 
 
 
-def print_config(config, print_input_params=True):
-    """Print configuration in a readable format.
-    
-    Parameters
-    ----------
-    config : dict
-        Configuration dictionary from domain_and_flow()
-    print_input_params : bool
-        If True, print the input file parameters section.
-        If False, only print flow characteristics and domain dimensions.
-    """
+def print_flow_summary(config):
+    """Print flow characteristics and domain dimensions only (no input file parameters)."""
     print("\n" + "="*70)
     print("Turbulent Channel Configuration")
     print("="*70)
@@ -437,100 +428,108 @@ def print_config(config, print_input_params=True):
     if is_dns:
         print(f"  L2: dz⁺ = {boxes['dz_plus_l2']:.2f}" \
               f"  z1+ = {boxes['z1_plus_l2']:.2f}")
+
+
+def print_config(config):
+    """Print full configuration including input file parameters."""
+    print_flow_summary(config)
     
-    if print_input_params:
-        print("\n" + "="*70)
-        fname = f"turbulent-flat-re-{config['Re']}"
-        if config['IB']:
-            fname += "-IB"
-        print(f"Parameters for {fname}.inp file:")
-        print("="*70)
-        print(f"\ntime.stop_time = {20*config['t_star']:.6f}  # ~20 flow-through time")
-        print(f"#time.stop_time = {30*config['t_star']:.6f}  # ~30 flow-through time for statistics")
-        print(f"#time.stop_time = {40*config['t_star']:.6f}  # ~40 flow-through time for statistics")
+    lo = config['prob_lo']
+    hi = config['prob_hi']
+    boxes = config['refinement_boxes']
+    
+    print("\n" + "="*70)
+    fname = f"turbulent-flat-re-{int(config['Re'])}"
+    if config['IB']:
+        fname += "-IB"
+    print(f"Parameters for {fname}.inp file:")
+    print("="*70)
+    print(f"\ntime.stop_time = {20*config['t_star']:.6f}  # ~20 flow-through time")
+    print(f"#time.stop_time = {30*config['t_star']:.6f}  # ~30 flow-through time for statistics")
+    print(f"#time.stop_time = {40*config['t_star']:.6f}  # ~40 flow-through time for statistics")
 
-        print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
-              "\n#              GEOMETRY                 #" \
-              "\n#.......................................#")
-        print(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.6f}")
-        print(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.6f}")
+    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
+          "\n#              GEOMETRY                 #" \
+          "\n#.......................................#")
+    print(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.6f}")
+    print(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.6f}")
 
-        print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
-              "\n#               PHYSICS                 #" \
-              "\n#.......................................#")
-        print(f"BodyForce.magnitude = {config['body_force']:.16f} 0.0 0.0 # Force acceleration in m/s^2")
+    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
+          "\n#               PHYSICS                 #" \
+          "\n#.......................................#")
+    print(f"BodyForce.magnitude = {config['body_force']:.16f} 0.0 0.0 # Force acceleration in m/s^2")
 
-        print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
-              "\n#       CHANNEL FLOW PARAMETERS         #" \
-              "\n#.......................................#")
-        print(f"ChannelFlow.re_tau = {config['Re']}")
+    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
+          "\n#       CHANNEL FLOW PARAMETERS         #" \
+          "\n#.......................................#")
+    print(f"ChannelFlow.re_tau = {config['Re']}")
 
-        if config['IB']:
-            cb_params = get_channel_builder_params(config)
-            print("\n# Immersed Boundary Channel Parameters")
-            print(f"ChannelBuilder.initialize_velocity = false")
-            print(f"ChannelBuilder.zero_velocity_where_blanked = true")
-            print(f"ChannelBuilder.initialize_drag_cells = true")
-            print(f"ChannelBuilder.segment_labels = s1")
-            print(f"ChannelBuilder.s1.type = Trapezoid")
-            print(f"ChannelBuilder.s1.segment_start_point = {cb_params['segment_start_point'][0]:.4f} {cb_params['segment_start_point'][1]:.6f} {cb_params['segment_start_point'][2]:.6f}")
-            print(f"ChannelBuilder.s1.segment_end_point = {cb_params['segment_end_point'][0]:.6f} {cb_params['segment_end_point'][1]:.6f} {cb_params['segment_end_point'][2]:.6f}")
-            print(f"ChannelBuilder.s1.top_width = {cb_params['top_width']:.6f}")
-            print(f"ChannelBuilder.s1.bottom_width = {cb_params['bottom_width']:.6f}")
-            print(f"ChannelBuilder.s1.height = {cb_params['height']:.6f}")
+    if config['IB']:
+        cb_params = get_channel_builder_params(config)
+        print("\n# Immersed Boundary Channel Parameters")
+        print(f"ChannelBuilder.initialize_velocity = false")
+        print(f"ChannelBuilder.zero_velocity_where_blanked = true")
+        print(f"ChannelBuilder.initialize_drag_cells = true")
+        print(f"ChannelBuilder.segment_labels = s1")
+        print(f"ChannelBuilder.s1.type = Trapezoid")
+        print(f"ChannelBuilder.s1.segment_start_point = {cb_params['segment_start_point'][0]:.4f} {cb_params['segment_start_point'][1]:.6f} {cb_params['segment_start_point'][2]:.6f}")
+        print(f"ChannelBuilder.s1.segment_end_point = {cb_params['segment_end_point'][0]:.6f} {cb_params['segment_end_point'][1]:.6f} {cb_params['segment_end_point'][2]:.6f}")
+        print(f"ChannelBuilder.s1.top_width = {cb_params['top_width']:.6f}")
+        print(f"ChannelBuilder.s1.bottom_width = {cb_params['bottom_width']:.6f}")
+        print(f"ChannelBuilder.s1.height = {cb_params['height']:.6f}")
 
-        print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
-              "\n#        ADAPTIVE MESH REFINEMENT       #" \
-              "\n#.......................................#")
+    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
+          "\n#        ADAPTIVE MESH REFINEMENT       #" \
+          "\n#.......................................#")
+    
+    is_dns = boxes.get('dns', False)
+    l1_box_extent_plus = boxes['l1_box_extent_plus']
+    
+    print(f"amr.n_cell = {config['Nx']} {config['Ny']} {config['Nz']}")
+    print(f"amr.blocking_factor = {config['blocking_factor']}")
+    
+    if is_dns:
+        print(f"amr.max_level = 2")
+        print(f"\ntagging.labels = l1 l2")
+    else:
+        print(f"amr.max_level = 1")
+        print(f"\ntagging.labels = l1")
+    
+    # Level 1 Refinement (buffer layer, always present)
+    print(f"\n# Level 1 Refinement (buffer layer, z⁺ ~ {l1_box_extent_plus:.1f})")
+    print(f"tagging.l1.type = GeometryRefinement")
+    print(f"tagging.l1.shapes = bottom top")
+    print(f"tagging.l1.max_level = 1")
+    print(f"\ntagging.l1.bottom.type = box")
+    print(f"tagging.l1.bottom.origin = {boxes['level1_bottom']['origin'][0]:.6f} {boxes['level1_bottom']['origin'][1]:.6f} {boxes['level1_bottom']['origin'][2]:.6f}")
+    print(f"tagging.l1.bottom.xaxis = {boxes['level1_bottom']['xaxis'][0]:.6f} {boxes['level1_bottom']['xaxis'][1]:.6f} {boxes['level1_bottom']['xaxis'][2]:.6f}")
+    print(f"tagging.l1.bottom.yaxis = {boxes['level1_bottom']['yaxis'][0]:.6f} {boxes['level1_bottom']['yaxis'][1]:.6f} {boxes['level1_bottom']['yaxis'][2]:.6f}")
+    print(f"tagging.l1.bottom.zaxis = {boxes['level1_bottom']['zaxis'][0]:.6f} {boxes['level1_bottom']['zaxis'][1]:.6f} {boxes['level1_bottom']['zaxis'][2]:.6f}")
+    
+    print(f"\ntagging.l1.top.type = box")
+    print(f"tagging.l1.top.origin = {boxes['level1_top']['origin'][0]:.6f} {boxes['level1_top']['origin'][1]:.6f} {boxes['level1_top']['origin'][2]:.6f}")
+    print(f"tagging.l1.top.xaxis = {boxes['level1_top']['xaxis'][0]:.6f} {boxes['level1_top']['xaxis'][1]:.6f} {boxes['level1_top']['xaxis'][2]:.6f}")
+    print(f"tagging.l1.top.yaxis = {boxes['level1_top']['yaxis'][0]:.6f} {boxes['level1_top']['yaxis'][1]:.6f} {boxes['level1_top']['yaxis'][2]:.6f}")
+    print(f"tagging.l1.top.zaxis = {boxes['level1_top']['zaxis'][0]:.6f} {boxes['level1_top']['zaxis'][1]:.6f} {boxes['level1_top']['zaxis'][2]:.6f}")
+    
+    # Level 2 Refinement (viscous sublayer, only for DNS)
+    if is_dns:
+        l2_box_extent_plus = boxes['l2_box_extent_plus']
+        print(f"\n# Level 2 Refinement (viscous sublayer, z⁺ ~ {l2_box_extent_plus:.1f})")
+        print(f"tagging.l2.type = GeometryRefinement")
+        print(f"tagging.l2.shapes = bottom top")
+        print(f"tagging.l2.max_level = 2")
+        print(f"\ntagging.l2.bottom.type = box")
+        print(f"tagging.l2.bottom.origin = {boxes['level2_bottom']['origin'][0]:.6f} {boxes['level2_bottom']['origin'][1]:.6f} {boxes['level2_bottom']['origin'][2]:.6f}")
+        print(f"tagging.l2.bottom.xaxis = {boxes['level2_bottom']['xaxis'][0]:.6f} {boxes['level2_bottom']['xaxis'][1]:.6f} {boxes['level2_bottom']['xaxis'][2]:.6f}")
+        print(f"tagging.l2.bottom.yaxis = {boxes['level2_bottom']['yaxis'][0]:.6f} {boxes['level2_bottom']['yaxis'][1]:.6f} {boxes['level2_bottom']['yaxis'][2]:.6f}")
+        print(f"tagging.l2.bottom.zaxis = {boxes['level2_bottom']['zaxis'][0]:.6f} {boxes['level2_bottom']['zaxis'][1]:.6f} {boxes['level2_bottom']['zaxis'][2]:.6f}")
         
-        is_dns = boxes.get('dns', False)
-        l1_box_extent_plus = boxes['l1_box_extent_plus']
-        
-        print(f"amr.n_cell = {config['Nx']} {config['Ny']} {config['Nz']}")
-        print(f"amr.blocking_factor = {config['blocking_factor']}")
-        
-        if is_dns:
-            print(f"amr.max_level = 2")
-            print(f"\ntagging.labels = l1 l2")
-        else:
-            print(f"amr.max_level = 1")
-            print(f"\ntagging.labels = l1")
-        
-        # Level 1 Refinement (buffer layer, always present)
-        print(f"\n# Level 1 Refinement (buffer layer, z⁺ ~ {l1_box_extent_plus:.1f})")
-        print(f"tagging.l1.type = GeometryRefinement")
-        print(f"tagging.l1.shapes = bottom top")
-        print(f"tagging.l1.max_level = 1")
-        print(f"\ntagging.l1.bottom.type = box")
-        print(f"tagging.l1.bottom.origin = {boxes['level1_bottom']['origin'][0]:.6f} {boxes['level1_bottom']['origin'][1]:.6f} {boxes['level1_bottom']['origin'][2]:.6f}")
-        print(f"tagging.l1.bottom.xaxis = {boxes['level1_bottom']['xaxis'][0]:.6f} {boxes['level1_bottom']['xaxis'][1]:.6f} {boxes['level1_bottom']['xaxis'][2]:.6f}")
-        print(f"tagging.l1.bottom.yaxis = {boxes['level1_bottom']['yaxis'][0]:.6f} {boxes['level1_bottom']['yaxis'][1]:.6f} {boxes['level1_bottom']['yaxis'][2]:.6f}")
-        print(f"tagging.l1.bottom.zaxis = {boxes['level1_bottom']['zaxis'][0]:.6f} {boxes['level1_bottom']['zaxis'][1]:.6f} {boxes['level1_bottom']['zaxis'][2]:.6f}")
-        
-        print(f"\ntagging.l1.top.type = box")
-        print(f"tagging.l1.top.origin = {boxes['level1_top']['origin'][0]:.6f} {boxes['level1_top']['origin'][1]:.6f} {boxes['level1_top']['origin'][2]:.6f}")
-        print(f"tagging.l1.top.xaxis = {boxes['level1_top']['xaxis'][0]:.6f} {boxes['level1_top']['xaxis'][1]:.6f} {boxes['level1_top']['xaxis'][2]:.6f}")
-        print(f"tagging.l1.top.yaxis = {boxes['level1_top']['yaxis'][0]:.6f} {boxes['level1_top']['yaxis'][1]:.6f} {boxes['level1_top']['yaxis'][2]:.6f}")
-        print(f"tagging.l1.top.zaxis = {boxes['level1_top']['zaxis'][0]:.6f} {boxes['level1_top']['zaxis'][1]:.6f} {boxes['level1_top']['zaxis'][2]:.6f}")
-        
-        # Level 2 Refinement (viscous sublayer, only for DNS)
-        if is_dns:
-            l2_box_extent_plus = boxes['l2_box_extent_plus']
-            print(f"\n# Level 2 Refinement (viscous sublayer, z⁺ ~ {l2_box_extent_plus:.1f})")
-            print(f"tagging.l2.type = GeometryRefinement")
-            print(f"tagging.l2.shapes = bottom top")
-            print(f"tagging.l2.max_level = 2")
-            print(f"\ntagging.l2.bottom.type = box")
-            print(f"tagging.l2.bottom.origin = {boxes['level2_bottom']['origin'][0]:.6f} {boxes['level2_bottom']['origin'][1]:.6f} {boxes['level2_bottom']['origin'][2]:.6f}")
-            print(f"tagging.l2.bottom.xaxis = {boxes['level2_bottom']['xaxis'][0]:.6f} {boxes['level2_bottom']['xaxis'][1]:.6f} {boxes['level2_bottom']['xaxis'][2]:.6f}")
-            print(f"tagging.l2.bottom.yaxis = {boxes['level2_bottom']['yaxis'][0]:.6f} {boxes['level2_bottom']['yaxis'][1]:.6f} {boxes['level2_bottom']['yaxis'][2]:.6f}")
-            print(f"tagging.l2.bottom.zaxis = {boxes['level2_bottom']['zaxis'][0]:.6f} {boxes['level2_bottom']['zaxis'][1]:.6f} {boxes['level2_bottom']['zaxis'][2]:.6f}")
-            
-            print(f"\ntagging.l2.top.type = box")
-            print(f"tagging.l2.top.origin = {boxes['level2_top']['origin'][0]:.6f} {boxes['level2_top']['origin'][1]:.6f} {boxes['level2_top']['origin'][2]:.6f}")
-            print(f"tagging.l2.top.xaxis = {boxes['level2_top']['xaxis'][0]:.6f} {boxes['level2_top']['xaxis'][1]:.6f} {boxes['level2_top']['xaxis'][2]:.6f}")
-            print(f"tagging.l2.top.yaxis = {boxes['level2_top']['yaxis'][0]:.6f} {boxes['level2_top']['yaxis'][1]:.6f} {boxes['level2_top']['yaxis'][2]:.6f}")
-            print(f"tagging.l2.top.zaxis = {boxes['level2_top']['zaxis'][0]:.6f} {boxes['level2_top']['zaxis'][1]:.6f} {boxes['level2_top']['zaxis'][2]:.6f}")
+        print(f"\ntagging.l2.top.type = box")
+        print(f"tagging.l2.top.origin = {boxes['level2_top']['origin'][0]:.6f} {boxes['level2_top']['origin'][1]:.6f} {boxes['level2_top']['origin'][2]:.6f}")
+        print(f"tagging.l2.top.xaxis = {boxes['level2_top']['xaxis'][0]:.6f} {boxes['level2_top']['xaxis'][1]:.6f} {boxes['level2_top']['xaxis'][2]:.6f}")
+        print(f"tagging.l2.top.yaxis = {boxes['level2_top']['yaxis'][0]:.6f} {boxes['level2_top']['yaxis'][1]:.6f} {boxes['level2_top']['yaxis'][2]:.6f}")
+        print(f"tagging.l2.top.zaxis = {boxes['level2_top']['zaxis'][0]:.6f} {boxes['level2_top']['zaxis'][1]:.6f} {boxes['level2_top']['zaxis'][2]:.6f}")
 
 
 def main():
@@ -575,10 +574,11 @@ Examples:
         dns=args.DNS
     )
     
-    print_config(params, print_input_params=(not args.avg))
-    
     if args.avg:
+        print_flow_summary(params)
         print_averaging_config(params, dns=args.DNS)
+    else:
+        print_config(params)
 
 
 if __name__ == "__main__":
