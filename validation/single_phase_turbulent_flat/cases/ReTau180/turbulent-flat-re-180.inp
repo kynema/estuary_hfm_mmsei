@@ -28,12 +28,12 @@ ChannelFlow.re_tau = 180.0
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
-amr.n_cell = 192 96 60 # Grid cells at coarsest AMR level
-amr.blocking_factor = 4
-amr.max_level = 1
-#amr.n_cell = 384 192 120
-#amr.blocking_factor = 8
-#amr.max_level = 2
+#amr.n_cell = 192 96 60 # Grid cells at coarsest AMR level
+#amr.blocking_factor = 4
+#amr.max_level = 1
+amr.n_cell = 384 192 120
+amr.blocking_factor = 8
+amr.max_level = 2
 
 tagging.labels = l1 l2
 
