@@ -19,7 +19,6 @@ zhi.density = 0.468793
 #.......................................#
 incflo.physics = ChannelFlow ChannelBuilder
 BodyForce.magnitude = 1514.0797750819656358 0.0 0.0
-turbulence.model = Laminar # DNS
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #       CHANNEL FLOW PARAMETERS         #
