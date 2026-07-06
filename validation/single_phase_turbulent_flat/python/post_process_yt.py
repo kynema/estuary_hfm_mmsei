@@ -43,9 +43,9 @@ from __future__ import annotations
 import argparse
 import glob
 import math
+import yt 
 import sys
 from pathlib import Path
-
 import numpy as np
 
 import case_setup
@@ -136,7 +136,6 @@ def load_pltavg_velocity(plt_path: Path, IB: bool = False):
     time : float
         Simulation time
     """
-    import yt 
 
     yt.set_log_level("error")
     
