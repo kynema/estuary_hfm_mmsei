@@ -49,11 +49,21 @@ The centerline is shifted vertically by $z_s$ in the $z$-direction,
 
 $$z_s = \frac{H}{2\cos\theta} + \sigma$$
 
-and rotated at an angle $\theta$ about the point $(0, 0, \sigma)$ in x-z plane. Here, $\sigma is height in the $z$-direction where the bottom left corner of the channel intersects the domain boundary at $x = x_lo$.
+and rotated at an angle $\theta$ about the point $(0, 0, \sigma)$ in x-z plane. Here, $\sigma is height in the $z$-direction where the bottom left corner of the channel intersects the domain boundary at $x = x_{lo}$.
 
 The equation for the centerline is given by:
 
 $$z = x\tan\theta + z_s.$$
+
+The associated pressure gradient is:
+
+$$ \nabla p = - \frac{8\mu U_{max}}{H^2}[ \cos\theta, \; 0, \; \sin\theta]. $$
+
+From this, we can see that 
+
+$$ U_{max} = - \nabla p \frac{H^2}{8\mu} $$.
+
+Therefore, $U_{max}$ increases proportial to $H^2$. The IBFM implemented 
 
 # Results
 

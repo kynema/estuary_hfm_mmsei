@@ -270,8 +270,8 @@ Examples:
   python SlantedChannelConfig.py --flat --align cf --nx_align 64
   
   # Slanted channel (theta=45, three segments)
-  python SlantedChannelConfig.py --slanted --nx 128
-  python SlantedChannelConfig.py --slanted --nx 256
+  python SlantedChannelConfig.py --slanted --nx 32
+  python SlantedChannelConfig.py --slanted --nx 64
         """
     )
     
@@ -279,11 +279,8 @@ Examples:
     mode_group.add_argument('--flat', action='store_true', help='Flat channel configuration (theta=0)')
     mode_group.add_argument('--slanted', action='store_true', help='Slanted channel configuration (theta=45, 3 segments)')
     
-    parser.add_argument('--x_hi', type=float, default=4.0, help='Domain length in x (default: 4.0)')
-    parser.add_argument('--y_hi', type=float, default=0.0625, help='Domain length in y (default: 0.0625)')
-    parser.add_argument('--z_hi', type=float, default=None, help='Domain length in z (default: 2.0 for flat, 4.0 for slanted)')
     parser.add_argument('--H', type=float, default=1.0, help='Channel height perpendicular (default: 1.0)')
-    parser.add_argument('--nx', type=int, default=512, help='Number of cells in x-direction (default: 512)')
+    parser.add_argument('--nx', type=int, default=None, help='Number of cells in x-direction (default: 64 for flat, 32 for slanted)')
     parser.add_argument('--blocking_factor', type=int, default=4, help='AMR blocking factor (default: 4)')
     parser.add_argument('--channel_shift', type=float, default=0.1, help='Vertical shift of flat channel (default: 0.1)')
     parser.add_argument('--rho', type=float, default=1.0, help='Fluid density (default: 1.0)')
@@ -294,14 +291,26 @@ Examples:
     
     args = parser.parse_args()
     
+    # Set mode-specific defaults
+    if args.flat:
+        x_hi = 4.0
+        y_hi = 0.0625
+        z_hi = 2.0
+        nx = args.nx if args.nx is not None else 64
+    else:  # slanted
+        x_hi = 2.0
+        y_hi = 0.0625
+        z_hi = 2.0
+        nx = args.nx if args.nx is not None else 32
+    
     config = calculate_channel_config(
         flat_mode=args.flat,
         slanted_mode=args.slanted,
-        x_hi=args.x_hi,
-        y_hi=args.y_hi,
-        z_hi=args.z_hi,
+        x_hi=x_hi,
+        y_hi=y_hi,
+        z_hi=z_hi,
         H=args.H,
-        nx=args.nx,
+        nx=nx,
         blocking_factor=args.blocking_factor,
         channel_shift=args.channel_shift,
         rho=args.rho,

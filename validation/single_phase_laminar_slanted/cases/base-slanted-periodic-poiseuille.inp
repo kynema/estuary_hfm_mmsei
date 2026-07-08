@@ -1,8 +1,8 @@
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            SIMULATION STOP            #
 #.......................................#
-time.stop_time =  10.0     # Max (simulated) time to evolve
-time.max_step  =  10000    # Max number of time steps
+time.stop_time =  50.0     # Max (simulated) time to evolve
+time.max_step  =  -1   # Max number of time steps
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
@@ -35,12 +35,17 @@ turbulence.model = Laminar
 incflo.physics = ChannelBuilder
 incflo.velocity = 0.0 0.0 0.0
 
-ICNS.source_terms = DragForcing
-DragForcing.is_laminar = true
+ICNS.source_terms = DragForcing BodyForce
+DragForcing.use_original_drag_limiter = false
+DragForcing.use_temporal_drag_limiter = true
+BodyForce.magnitude = 0.0565685424949238 0.0 0.0565685424949238 # Force value in m/s^2
 
-# Channel configuration for slanted Poiseuille flow
-# Walls are slanted; flow is parallel to walls
-ChannelBuilder.segment_labels = s1
+# Channel configuration for slanted Poiseuille flow (theta=45 degrees)
+# Three periodic segments at 45-degree angles for periodic boundary conditions
+amr.n_cell = 32 4 32
+
+ChannelBuilder.segment_labels = s1 s2 s3
+
 ChannelBuilder.s1.flow_speed = 1.0
 ChannelBuilder.s1.velocity_profile = Parabolic
 ChannelBuilder.s1.type = Trapezoid
@@ -48,24 +53,39 @@ ChannelBuilder.s1.top_width_start = 1.0
 ChannelBuilder.s1.top_width_end = 1.0
 ChannelBuilder.s1.bottom_width_start = 1.0
 ChannelBuilder.s1.bottom_width_end = 1.0
-ChannelBuilder.s1.height_start = 1.0
-ChannelBuilder.s1.height_end = 1.0
-ChannelBuilder.s1.segment_start_point = -0.1316524975873958 0.0312500000000000 0.5869821001690771
-ChannelBuilder.s1.segment_end_point = 4.1316524975873961 0.0312500000000000 1.1482568507606590
+ChannelBuilder.s1.height_start = 1.0000
+ChannelBuilder.s1.height_end = 1.0000
+ChannelBuilder.s1.segment_start_point = 0.0000000000000000 0.031250 0.0000000000000000
+ChannelBuilder.s1.segment_end_point = 2.0000000000000000 0.031250 2.0000000000000000
 
-incflo.field_boundaries = BoundaryPlane
-BoundaryPlane.planes =  xlo
-BoundaryPlane.file = bndry_plane
-BoundaryPlane.var_names = velocity
-BoundaryPlane.output_format = native
-BoundaryPlane.is_static = true
-BoundaryPlane.output_and_use_initial_plane = true
-BoundaryPlane.io_mode = 1
+ChannelBuilder.s2.flow_speed = 1.0
+ChannelBuilder.s2.velocity_profile = Parabolic
+ChannelBuilder.s2.type = Trapezoid
+ChannelBuilder.s2.top_width_start = 1.0
+ChannelBuilder.s2.top_width_end = 1.0
+ChannelBuilder.s2.bottom_width_start = 1.0
+ChannelBuilder.s2.bottom_width_end = 1.0
+ChannelBuilder.s2.height_start = 1.0000
+ChannelBuilder.s2.height_end = 1.0000
+ChannelBuilder.s2.segment_start_point = -1.0000000000000000 0.031250 1.0000000000000000
+ChannelBuilder.s2.segment_end_point = 1.0000000000000000 0.031250 3.0000000000000000
+
+ChannelBuilder.s3.flow_speed = 1.0
+ChannelBuilder.s3.velocity_profile = Parabolic
+ChannelBuilder.s3.type = Trapezoid
+ChannelBuilder.s3.top_width_start = 1.0
+ChannelBuilder.s3.top_width_end = 1.0
+ChannelBuilder.s3.bottom_width_start = 1.0
+ChannelBuilder.s3.bottom_width_end = 1.0
+ChannelBuilder.s3.height_start = 1.0000
+ChannelBuilder.s3.height_end = 1.0000
+ChannelBuilder.s3.segment_start_point = 1.0000000000000000 0.031250 -1.0000000000000000
+ChannelBuilder.s3.segment_end_point = 3.0000000000000000 0.031250 1.0000000000000000
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
-amr.n_cell              = 128 4 64    # Grid cells at coarsest AMR level
+amr.n_cell              = 128 4 128   # Grid cells at coarsest AMR level (square 4x4 domain in x-z)
 amr.max_level           = 0           # Max AMR level in hierarchy
 amr.blocking_factor     = 4
 
@@ -74,17 +94,12 @@ amr.blocking_factor     = 4
 #              GEOMETRY                 #
 #.......................................#
 geometry.prob_lo     = 0.0 0.000000 0.0
-geometry.prob_hi     = 4.0 0.062500 2.0
-geometry.is_periodic = 0 1 0 
+geometry.prob_hi     = 2.0 0.062500 2.0
+geometry.is_periodic = 1 1 1 
 
 # Boundary conditions
-xlo.type =   "mass_inflow"
 xlo.density = 1.0
 xlo.temperature = 300.0
-#xlo.velocity = 0.9914 0.0 0.1305 
-xhi.type =   "pressure_outflow"
-zlo.type =   "slip_wall"
-zhi.type =   "slip_wall"
 
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
