@@ -21,20 +21,50 @@ warnings.filterwarnings('ignore')
 print('Modules loaded')
 
 # ================================================================================
+# Helper functions
+# ================================================================================
+def parse_inp_for_channel_geometry(inp_file):
+    """Extract channel geometry from base-*.inp file"""
+    try:
+        with open(inp_file, 'r') as f:
+            content = f.read()
+        
+        # Extract segment start and end points
+        import re
+        start_match = re.search(r'ChannelBuilder\.s1\.segment_start_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
+        end_match = re.search(r'ChannelBuilder\.s1\.segment_end_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
+        height_match = re.search(r'ChannelBuilder\.s1\.height_start\s*=\s*([\d.\-]+)', content)
+        
+        if start_match and end_match:
+            x_start, y_start, z_start = float(start_match.group(1)), float(start_match.group(2)), float(start_match.group(3))
+            x_end, y_end, z_end = float(end_match.group(1)), float(end_match.group(2)), float(end_match.group(3))
+            H = float(height_match.group(1)) if height_match else 1.0
+            
+            # Calculate centerline z (average of start and end)
+            z_s = (z_start + z_end) / 2.0
+            
+            return z_s, H
+    except:
+        pass
+    return None, None
+
+# ================================================================================
 # Parse command line arguments
 # ================================================================================
 parser = argparse.ArgumentParser(description='Post-process slanted/flat channel simulations')
 parser.add_argument('--theta_deg', type=float, default=7.5, help='Channel angle in degrees (default: 7.5)')
+parser.add_argument('--align', type=str, default='default', choices=['default', 'cf'], help='Grid alignment when theta=0: default (none) or cf (cell face)')
+parser.add_argument('--nx_align', type=int, default=64, help='Reference nx for grid alignment (default: 64)')
+parser.add_argument('--H', type=float, default=1.0, help='Channel height (default: 1.0)')
 args = parser.parse_args()
 
 # ================================================================================
 # Physical parameters
 # ================================================================================
-channelHeight = 1.0
-channelBottomStartZ = 0.1
-maxVelocity = 1.0
 theta_deg = args.theta_deg
 theta_rad = np.deg2rad(theta_deg)
+channelHeight = args.H
+maxVelocity = 1.0
 
 rootDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/cases'
 figureDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/figures'
@@ -42,8 +72,45 @@ figureDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/singl
 # Determine case directory pattern based on theta_deg
 if np.abs(theta_deg) < 0.01:  # theta_deg ≈ 0
     case_prefix = 'flat-aligned'
+    base_inp = os.path.join(rootDir, 'base-flat-poiseuille.inp')
 else:
     case_prefix = 'slanted-ibfm'
+    base_inp = os.path.join(rootDir, 'base-slanted-poiseuille.inp')
+
+# Try to read channel geometry from base .inp file
+z_s_analytical = None
+H_from_inp = None
+if os.path.exists(base_inp):
+    z_s_analytical, H_from_inp = parse_inp_for_channel_geometry(base_inp)
+    if z_s_analytical is not None:
+        print(f'Read channel geometry from {os.path.basename(base_inp)}:')
+        print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
+        if H_from_inp is not None:
+            print(f'  Channel height H = {H_from_inp:.6f}')
+            channelHeight = H_from_inp
+    else:
+        print(f'Warning: Could not parse channel geometry from {os.path.basename(base_inp)}')
+
+# If we couldn't read from file, calculate it
+if z_s_analytical is None:
+    # Calculate channel centerline shift the same way as SlantedChannelConfig.py
+    channel_shift_default = 0.1
+    
+    # For aligned grids, adjust H to align with grid cells
+    if np.abs(theta_deg) < 0.01 and args.align == 'cf':
+        x_hi = 4.0
+        nx_align = args.nx_align
+        cell_size_ref = x_hi / nx_align
+        # Round H to be an integer multiple of reference cell size
+        n_cells_H = channelHeight / cell_size_ref
+        n_cells_H_rounded = int(np.round(n_cells_H))
+        channelHeight = n_cells_H_rounded * cell_size_ref
+    
+    # Calculate centerline z-position
+    z_s_analytical = channelHeight / (2.0 * np.cos(theta_rad)) + channel_shift_default
+    print(f'Calculated channel geometry (no base .inp found):')
+    print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
+    print(f'  Channel height H = {channelHeight:.6f}')
 
 case_specs = [(f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
 
@@ -61,6 +128,12 @@ for case_name, resolution in case_specs:
 
 nCases = len(valid_cases)
 print(f'\nLoading {nCases} cases')
+
+print(f'\nAnalytical Solution Parameters:')
+print(f'  θ = {theta_deg:.2f}°')
+print(f'  H = {channelHeight:.6f}')
+print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
+print(f'  Alignment: {args.align if np.abs(theta_deg) < 0.01 else "N/A (slanted)"}')
 
 # ================================================================================
 # Load datasets using yt
@@ -180,16 +253,15 @@ def velocity_profile_analytical(r, U_max=1.0, H=1.0):
     return U_max * np.maximum(0.0, 1.0 - (2.0 * r / H)**2)
 
 def get_analytical_solution_grid(case_idx):
-    z_s = channelHeight / (2.0 * np.cos(theta_rad)) + channelBottomStartZ
     X, Y, Z = np.meshgrid(x[case_idx], y[case_idx], z[case_idx], indexing='ij')
-    r = radial_distance_from_axis(X, Z, z_s, theta_rad)
+    r = radial_distance_from_axis(X, Z, z_s_analytical, theta_rad)
     u_r = velocity_profile_analytical(r, maxVelocity, channelHeight)
     
     # Set solution to zero outside the channel
     channel_mask = r <= (channelHeight / 2.0)
     u_r[~channel_mask] = 0.0
 
-    return u_r, r, z_s
+    return u_r, r, z_s_analytical
 
 def axial_velocity(u, w, theta):
     """Compute axial velocity along the tilted flow direction"""
