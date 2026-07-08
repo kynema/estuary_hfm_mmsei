@@ -1,0 +1,3 @@
+FILE = ../base-flat-poiseuille.inp
+amr.n_cell = 512 8 256 
+

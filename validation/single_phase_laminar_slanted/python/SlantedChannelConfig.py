@@ -22,6 +22,10 @@ def calculate_slanted_channel_config(
     nx=256,
     blocking_factor=4,
     channel_shift=None,
+    rho=1.0,
+    mu=1.0e-2,
+    Umax=1.0,
+    align='default',
 ):
     """
     Calculate slanted channel configuration.
@@ -36,6 +40,10 @@ def calculate_slanted_channel_config(
         nx: Number of cells in x-direction (default: 256)
         blocking_factor: AMR blocking factor (all n_cell must be divisible by this)
         channel_shift: Vertical shift to move channel up from domain bottom (default: 0.1)
+        rho: Fluid density (default: 1.0)
+        mu: Dynamic viscosity (default: 1.0e-2)
+        Umax: Maximum velocity (default: 1.0)
+        align: Grid alignment for channel bottom when theta=0 (default or cf for cell face)
     
     Returns:
         dict with configuration parameters
@@ -105,6 +113,15 @@ def calculate_slanted_channel_config(
     # At x_end, z should be:
     z_end = z_at_xlo + (x_end - x_lo) * np.tan(theta)
     
+    # Apply grid alignment for horizontal channel (theta ≈ 0)
+    if np.abs(theta) < 1e-6 and align == 'cf':
+        # For horizontal channel, z_start and z_end should be equal
+        z_center = (z_start + z_end) / 2.0
+        # Cell face alignment: snap to nearest cell face (multiple of dz)
+        z_aligned = np.round(z_center / dz) * dz
+        z_start = z_aligned
+        z_end = z_aligned
+    
     seg_start = [x_start, y_mid, z_start]
     seg_end = [x_end, y_mid, z_end]
 
@@ -116,6 +133,13 @@ def calculate_slanted_channel_config(
     # vertical distance (z-coordinate) to compute the parabolic profile
     height_start = H
     height_end = H
+    
+    # Calculate BodyForce magnitude
+    # BodyForce.magnitude = 1/rho * 8 * mu * Umax / H^2 * (cos(theta), 0, sin(theta))
+    body_force_coeff = (8.0 * mu * Umax) / (rho * H * H)
+    body_force_x = body_force_coeff * np.cos(theta)
+    body_force_y = 0.0
+    body_force_z = body_force_coeff * np.sin(theta)
     
     config = {
         'theta_deg': np.rad2deg(theta) if theta_rad is None else theta_deg,
@@ -137,6 +161,13 @@ def calculate_slanted_channel_config(
         'channel_shift': channel_shift,
         'height_start': height_start,
         'height_end': height_end,
+        'rho': rho,
+        'mu': mu,
+        'Umax': Umax,
+        'body_force_x': body_force_x,
+        'body_force_y': body_force_y,
+        'body_force_z': body_force_z,
+        'align': align,
     }
     
     return config
@@ -150,6 +181,9 @@ def print_config(config):
     
     print(f"\nAngle:")
     print(f"  θ = {config['theta_deg']:.2f}° = {config['theta_rad']:.6f} rad")
+    if np.abs(config['theta_rad']) < 1e-6:
+        align_str = 'None' if config['align'] == 'default' else 'Cell Face'
+        print(f"  Grid alignment (horizontal channel): {align_str}")
     
     print(f"\nDomain:")
     lo = config['domain_lo']
@@ -189,6 +223,15 @@ def print_config(config):
     print(f"\nChannelBuilder.s1.height_start = {config['height_start']:.4f}")
     print(f"ChannelBuilder.s1.height_end = {config['height_end']:.4f}")
     
+    print(f"\nFluid Properties:")
+    print(f"  ρ (density) = {config['rho']:.4f}")
+    print(f"  μ (viscosity) = {config['mu']:.6f}")
+    print(f"  Umax = {config['Umax']:.4f}")
+    
+    print(f"\nBody Force (from Poiseuille equation):")
+    print(f"  Formula: 1/ρ * 8*μ*Umax/H² * (cos(θ), 0, sin(θ))")
+    print(f"  BodyForce.magnitude = {config['body_force_x']:.16f} {config['body_force_y']:.1f} {config['body_force_z']:.16f}")
+    
     print("\n" + "="*70 + "\n")
 
 
@@ -214,6 +257,10 @@ Examples:
     parser.add_argument('--nx', type=int, default=512, help='Number of cells in x-direction (default: 512)')
     parser.add_argument('--blocking_factor', type=int, default=4, help='AMR blocking factor (default: 4)')
     parser.add_argument('--channel_shift', type=float, default=0.1, help='Vertical shift of channel up from domain bottom (default: 0.1)')
+    parser.add_argument('--rho', type=float, default=1.0, help='Fluid density (default: 1.0)')
+    parser.add_argument('--mu', type=float, default=1.0e-2, help='Dynamic viscosity (default: 1.0e-2)')
+    parser.add_argument('--Umax', type=float, default=1.0, help='Maximum velocity (default: 1.0)')
+    parser.add_argument('--align', type=str, default='default', choices=['default', 'cf'], help='Grid alignment when theta=0: default (none) or cf (cell face)')
     
     args = parser.parse_args()
     
@@ -230,6 +277,10 @@ Examples:
         nx=args.nx,
         blocking_factor=args.blocking_factor,
         channel_shift=args.channel_shift,
+        rho=args.rho,
+        mu=args.mu,
+        Umax=args.Umax,
+        align=args.align,
     )
     
     print_config(config)
