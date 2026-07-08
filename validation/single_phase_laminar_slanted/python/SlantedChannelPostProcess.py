@@ -420,30 +420,31 @@ u_axial_error_l2_wall = np.array(u_axial_error_l2_wall)
 nx_array = np.array(nx)
 nz_array = np.array(nz)
 dx_array = np.array(dx)
+cell_size_array = dx_array  # Isotropic cell size
 grid_count = nx_array * nz_array
 print()
 
 # ================================================================================
-# Error Convergence vs Grid Size
+# Error Convergence vs Cell Size
 # ================================================================================
 fig, ax = plt.subplots(figsize=(10, 7))
 
-ax.loglog(nx_array, u_axial_error_max, 'o-', linewidth=2, markersize=10, label='Max Error')
-if len(nx_array) > 1:
+ax.loglog(cell_size_array, u_axial_error_max, 'o-', linewidth=2, markersize=10, label='Max Error')
+if len(cell_size_array) > 1:
     # Trend line for max error
-    coeffs_max = np.polyfit(np.log(nx_array), np.log(u_axial_error_max), 1)
-    nx_trend = np.logspace(np.log10(nx_array.min()), np.log10(nx_array.max()), 50)
-    ax.loglog(nx_trend, np.exp(coeffs_max[1]) * nx_trend**coeffs_max[0], '--', alpha=0.5, linewidth=2, color='C0', label=f'Max Error Trend (slope={coeffs_max[0]:.2f})')
+    coeffs_max = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_max), 1)
+    cell_trend = np.logspace(np.log10(cell_size_array.min()), np.log10(cell_size_array.max()), 50)
+    ax.loglog(cell_trend, np.exp(coeffs_max[1]) * cell_trend**coeffs_max[0], '--', alpha=0.5, linewidth=2, color='C0', label=f'Max Error Trend (slope={coeffs_max[0]:.2f})')
 
-ax.loglog(nx_array, u_axial_error_l2, 's-', linewidth=2, markersize=8, label='L2 Error')
-if len(nx_array) > 1:    
+ax.loglog(cell_size_array, u_axial_error_l2, 's-', linewidth=2, markersize=8, label='L2 Error')
+if len(cell_size_array) > 1:    
     # Trend line for L2 error
-    coeffs_l2 = np.polyfit(np.log(nx_array), np.log(u_axial_error_l2), 1)
-    ax.loglog(nx_trend, np.exp(coeffs_l2[1]) * nx_trend**coeffs_l2[0], '--', alpha=0.5, linewidth=2, color='C1', label=f'L2 Error Trend (slope={coeffs_l2[0]:.2f})')
+    coeffs_l2 = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_l2), 1)
+    ax.loglog(cell_trend, np.exp(coeffs_l2[1]) * cell_trend**coeffs_l2[0], '--', alpha=0.5, linewidth=2, color='C1', label=f'L2 Error Trend (slope={coeffs_l2[0]:.2f})')
 
-ax.set_xlabel('Nx', fontsize=14)
+ax.set_xlabel('Cell Size (h)', fontsize=14)
 ax.set_ylabel('Axial Velocity Error', fontsize=14)
-ax.set_title('Convergence vs Nx (Axial Velocity)', fontsize=14)
+ax.set_title('Convergence vs Cell Size (Axial Velocity)', fontsize=14)
 ax.legend(fontsize=11)
 ax.grid(True, alpha=0.3, which='both')
 
@@ -520,69 +521,37 @@ print('Axial velocity error field visualization complete (all colorbars use same
 # ================================================================================
 # Axial Velocity - Wall Error Analysis
 # ================================================================================
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-# Max Error vs Nx
-ax = axes[0, 0]
-ax.loglog(nx_array, u_axial_error_max, 'o-', linewidth=2, markersize=10, label='Overall')
-ax.loglog(nx_array, u_axial_error_max_wall, 's-', linewidth=2, markersize=8, label='Wall region')
-if len(nx_array) > 1:
-    coeffs_max_overall = np.polyfit(np.log(nx_array), np.log(u_axial_error_max), 1)
-    coeffs_max_wall = np.polyfit(np.log(nx_array), np.log(u_axial_error_max_wall), 1)
-    nx_trend = np.logspace(np.log10(nx_array.min()), np.log10(nx_array.max()), 50)
-    ax.loglog(nx_trend, np.exp(coeffs_max_overall[1]) * nx_trend**coeffs_max_overall[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_max_overall[0]:.2f})')
-    ax.loglog(nx_trend, np.exp(coeffs_max_wall[1]) * nx_trend**coeffs_max_wall[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_max_wall[0]:.2f})')
-ax.set_xlabel('Nx', fontsize=12)
+# Max Error vs Cell Size
+ax = axes[0]
+ax.loglog(cell_size_array, u_axial_error_max, 'o-', linewidth=2, markersize=10, label='Overall')
+ax.loglog(cell_size_array, u_axial_error_max_wall, 's-', linewidth=2, markersize=8, label='Wall region')
+if len(cell_size_array) > 1:
+    coeffs_max_overall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_max), 1)
+    coeffs_max_wall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_max_wall), 1)
+    cell_trend = np.logspace(np.log10(cell_size_array.min()), np.log10(cell_size_array.max()), 50)
+    ax.loglog(cell_trend, np.exp(coeffs_max_overall[1]) * cell_trend**coeffs_max_overall[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_max_overall[0]:.2f})')
+    ax.loglog(cell_trend, np.exp(coeffs_max_wall[1]) * cell_trend**coeffs_max_wall[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_max_wall[0]:.2f})')
+ax.set_xlabel('Cell Size (h)', fontsize=12)
 ax.set_ylabel('Max Error', fontsize=12)
-ax.set_title('Max Norm Error vs Nx', fontsize=13)
+ax.set_title('Max Norm Error vs Cell Size', fontsize=13)
 ax.legend(fontsize=9)
 ax.grid(True, alpha=0.3, which='both')
 
-# L2 Error vs Nx
-ax = axes[0, 1]
-ax.loglog(nx_array, u_axial_error_l2, 'o-', linewidth=2, markersize=10, label='Overall')
-ax.loglog(nx_array, u_axial_error_l2_wall, 's-', linewidth=2, markersize=8, label='Wall region')
-if len(nx_array) > 1:
-    coeffs_l2_overall = np.polyfit(np.log(nx_array), np.log(u_axial_error_l2), 1)
-    coeffs_l2_wall = np.polyfit(np.log(nx_array), np.log(u_axial_error_l2_wall), 1)
-    nx_trend = np.logspace(np.log10(nx_array.min()), np.log10(nx_array.max()), 50)
-    ax.loglog(nx_trend, np.exp(coeffs_l2_overall[1]) * nx_trend**coeffs_l2_overall[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_l2_overall[0]:.2f})')
-    ax.loglog(nx_trend, np.exp(coeffs_l2_wall[1]) * nx_trend**coeffs_l2_wall[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_l2_wall[0]:.2f})')
-ax.set_xlabel('Nx', fontsize=12)
+# L2 Error vs Cell Size
+ax = axes[1]
+ax.loglog(cell_size_array, u_axial_error_l2, 'o-', linewidth=2, markersize=10, label='Overall')
+ax.loglog(cell_size_array, u_axial_error_l2_wall, 's-', linewidth=2, markersize=8, label='Wall region')
+if len(cell_size_array) > 1:
+    coeffs_l2_overall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_l2), 1)
+    coeffs_l2_wall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_l2_wall), 1)
+    cell_trend = np.logspace(np.log10(cell_size_array.min()), np.log10(cell_size_array.max()), 50)
+    ax.loglog(cell_trend, np.exp(coeffs_l2_overall[1]) * cell_trend**coeffs_l2_overall[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_l2_overall[0]:.2f})')
+    ax.loglog(cell_trend, np.exp(coeffs_l2_wall[1]) * cell_trend**coeffs_l2_wall[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_l2_wall[0]:.2f})')
+ax.set_xlabel('Cell Size (h)', fontsize=12)
 ax.set_ylabel('L2 Error', fontsize=12)
-ax.set_title('L2 Error vs Nx', fontsize=13)
-ax.legend(fontsize=9)
-ax.grid(True, alpha=0.3, which='both')
-
-# Max Error vs Nz
-ax = axes[1, 0]
-ax.loglog(nz_array, u_axial_error_max, 'o-', linewidth=2, markersize=10, label='Overall')
-ax.loglog(nz_array, u_axial_error_max_wall, 's-', linewidth=2, markersize=8, label='Wall region')
-if len(nz_array) > 1:
-    coeffs_max_overall_z = np.polyfit(np.log(nz_array), np.log(u_axial_error_max), 1)
-    coeffs_max_wall_z = np.polyfit(np.log(nz_array), np.log(u_axial_error_max_wall), 1)
-    nz_trend = np.logspace(np.log10(nz_array.min()), np.log10(nz_array.max()), 50)
-    ax.loglog(nz_trend, np.exp(coeffs_max_overall_z[1]) * nz_trend**coeffs_max_overall_z[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_max_overall_z[0]:.2f})')
-    ax.loglog(nz_trend, np.exp(coeffs_max_wall_z[1]) * nz_trend**coeffs_max_wall_z[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_max_wall_z[0]:.2f})')
-ax.set_xlabel('Nz', fontsize=12)
-ax.set_ylabel('Max Error', fontsize=12)
-ax.set_title('Max Norm Error vs Nz', fontsize=13)
-ax.legend(fontsize=9)
-ax.grid(True, alpha=0.3, which='both')
-
-# L2 Error vs Nz
-ax = axes[1, 1]
-ax.loglog(nz_array, u_axial_error_l2, 'o-', linewidth=2, markersize=10, label='Overall')
-ax.loglog(nz_array, u_axial_error_l2_wall, 's-', linewidth=2, markersize=8, label='Wall region')
-if len(nz_array) > 1:
-    coeffs_l2_overall_z = np.polyfit(np.log(nz_array), np.log(u_axial_error_l2), 1)
-    coeffs_l2_wall_z = np.polyfit(np.log(nz_array), np.log(u_axial_error_l2_wall), 1)
-    nz_trend = np.logspace(np.log10(nz_array.min()), np.log10(nz_array.max()), 50)
-    ax.loglog(nz_trend, np.exp(coeffs_l2_overall_z[1]) * nz_trend**coeffs_l2_overall_z[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_l2_overall_z[0]:.2f})')
-    ax.loglog(nz_trend, np.exp(coeffs_l2_wall_z[1]) * nz_trend**coeffs_l2_wall_z[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_l2_wall_z[0]:.2f})')
-ax.set_xlabel('Nz', fontsize=12)
-ax.set_ylabel('L2 Error', fontsize=12)
-ax.set_title('L2 Error vs Nz', fontsize=13)
+ax.set_title('L2 Error vs Cell Size', fontsize=13)
 ax.legend(fontsize=9)
 ax.grid(True, alpha=0.3, which='both')
 
@@ -593,24 +562,20 @@ print('Wall error analysis complete\n')
 
 # Print trend slopes
 print('='*90)
-print('CONVERGENCE RATE ANALYSIS (Slopes)')
+print('CONVERGENCE RATE ANALYSIS (Slopes vs Cell Size)')
 print('='*90)
-if len(nx_array) > 1:
-    coeffs_max_overall = np.polyfit(np.log(nx_array), np.log(u_axial_error_max), 1)
-    coeffs_max_wall = np.polyfit(np.log(nx_array), np.log(u_axial_error_max_wall), 1)
-    coeffs_l2_overall = np.polyfit(np.log(nx_array), np.log(u_axial_error_l2), 1)
-    coeffs_l2_wall = np.polyfit(np.log(nx_array), np.log(u_axial_error_l2_wall), 1)
-    coeffs_max_overall_z = np.polyfit(np.log(nz_array), np.log(u_axial_error_max), 1)
-    coeffs_max_wall_z = np.polyfit(np.log(nz_array), np.log(u_axial_error_max_wall), 1)
-    coeffs_l2_overall_z = np.polyfit(np.log(nz_array), np.log(u_axial_error_l2), 1)
-    coeffs_l2_wall_z = np.polyfit(np.log(nz_array), np.log(u_axial_error_l2_wall), 1)
+if len(cell_size_array) > 1:
+    coeffs_max_overall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_max), 1)
+    coeffs_max_wall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_max_wall), 1)
+    coeffs_l2_overall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_l2), 1)
+    coeffs_l2_wall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_l2_wall), 1)
     
-    print(f'{"Error Type":<25} {"Region":<20} {"vs Nx":<15} {"vs Nz":<15}')
+    print(f'{"Error Type":<25} {"Region":<20} {"Convergence Rate (p)":<20}')
     print('='*90)
-    print(f'{"Max Error":<25} {"Overall":<20} {coeffs_max_overall[0]:<15.2f} {coeffs_max_overall_z[0]:<15.2f}')
-    print(f'{"Max Error":<25} {"Wall":<20} {coeffs_max_wall[0]:<15.2f} {coeffs_max_wall_z[0]:<15.2f}')
-    print(f'{"L2 Error":<25} {"Overall":<20} {coeffs_l2_overall[0]:<15.2f} {coeffs_l2_overall_z[0]:<15.2f}')
-    print(f'{"L2 Error":<25} {"Wall":<20} {coeffs_l2_wall[0]:<15.2f} {coeffs_l2_wall_z[0]:<15.2f}')
+    print(f'{"Max Error":<25} {"Overall":<20} {coeffs_max_overall[0]:<20.2f}')
+    print(f'{"Max Error":<25} {"Wall":<20} {coeffs_max_wall[0]:<20.2f}')
+    print(f'{"L2 Error":<25} {"Overall":<20} {coeffs_l2_overall[0]:<20.2f}')
+    print(f'{"L2 Error":<25} {"Wall":<20} {coeffs_l2_wall[0]:<20.2f}')
     print('='*90)
 
 # Error Summary
@@ -626,17 +591,16 @@ print('='*90)
 # ================================================================================
 # Velocity Profile Comparison
 # ================================================================================
-# Plot the axial velocity at the beginning of the channel, a quarter of the way 
-# down, half way, and at the end of the channel.
+# Plot the axial velocity at three locations: x_lo (start), x_mid (middle), and x_hi (end)
 
 case_finest = nCases - 1
 j_mid = ny[case_finest] // 2
 
-fig, axes = plt.subplots(4, 2, figsize=(14, 15))
+fig, axes = plt.subplots(3, 2, figsize=(14, 12))
 
-# Define x-locations to plot
-i_locations = [0, nx[case_finest] // 4, nx[case_finest] // 2, nx[case_finest] - 1]
-x_labels = ['Start', '1/4', 'Mid', 'End']
+# Define x-locations to plot: x_lo, x_mid, x_hi
+i_locations = [0, nx[case_finest] // 2, nx[case_finest] - 1]
+x_labels = ['$x_{lo}$', '$x_{mid}$', '$x_{hi}$']
 
 # Extract 2D slices at midpoint
 u_2d = u[case_finest][:, j_mid, :]
