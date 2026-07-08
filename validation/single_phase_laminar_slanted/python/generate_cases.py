@@ -3,8 +3,8 @@
 Generate simulation case directories with .inp files for flat and slanted configurations.
 
 Usage:
-    python GenerateCases.py --flat --nx 64,128,256,512
-    python GenerateCases.py --slanted --nx 64,128,256,512
+    python generate_cases.py --flat --nx 64,128,256,512
+    python generate_cases.py --slanted --nx 64,128,256,512
 """
 
 import os
@@ -19,9 +19,9 @@ def generate_inp_content(config, template_path):
     Generate minimal .inp file that includes template and overrides n_cell.
     """
     # Make path relative to cases directory
-    output = f"FILE = ../{template_path.name}\n\n"
+    output = f"FILE = ../{template_path.name}\n"
     n_cell = config['n_cell']
-    output += f"amr.n_cell = {n_cell[0]} {n_cell[1]} {n_cell[2]}\n"
+    output += f"amr.n_cell = {n_cell[0]} {n_cell[1]} {n_cell[2]}"
     return output
 
 
@@ -52,10 +52,10 @@ def main():
         epilog="""
 Examples:
   # Flat channel with multiple mesh refinements
-  python GenerateCases.py --flat --nx 64,128,256,512
+  python generate_cases.py --flat --nx 64,128,256,512
   
   # Slanted channel with multiple mesh refinements
-  python GenerateCases.py --slanted --nx 64,128,256,512
+  python generate_cases.py --slanted --nx 64,128,256,512
         """
     )
     
@@ -90,8 +90,8 @@ Examples:
         template_file = 'base-flat-poiseuille.inp'
     else:
         mode_name = 'slanted'
-        case_prefix = 'slanted-periodic'
-        template_file = 'base-slanted-periodic-poiseuille.inp'
+        case_prefix = 'slanted'
+        template_file = 'base-slanted-poiseuille.inp'
     
     template_path = cases_dir / template_file
     
