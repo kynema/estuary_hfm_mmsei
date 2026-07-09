@@ -379,7 +379,7 @@ for case_idx in range(4):
         ax.set_xlim(x_min_all, x_max_all)
         ax.set_ylim(z_min_all, z_max_all)
         
-        ax.set_xlabel('x', fontsize=12)
+        ax.set_xlabel('x (m)', fontsize=12)
         ax.set_ylabel('z', fontsize=12)
         ax.set_title(f'{valid_cases[case_idx]}', fontsize=13, fontweight='bold')
         ax.set_aspect('equal')
@@ -455,8 +455,8 @@ ax.set_xlim(x_min_all, x_max_all)
 ax.set_ylim(z_min_all, z_max_all)
 
 # Axis labels and title
-ax.set_xlabel('x', fontsize=fontSize, fontweight='normal')
-ax.set_ylabel('z', fontsize=fontSize, fontweight='normal')
+ax.set_xlabel('x (m)', fontsize=fontSize, fontweight='normal')
+ax.set_ylabel('z (m)', fontsize=fontSize, fontweight='normal')
 geometry_title = 'Flat Channel Geometry' if args.flat else 'Slanted Channel Geometry'
 ax.set_title(geometry_title, fontsize=fontSize + 2, fontweight='normal')
 ax.tick_params(axis='both', which='major', labelsize=fontSize)
@@ -468,7 +468,7 @@ ax.set_aspect('equal')
 
 # Adjust layout and save
 plt.tight_layout()
-plt.savefig(f'{figureDir}/slanted_geometry_setup.png', dpi=150)
+plt.savefig(f'{figureDir}/geometry_setup.png', dpi=150)
 plt.show()
 print('Geometry visualization complete\n')
 
@@ -624,7 +624,7 @@ for case_idx in range(4):
         ax.set_xlim(x_min_all, x_max_all)
         ax.set_ylim(z_min_all, z_max_all)
         
-        ax.set_xlabel('x', fontsize=12)
+        ax.set_xlabel('x (m)', fontsize=12)
         ax.set_ylabel('z', fontsize=12)
         ax.set_title(f'{valid_cases[case_idx]} (Nx={nx[case_idx]}, Nz={nz[case_idx]})', fontsize=13, fontweight='bold')
         ax.set_aspect('equal')

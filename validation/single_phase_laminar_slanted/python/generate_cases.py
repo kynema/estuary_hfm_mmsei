@@ -10,7 +10,7 @@ Usage:
 import os
 import argparse
 from pathlib import Path
-from case_setup import calculate_channel_config
+from base_setup import calculate_channel_config
 
 
 

@@ -262,12 +262,12 @@ def main():
         epilog="""
 Examples:
   # Flat channel (theta=0)
-  python SlantedChannelConfig.py --flat --nx 128
-  python SlantedChannelConfig.py --flat --align cf --nx_align 64
+  python base_setup.py --flat --nx 128
+  python base_setup.py --flat --align cf --nx_align 64
   
   # Slanted channel (theta=45, three segments)
-  python SlantedChannelConfig.py --slanted --nx 32
-  python SlantedChannelConfig.py --slanted --nx 64
+  python base_setup.py --slanted --nx 32
+  python base_setup.py --slanted --nx 64
         """
     )
     
