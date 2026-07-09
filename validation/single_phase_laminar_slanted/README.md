@@ -111,6 +111,12 @@ All error analysis is conducted by calculating global errors for all $(x,z)$ sat
 
 ## Flat Channel
 
+### Error Convergence Analysis
+
+
+The plot below shows both $L_\infty$ and $L_2$ norms of the error across all four grid resolutions for the two different drag configurations:
+
+![Error Convergence](figures/flat-drag-comparison/error_convergence.png)
 
 ## Slanted Channel
 
@@ -124,12 +130,10 @@ of the slanted channel simulations from the coarsest to finest grid:
 
 ### Error Convergence Analysis
 
-The error is calculated globally for all $(x,z)$ satisfying $r < 1.2 \times H/2$. 
 
+The plot below shows both $L_\infty$ and $L_2$ norms of the error across all four grid resolutions for the two different drag configurations:
 
-The plot below shows both the maximum ($L_\infty$) and $L_2$ norms of the error across all four grid resolutions for all $x < x_{mid}$:
-
-![Error Convergence](figures/error_convergence.png)
+![Error Convergence](figures/flat-drag-comparison/error_convergence.png)
 
 
 ### Error Field Visualization
