@@ -1,0 +1,2 @@
+FILE = ../base-slanted-poiseuille.inp
+amr.n_cell = 64 4 64

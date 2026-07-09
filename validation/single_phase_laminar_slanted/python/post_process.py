@@ -23,7 +23,7 @@ print('Modules loaded')
 # Helper functions
 # ================================================================================
 def parse_inp_for_channel_geometry(inp_file):
-    """Extract channel geometry from base-*.inp file"""
+    """Extract channel geometry (z_s, H, theta, x_hi) from base-*.inp file"""
     try:
         with open(inp_file, 'r') as f:
             content = f.read()
@@ -39,19 +39,38 @@ def parse_inp_for_channel_geometry(inp_file):
             x_end, y_end, z_end = float(end_match.group(1)), float(end_match.group(2)), float(end_match.group(3))
             H = float(height_match.group(1)) if height_match else 1.0
             
-            # Calculate centerline z (average of start and end)
-            z_s = (z_start + z_end) / 2.0
+            # z_s is the z-coordinate where the centerline crosses x=0
+            # For a line from (x_start, z_start) to (x_end, z_end):
+            # z(x) = z_start + (z_end - z_start)/(x_end - x_start) * (x - x_start)
+            # At x=0: z_s = z_start + (z_end - z_start)/(x_end - x_start) * (0 - x_start)
+            if x_end != x_start:
+                z_s = z_start - (z_end - z_start) * x_start / (x_end - x_start)
+            else:
+                z_s = z_start
             
-            return z_s, H
+            # Calculate theta from segment orientation
+            dx = x_end - x_start
+            dz = z_end - z_start
+            theta_rad = np.arctan2(dz, dx) if dx != 0 else 0.0
+            theta_deg = np.rad2deg(theta_rad)
+            
+            # Get x_hi (end x coordinate for segment s1)
+            x_hi = x_end
+            
+            return z_s, H, theta_deg, x_hi
     except:
         pass
-    return None, None
+    return None, None, None, None
 
 # ================================================================================
 # Parse command line arguments
 # ================================================================================
 parser = argparse.ArgumentParser(description='Post-process slanted/flat channel simulations')
-parser.add_argument('--theta_deg', type=float, default=7.5, help='Channel angle in degrees (default: 7.5)')
+
+mode_group = parser.add_mutually_exclusive_group(required=True)
+mode_group.add_argument('--flat', action='store_true', help='Post-process flat channel cases')
+mode_group.add_argument('--slanted', action='store_true', help='Post-process slanted channel cases')
+
 parser.add_argument('--align', type=str, default='default', choices=['default', 'cf'], help='Grid alignment when theta=0: default (none) or cf (cell face)')
 parser.add_argument('--nx_align', type=int, default=64, help='Reference nx for grid alignment (default: 64)')
 parser.add_argument('--H', type=float, default=1.0, help='Channel height (default: 1.0)')
@@ -60,33 +79,42 @@ args = parser.parse_args()
 # ================================================================================
 # Physical parameters
 # ================================================================================
-theta_deg = args.theta_deg
+# Set theta_deg based on mode
+if args.flat:
+    theta_deg = 0.0
+    case_prefix = 'flat-aligned'
+else:  # slanted
+    theta_deg = 45.0  # Default for slanted; will be overridden by parsing .inp
+    case_prefix = 'slanted'
+
+# Define paths
+rootDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/cases'
+figureDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/figures'
+base_inp = os.path.join(rootDir, 'base-flat-poiseuille.inp' if args.flat else 'base-slanted-poiseuille.inp')
+
 theta_rad = np.deg2rad(theta_deg)
 channelHeight = args.H
 maxVelocity = 1.0
 
-rootDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/cases'
-figureDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/figures'
-
-# Determine case directory pattern based on theta_deg
-if np.abs(theta_deg) < 0.01:  # theta_deg ≈ 0
-    case_prefix = 'flat-aligned'
-    base_inp = os.path.join(rootDir, 'base-flat-poiseuille.inp')
-else:
-    case_prefix = 'slanted-ibfm'
-    base_inp = os.path.join(rootDir, 'base-slanted-poiseuille.inp')
-
 # Try to read channel geometry from base .inp file
 z_s_analytical = None
 H_from_inp = None
+theta_from_inp = None
+x_hi_from_inp = None
 if os.path.exists(base_inp):
-    z_s_analytical, H_from_inp = parse_inp_for_channel_geometry(base_inp)
+    z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp = parse_inp_for_channel_geometry(base_inp)
     if z_s_analytical is not None:
         print(f'Read channel geometry from {os.path.basename(base_inp)}:')
         print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
         if H_from_inp is not None:
             print(f'  Channel height H = {H_from_inp:.6f}')
             channelHeight = H_from_inp
+        if theta_from_inp is not None and np.abs(theta_deg) >= 0.01:  # Only for slanted cases
+            print(f'  Channel angle theta = {theta_from_inp:.2f}°')
+            theta_deg = theta_from_inp
+            theta_rad = np.deg2rad(theta_deg)
+        if x_hi_from_inp is not None:
+            print(f'  Domain x_hi = {x_hi_from_inp:.4f}')
     else:
         print(f'Warning: Could not parse channel geometry from {os.path.basename(base_inp)}')
 
@@ -111,9 +139,22 @@ if z_s_analytical is None:
     print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
     print(f'  Channel height H = {channelHeight:.6f}')
 
-case_specs = [(f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
+# ================================================================================
+# Helper functions for analytical solution
+# ================================================================================
+def radial_distance_from_axis(x_coord, z_coord, z_s, theta):
+    """Perpendicular distance from tilted centerline"""
+    return np.abs((z_coord - z_s) * np.cos(theta) - x_coord * np.sin(theta))
 
-# Find available cases with data
+def velocity_profile_analytical(r, U_max=1.0, H=1.0):
+    """Parabolic profile: u(r) = U_max * (1 - (2r/H)^2)"""
+    return U_max * np.maximum(0.0, 1.0 - (2.0 * r / H)**2)
+
+# ================================================================================
+# Case discovery and loading
+# ================================================================================
+case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256)] if not args.flat else [(f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
+
 case_paths, case_resolutions, valid_cases = [], [], []
 for case_name, resolution in case_specs:
     case_dir = os.path.join(rootDir, case_name)
@@ -172,10 +213,27 @@ for case_idx, case_path in enumerate(case_paths):
         dz.append(z_arr[1] - z_arr[0] if len(z_arr) > 1 else 0)
         
         # Extract 3D field data
-        u_data_3d = cube["velocityx"].d
-        v_data_3d = cube["velocityy"].d
-        w_data_3d = cube["velocityz"].d
-        p_data_3d = cube["p"].d
+        u_data_3d = cube["velocityx"].d.copy()
+        v_data_3d = cube["velocityy"].d.copy()
+        w_data_3d = cube["velocityz"].d.copy()
+        p_data_3d = cube["p"].d.copy()
+        
+        # Mask numerical data outside analysis region immediately after reading
+        # Create radial distance field for masking
+        X, Y, Z = np.meshgrid(x_arr, y_arr, z_arr, indexing='ij')
+        r_mask = radial_distance_from_axis(X, Z, z_s_analytical, theta_rad)
+        
+        # Determine threshold based on mode
+        if args.slanted:
+            mask_outside = r_mask > (1.2 * channelHeight / 2.0)
+        else:
+            mask_outside = r_mask > (1.2 * channelHeight / 2.0)
+        
+        # Apply mask - explicitly set masked values to 0
+        u_data_3d[mask_outside] = 0.0
+        v_data_3d[mask_outside] = 0.0
+        w_data_3d[mask_outside] = 0.0
+        p_data_3d[mask_outside] = 0.0
         
         u.append(u_data_3d)
         v.append(v_data_3d)
@@ -194,43 +252,6 @@ nCases = len(ds_list)
 print(f'Loaded {nCases} cases\n')
 
 # ================================================================================
-# Plots of Loaded Data
-# ================================================================================
-fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-axes = axes.flatten()
-
-for case_idx in range(4):
-    ax = axes[case_idx]
-    
-    if case_idx < nCases:
-        # Get middle y-index
-        mid_y_idx = ny[case_idx] // 2
-        
-        # Extract 2D slice at middle y
-        x_2d = x[case_idx]
-        z_2d = z[case_idx]
-        u_2d = u[case_idx][:, mid_y_idx, :]
-        
-        # Create 2D coordinate meshes for pcolormesh
-        X_mesh, Z_mesh = np.meshgrid(x_2d, z_2d, indexing='ij')
-        
-        # Plot with "RdYlBu_r" colormap using pcolormesh
-        mesh = ax.pcolormesh(X_mesh, Z_mesh, u_2d, cmap="RdYlBu_r", shading="auto")
-        cbar = plt.colorbar(mesh, ax=ax, shrink=0.5)
-        cbar.set_label('$u$ (m/s)', fontsize=11)
-        
-        ax.set_xlabel('x', fontsize=12)
-        ax.set_ylabel('z', fontsize=12)
-        ax.set_title(f'{valid_cases[case_idx]}', fontsize=13, fontweight='bold')
-        ax.set_aspect('equal')
-    else:
-        ax.axis('off')
-
-plt.tight_layout()
-plt.savefig(f'{figureDir}/loaded_velocity_visualization.png', dpi=150, bbox_inches='tight')
-plt.show()
-
-# ================================================================================
 # Define Analytical Solution
 # ================================================================================
 # The axial velocity (along the tilted flow direction) for parabolic pipe flow is:
@@ -243,21 +264,17 @@ plt.show()
 # 
 # and rotated at an angle theta about the point (0, 0, sigma) in x-z plane.
 
-def radial_distance_from_axis(x_coord, z_coord, z_s, theta):
-    """Perpendicular distance from tilted centerline"""
-    return np.abs((z_coord - z_s) * np.cos(theta) - x_coord * np.sin(theta))
-
-def velocity_profile_analytical(r, U_max=1.0, H=1.0):
-    """Parabolic profile: u(r) = U_max * (1 - (2r/H)^2)"""
-    return U_max * np.maximum(0.0, 1.0 - (2.0 * r / H)**2)
-
 def get_analytical_solution_grid(case_idx):
     X, Y, Z = np.meshgrid(x[case_idx], y[case_idx], z[case_idx], indexing='ij')
     r = radial_distance_from_axis(X, Z, z_s_analytical, theta_rad)
     u_r = velocity_profile_analytical(r, maxVelocity, channelHeight)
     
-    # Set solution to zero outside the channel
-    channel_mask = r <= (channelHeight / 2.0)
+    # For slanted cases, use looser mask (r <= 1.2*H) to account for 3 segments
+    # For flat cases, mask strictly to channel interior (r <= H/2)
+    if args.slanted:
+        channel_mask = r <= (1.2 * channelHeight)
+    else:
+        channel_mask = r <= (channelHeight / 2.0)
     u_r[~channel_mask] = 0.0
 
     return u_r, r, z_s_analytical
@@ -275,6 +292,44 @@ for case_idx in range(nCases):
     centerline_shift.append(z_s)
 
 print('Analytical solutions computed')
+
+# ================================================================================
+# Plots of Loaded Data
+# ================================================================================
+fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+axes = axes.flatten()
+
+for case_idx in range(4):
+    ax = axes[case_idx]
+    
+    if case_idx < nCases:
+        # Get middle y-index
+        mid_y_idx = ny[case_idx] // 2
+        
+        # Extract 2D slice at middle y
+        x_2d = x[case_idx]
+        z_2d = z[case_idx]
+        u_2d = u[case_idx][:, mid_y_idx, :]
+        u_r = axial_velocity(u_2d, w[case_idx][:, mid_y_idx, :], theta_rad)
+        
+        # Create 2D coordinate meshes for pcolormesh
+        X_mesh, Z_mesh = np.meshgrid(x_2d, z_2d, indexing='ij')
+        
+        # Plot with "RdYlBu_r" colormap using pcolormesh
+        mesh = ax.pcolormesh(X_mesh, Z_mesh, u_r, cmap="RdYlBu_r", shading="auto")
+        cbar = plt.colorbar(mesh, ax=ax, shrink=0.5)
+        cbar.set_label('$u$ (m/s)', fontsize=11)
+        
+        ax.set_xlabel('x', fontsize=12)
+        ax.set_ylabel('z', fontsize=12)
+        ax.set_title(f'{valid_cases[case_idx]}', fontsize=13, fontweight='bold')
+        ax.set_aspect('equal')
+    else:
+        ax.axis('off')
+
+plt.tight_layout()
+plt.savefig(f'{figureDir}/loaded_velocity_visualization.png', dpi=150, bbox_inches='tight')
+plt.show()
 
 # ================================================================================
 # Plot Geometry Setup
@@ -341,10 +396,6 @@ arrow_mid_z = z_s + arrow_mid_x * np.tan(theta_rad)
 ax.text(arrow_mid_x, arrow_mid_z, 'flow', fontsize=fontSize - 2, fontweight='bold', rotation=theta_deg, 
         verticalalignment='center', horizontalalignment='center', zorder=3)
 
-# Boundary condition labels
-ax.text(x_min + 0.03, (z_min + z_max) / 2, 'inlet', rotation='vertical', verticalalignment='center', fontsize=fontSize)
-ax.text(x_max - 0.08, 0.9 * (z_min + z_max) / 2, 'outlet', rotation='vertical', verticalalignment='center', fontsize=fontSize)
-
 # Set axis limits with tolerance
 ax.set_xlim(x_min - tol, x_max + tol)
 ax.set_ylim(z_min - tol, z_max + tol)
@@ -391,8 +442,12 @@ for case_idx in range(nCases):
     # Compute axial velocity errors
     u_axial_err = u_axial_num - u_axial_ana
     
-    # Only compute errors inside the channel
-    channel_mask = r_dist_2d <= (channelHeight / 2.0)
+    # For slanted cases, use looser mask (r <= 1.2 * H/2) to account for 3 segments
+    # For flat cases, use channel interior only (r <= H/2)
+    if args.slanted:
+        channel_mask = r_dist_2d <= (1.2 * channelHeight / 2.0)
+    else:
+        channel_mask = r_dist_2d <= (channelHeight / 2.0)
     
     u_axial_max = np.max(np.abs(u_axial_err[channel_mask])) if np.any(channel_mask) else 0.0
     u_axial_l2 = np.sqrt(np.sum(u_axial_err[channel_mask]**2)) / np.sqrt(np.sum(channel_mask)) if np.any(channel_mask) else 0.0
@@ -597,9 +652,13 @@ j_mid = ny[case_finest] // 2
 
 fig, axes = plt.subplots(3, 2, figsize=(14, 12))
 
-# Define x-locations to plot: x_lo, x_mid, x_hi
-i_locations = [0, nx[case_finest] // 2, nx[case_finest] - 1]
-x_labels = ['$x_{lo}$', '$x_{mid}$', '$x_{hi}$']
+# Define x-locations to plot: x_hi * (0.25, 0.5, 0.75)
+x_hi = x[case_finest][-1]  # Last x coordinate
+x_positions = [x_hi * frac for frac in [0.25, 0.5, 0.75]]
+
+# Find indices closest to these positions
+i_locations = [np.argmin(np.abs(x[case_finest] - xp)) for xp in x_positions]
+x_labels = ['$0.25 x_{hi}$', '$0.5 x_{hi}$', '$0.75 x_{hi}$']
 
 # Extract 2D slices at midpoint
 u_2d = u[case_finest][:, j_mid, :]
