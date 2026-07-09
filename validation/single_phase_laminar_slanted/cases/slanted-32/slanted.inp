@@ -1,2 +1,0 @@
-FILE = ../base-slanted-poiseuille.inp
-amr.n_cell = 32 4 32
