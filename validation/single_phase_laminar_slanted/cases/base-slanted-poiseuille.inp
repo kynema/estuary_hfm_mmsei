@@ -13,8 +13,8 @@ time.cfl       =  0.5             # CFL factor
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
-time.plot_interval            =  100     # Steps between plot files
-time.checkpoint_interval      =  1000    # Steps between checkpoint files
+time.plot_time_interval            =  10     # Time between plot files
+time.checkpoint_time_interval      =  100    # Time between checkpoint files
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #               PHYSICS                 #
@@ -42,8 +42,6 @@ BodyForce.magnitude = 1.1313708498984762 0.0 1.1313708498984760 # Force value in
 
 # Channel configuration for slanted Poiseuille flow (theta=45 degrees)
 # Three periodic segments at 45-degree angles for periodic boundary conditions
-amr.n_cell = 32 4 32
-
 ChannelBuilder.segment_labels = s1 s2 s3
 
 ChannelBuilder.s1.flow_speed = 100.0000

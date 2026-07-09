@@ -23,44 +23,90 @@ print('Modules loaded')
 # Helper functions
 # ================================================================================
 def parse_inp_for_channel_geometry(inp_file):
-    """Extract channel geometry (z_s, H, theta, x_hi) from base-*.inp file"""
-    try:
-        with open(inp_file, 'r') as f:
-            content = f.read()
+    """Extract channel geometry and physics parameters from base-*.inp file
+    
+    Returns:
+        tuple: (z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu)
+        Raises RuntimeError if required parameters cannot be found
+    """
+    import re
+    
+    with open(inp_file, 'r') as f:
+        content = f.read()
+    
+    missing_params = []
+    
+    # Extract segment start and end points
+    start_match = re.search(r'ChannelBuilder\.s1\.segment_start_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
+    end_match = re.search(r'ChannelBuilder\.s1\.segment_end_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
+    height_match = re.search(r'ChannelBuilder\.s1\.height_start\s*=\s*([\d.\-]+)', content)
+    
+    if not start_match or not end_match:
+        missing_params.append('ChannelBuilder.s1.segment_start_point or segment_end_point')
+    else:
+        x_start, y_start, z_start = float(start_match.group(1)), float(start_match.group(2)), float(start_match.group(3))
+        x_end, y_end, z_end = float(end_match.group(1)), float(end_match.group(2)), float(end_match.group(3))
+        H = float(height_match.group(1)) if height_match else None
         
-        # Extract segment start and end points
-        import re
-        start_match = re.search(r'ChannelBuilder\.s1\.segment_start_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
-        end_match = re.search(r'ChannelBuilder\.s1\.segment_end_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
-        height_match = re.search(r'ChannelBuilder\.s1\.height_start\s*=\s*([\d.\-]+)', content)
+        # z_s is the z-coordinate where the centerline crosses x=0
+        # For a line from (x_start, z_start) to (x_end, z_end):
+        # z(x) = z_start + (z_end - z_start)/(x_end - x_start) * (x - x_start)
+        # At x=0: z_s = z_start + (z_end - z_start)/(x_end - x_start) * (0 - x_start)
+        if x_end != x_start:
+            z_s = z_start - (z_end - z_start) * x_start / (x_end - x_start)
+        else:
+            z_s = z_start
         
-        if start_match and end_match:
-            x_start, y_start, z_start = float(start_match.group(1)), float(start_match.group(2)), float(start_match.group(3))
-            x_end, y_end, z_end = float(end_match.group(1)), float(end_match.group(2)), float(end_match.group(3))
-            H = float(height_match.group(1)) if height_match else 1.0
-            
-            # z_s is the z-coordinate where the centerline crosses x=0
-            # For a line from (x_start, z_start) to (x_end, z_end):
-            # z(x) = z_start + (z_end - z_start)/(x_end - x_start) * (x - x_start)
-            # At x=0: z_s = z_start + (z_end - z_start)/(x_end - x_start) * (0 - x_start)
-            if x_end != x_start:
-                z_s = z_start - (z_end - z_start) * x_start / (x_end - x_start)
-            else:
-                z_s = z_start
-            
-            # Calculate theta from segment orientation
-            dx = x_end - x_start
-            dz = z_end - z_start
-            theta_rad = np.arctan2(dz, dx) if dx != 0 else 0.0
-            theta_deg = np.rad2deg(theta_rad)
-            
-            # Get x_hi (end x coordinate for segment s1)
-            x_hi = x_end
-            
-            return z_s, H, theta_deg, x_hi
-    except:
-        pass
-    return None, None, None, None
+        # Calculate theta from segment orientation
+        dx = x_end - x_start
+        dz = z_end - z_start
+        theta_rad = np.arctan2(dz, dx) if dx != 0 else 0.0
+        theta_deg = np.rad2deg(theta_rad)
+        
+        # Get x_hi (end x coordinate for segment s1)
+        x_hi = x_end
+    
+    # Extract domain bounds from prob_hi
+    prob_hi_match = re.search(r'geometry\.prob_hi\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
+    if prob_hi_match:
+        x_hi = float(prob_hi_match.group(1))  # prob_hi[0]
+        # y_hi = float(prob_hi_match.group(2))  # prob_hi[1] - not needed
+        z_hi = float(prob_hi_match.group(3))  # prob_hi[2]
+    else:
+        z_hi = None
+        missing_params.append('geometry.prob_hi')
+    
+    # Extract physics parameters
+    # Umax from ChannelBuilder.s1.flow_speed
+    flow_speed_match = re.search(r'ChannelBuilder\.s1\.flow_speed\s*=\s*([\d.\-eE]+)', content)
+    if flow_speed_match:
+        Umax = float(flow_speed_match.group(1))
+    else:
+        Umax = None
+        missing_params.append('ChannelBuilder.s1.flow_speed')
+    
+    # Density from incflo.density
+    density_match = re.search(r'incflo\.density\s*=\s*([\d.\-eE]+)', content)
+    if density_match:
+        rho = float(density_match.group(1))
+    else:
+        rho = None
+        missing_params.append('incflo.density')
+    
+    # Viscosity from transport.viscosity
+    viscosity_match = re.search(r'transport\.viscosity\s*=\s*([\d.\-eE]+)', content)
+    if viscosity_match:
+        mu = float(viscosity_match.group(1))
+    else:
+        mu = None
+        missing_params.append('transport.viscosity')
+    
+    if missing_params:
+        error_msg = f"Error: Could not parse required parameters from {os.path.basename(inp_file)}:\n"
+        error_msg += f"  Missing: {', '.join(missing_params)}"
+        raise RuntimeError(error_msg)
+    
+    return z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu
 
 # ================================================================================
 # Parse command line arguments
@@ -71,10 +117,17 @@ mode_group = parser.add_mutually_exclusive_group(required=True)
 mode_group.add_argument('--flat', action='store_true', help='Post-process flat channel cases')
 mode_group.add_argument('--slanted', action='store_true', help='Post-process slanted channel cases')
 
+drag_group = parser.add_mutually_exclusive_group(required=False)
+drag_group.add_argument('--og', action='store_true', help='Use original drag forcing variant')
+drag_group.add_argument('--temp', action='store_true', help='Use temporal drag forcing variant (default)')
+
 parser.add_argument('--align', type=str, default='default', choices=['default', 'cf'], help='Grid alignment when theta=0: default (none) or cf (cell face)')
 parser.add_argument('--nx_align', type=int, default=64, help='Reference nx for grid alignment (default: 64)')
 parser.add_argument('--H', type=float, default=1.0, help='Channel height (default: 1.0)')
 args = parser.parse_args()
+
+# Determine drag variant (default to 'temp' if not specified)
+drag_variant = 'og' if args.og else 'temp'
 
 # ================================================================================
 # Physical parameters
@@ -82,62 +135,48 @@ args = parser.parse_args()
 # Set theta_deg based on mode
 if args.flat:
     theta_deg = 0.0
-    case_prefix = 'flat-aligned'
+    case_prefix = f'flat-drag-{drag_variant}'
 else:  # slanted
     theta_deg = 45.0  # Default for slanted; will be overridden by parsing .inp
-    case_prefix = 'slanted'
+    case_prefix = f'slanted-drag-{drag_variant}'
 
 # Define paths
 rootDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/cases'
-figureDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/figures'
+figureDir_base = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/figures'
 base_inp = os.path.join(rootDir, 'base-flat-poiseuille.inp' if args.flat else 'base-slanted-poiseuille.inp')
 
 theta_rad = np.deg2rad(theta_deg)
 channelHeight = args.H
 maxVelocity = 1.0
 
-# Try to read channel geometry from base .inp file
-z_s_analytical = None
-H_from_inp = None
-theta_from_inp = None
-x_hi_from_inp = None
-if os.path.exists(base_inp):
-    z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp = parse_inp_for_channel_geometry(base_inp)
-    if z_s_analytical is not None:
-        print(f'Read channel geometry from {os.path.basename(base_inp)}:')
-        print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
-        if H_from_inp is not None:
-            print(f'  Channel height H = {H_from_inp:.6f}')
-            channelHeight = H_from_inp
-        if theta_from_inp is not None and np.abs(theta_deg) >= 0.01:  # Only for slanted cases
-            print(f'  Channel angle theta = {theta_from_inp:.2f}°')
-            theta_deg = theta_from_inp
-            theta_rad = np.deg2rad(theta_deg)
-        if x_hi_from_inp is not None:
-            print(f'  Domain x_hi = {x_hi_from_inp:.4f}')
-    else:
-        print(f'Warning: Could not parse channel geometry from {os.path.basename(base_inp)}')
+# Read channel geometry and physics parameters from base .inp file
+if not os.path.exists(base_inp):
+    raise RuntimeError(f"Error: Base input file not found: {base_inp}")
 
-# If we couldn't read from file, calculate it
-if z_s_analytical is None:
-    # Calculate channel centerline shift the same way as SlantedChannelConfig.py
-    channel_shift_default = 0.1
+try:
+    z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp, z_hi_from_inp, Umax_from_inp, rho_from_inp, mu_from_inp = parse_inp_for_channel_geometry(base_inp)
     
-    # For aligned grids, adjust H to align with grid cells
-    if np.abs(theta_deg) < 0.01 and args.align == 'cf':
-        x_hi = 4.0
-        nx_align = args.nx_align
-        cell_size_ref = x_hi / nx_align
-        # Round H to be an integer multiple of reference cell size
-        n_cells_H = channelHeight / cell_size_ref
-        n_cells_H_rounded = int(np.round(n_cells_H))
-        channelHeight = n_cells_H_rounded * cell_size_ref
-    
-    # Calculate centerline z-position
-    z_s_analytical = channelHeight / (2.0 * np.cos(theta_rad)) + channel_shift_default
-    print(f'Calculated channel geometry (no base .inp found):')
+    print(f'Read channel configuration from {os.path.basename(base_inp)}:')
     print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
-    print(f'  Channel height H = {channelHeight:.6f}')
+    print(f'  Channel height H = {H_from_inp:.6f}')
+    print(f'  Channel angle theta = {theta_from_inp:.2f}°')
+    print(f'  Domain: x_hi={x_hi_from_inp:.4f}, z_hi={z_hi_from_inp:.4f}')
+    print(f'  Physics: Umax={Umax_from_inp:.4f}, rho={rho_from_inp:.4f}, mu={mu_from_inp:.4f}')
+    
+    # Update parameters from file
+    channelHeight = H_from_inp
+    theta_deg = theta_from_inp
+    theta_rad = np.deg2rad(theta_deg)
+    maxVelocity = Umax_from_inp
+    
+except RuntimeError as e:
+    print(e)
+    raise
+
+# Create figure output directory with drag variant subdirectory
+figureDir = os.path.join(figureDir_base, case_prefix)
+os.makedirs(figureDir, exist_ok=True)
+    
 
 # ================================================================================
 # Helper functions for analytical solution
@@ -153,7 +192,11 @@ def velocity_profile_analytical(r, U_max=1.0, H=1.0):
 # ================================================================================
 # Case discovery and loading
 # ================================================================================
-case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256)] if not args.flat else [(f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
+# Build case specifications based on mode
+if args.flat:
+    case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
+else:  # slanted
+    case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
 
 case_paths, case_resolutions, valid_cases = [], [], []
 for case_name, resolution in case_specs:
@@ -179,6 +222,7 @@ print(f'  Alignment: {args.align if np.abs(theta_deg) < 0.01 else "N/A (slanted)
 # Load datasets using yt
 # ================================================================================
 ds_list, x, y, z, nx, ny, nz, dx, dy, dz, u, v, w, p = [], [], [], [], [], [], [], [], [], [], [], [], [], []
+domain_bounds = []  # Store domain boundaries for each case
 
 for case_idx, case_path in enumerate(case_paths):
     print(f'Loading {valid_cases[case_idx]}...')
@@ -189,6 +233,9 @@ for case_idx, case_path in enumerate(case_paths):
         
         # Get grid information
         dims = ds_yt.domain_dimensions
+        domain_left = ds_yt.domain_left_edge.d
+        domain_right = ds_yt.domain_right_edge.d
+        domain_bounds.append((domain_left, domain_right))
         
         print(f'  Dimensions: {dims}')
         
@@ -294,6 +341,14 @@ for case_idx in range(nCases):
 print('Analytical solutions computed')
 
 # ================================================================================
+# Compute domain bounds for all plots
+# ================================================================================
+x_min_all = min([bounds[0][0] for bounds in domain_bounds])
+x_max_all = max([bounds[1][0] for bounds in domain_bounds])
+z_min_all = min([bounds[0][2] for bounds in domain_bounds])
+z_max_all = max([bounds[1][2] for bounds in domain_bounds])
+
+# ================================================================================
 # Plots of Loaded Data
 # ================================================================================
 fig, axes = plt.subplots(2, 2, figsize=(12, 8))
@@ -320,6 +375,10 @@ for case_idx in range(4):
         cbar = plt.colorbar(mesh, ax=ax, shrink=0.5)
         cbar.set_label('$u$ (m/s)', fontsize=11)
         
+        # Set axis limits to true domain bounds
+        ax.set_xlim(x_min_all, x_max_all)
+        ax.set_ylim(z_min_all, z_max_all)
+        
         ax.set_xlabel('x', fontsize=12)
         ax.set_ylabel('z', fontsize=12)
         ax.set_title(f'{valid_cases[case_idx]}', fontsize=13, fontweight='bold')
@@ -338,23 +397,18 @@ fig, ax = plt.subplots(figsize=(16, 10))
 fontSize = 22
 tol = 0.05
 
-x_min = min([np.min(x[i]) for i in range(nCases)])
-x_max = max([np.max(x[i]) for i in range(nCases)])
-z_min = min([np.min(z[i]) for i in range(nCases)])
-z_max = max([np.max(z[i]) for i in range(nCases)])
-
 # Domain outline
-ax.plot([x_min, x_max, x_max, x_min, x_min], [z_min, z_min, z_max, z_max, z_min], 'k-', linewidth=5)
+ax.plot([x_min_all, x_max_all, x_max_all, x_min_all, x_min_all], [z_min_all, z_min_all, z_max_all, z_max_all, z_min_all], 'k-', linewidth=5)
 
 # Channel geometry
 z_s = centerline_shift[0]
-x_centerline = np.linspace(x_min, x_max, 100)
+x_centerline = np.linspace(x_min_all, x_max_all, 100)
 z_centerline = z_s + x_centerline * np.tan(theta_rad)
 ax.plot(x_centerline, z_centerline, 'b:', linewidth=4, label='Centerline')
 
 # Channel walls and immersed boundary regions
 perp_offset = channelHeight / 2.0
-x_boundary_full = np.linspace(x_min, x_max, 100)
+x_boundary_full = np.linspace(x_min_all, x_max_all, 100)
 
 # Lower channel boundary
 z_lower = z_s + x_boundary_full * np.tan(theta_rad) - perp_offset * np.cos(theta_rad)
@@ -367,23 +421,23 @@ ax.plot(x_boundary_full, z_upper, color='deeppink', linewidth=5)
 
 # Fill regions outside the channel with grey (gainsboro)
 # Lower solid region - from domain bottom to lower boundary
-lower_x = np.concatenate([x_boundary_full, [x_max, x_min]])
-lower_z = np.concatenate([z_lower, [z_min, z_min]])
+lower_x = np.concatenate([x_boundary_full, [x_max_all, x_min_all]])
+lower_z = np.concatenate([z_lower, [z_min_all, z_min_all]])
 lower_polygon = plt.matplotlib.patches.Polygon(list(zip(lower_x, lower_z)), 
                                  facecolor='gainsboro', edgecolor='none', alpha=1.0, zorder=0)
 ax.add_patch(lower_polygon)
 
 # Upper solid region - from upper boundary to domain top
-upper_x = np.concatenate([x_boundary_full, [x_max, x_min]])
-upper_z = np.concatenate([z_upper, [z_max, z_max]])
+upper_x = np.concatenate([x_boundary_full, [x_max_all, x_min_all]])
+upper_z = np.concatenate([z_upper, [z_max_all, z_max_all]])
 upper_polygon = plt.matplotlib.patches.Polygon(list(zip(upper_x, upper_z)), 
                                  facecolor='gainsboro', edgecolor='none', alpha=1.0, zorder=0)
 ax.add_patch(upper_polygon)
 
 # Flow direction arrow (paleturquoise)
-arrow_x_start = x_min + 0.15 * (x_max - x_min)
+arrow_x_start = x_min_all + 0.15 * (x_max_all - x_min_all)
 arrow_z_start = z_s + arrow_x_start * np.tan(theta_rad)
-arrow_x_end = arrow_x_start + 0.25 * (x_max - x_min)
+arrow_x_end = arrow_x_start + 0.25 * (x_max_all - x_min_all)
 arrow_z_end = z_s + arrow_x_end * np.tan(theta_rad)
 
 arrow = plt.matplotlib.patches.FancyArrowPatch((arrow_x_start, arrow_z_start), (arrow_x_end, arrow_z_end),
@@ -396,14 +450,15 @@ arrow_mid_z = z_s + arrow_mid_x * np.tan(theta_rad)
 ax.text(arrow_mid_x, arrow_mid_z, 'flow', fontsize=fontSize - 2, fontweight='bold', rotation=theta_deg, 
         verticalalignment='center', horizontalalignment='center', zorder=3)
 
-# Set axis limits with tolerance
-ax.set_xlim(x_min - tol, x_max + tol)
-ax.set_ylim(z_min - tol, z_max + tol)
+# Set axis limits
+ax.set_xlim(x_min_all, x_max_all)
+ax.set_ylim(z_min_all, z_max_all)
 
 # Axis labels and title
 ax.set_xlabel('x', fontsize=fontSize, fontweight='normal')
 ax.set_ylabel('z', fontsize=fontSize, fontweight='normal')
-ax.set_title('Slanted Channel Geometry', fontsize=fontSize + 2, fontweight='normal')
+geometry_title = 'Flat Channel Geometry' if args.flat else 'Slanted Channel Geometry'
+ax.set_title(geometry_title, fontsize=fontSize + 2, fontweight='normal')
 ax.tick_params(axis='both', which='major', labelsize=fontSize)
 
 # Legend and grid
@@ -484,17 +539,23 @@ print()
 fig, ax = plt.subplots(figsize=(10, 7))
 
 ax.loglog(cell_size_array, u_axial_error_max, 'o-', linewidth=2, markersize=10, label='Max Error')
+ax.loglog(cell_size_array, u_axial_error_l2, 's-', linewidth=2, markersize=8, label='L2 Error')
 if len(cell_size_array) > 1:
-    # Trend line for max error
+    # Trend lines
     coeffs_max = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_max), 1)
     cell_trend = np.logspace(np.log10(cell_size_array.min()), np.log10(cell_size_array.max()), 50)
-    ax.loglog(cell_trend, np.exp(coeffs_max[1]) * cell_trend**coeffs_max[0], '--', alpha=0.5, linewidth=2, color='C0', label=f'Max Error Trend (slope={coeffs_max[0]:.2f})')
-
-ax.loglog(cell_size_array, u_axial_error_l2, 's-', linewidth=2, markersize=8, label='L2 Error')
-if len(cell_size_array) > 1:    
-    # Trend line for L2 error
-    coeffs_l2 = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_l2), 1)
-    ax.loglog(cell_trend, np.exp(coeffs_l2[1]) * cell_trend**coeffs_l2[0], '--', alpha=0.5, linewidth=2, color='C1', label=f'L2 Error Trend (slope={coeffs_l2[0]:.2f})')
+    
+    # Scale reference lines to pass through mean of max error data
+    mean_error_max = np.mean(u_axial_error_max)
+    mean_cell_size = np.mean(cell_size_array)
+    
+    # O(h) reference: error ~ C * h
+    C_slope1 = 0.85 * mean_error_max / (mean_cell_size ** 1.0)
+    ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, ':', alpha=0.6, linewidth=2, color='gray', label='Slope: 1')
+    
+    # O(h^1/2) reference: error ~ C * h^0.5
+    C_slope05 = 0.85 * mean_error_max / (mean_cell_size ** 0.5)
+    ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, '-.', alpha=0.6, linewidth=2, color='gray', label='Slope: 0.5')
 
 ax.set_xlabel('Cell Size (h)', fontsize=14)
 ax.set_ylabel('Axial Velocity Error', fontsize=14)
@@ -559,6 +620,10 @@ for case_idx in range(4):
         cbar = plt.colorbar(sm, ax=ax, shrink=0.4)
         cbar.set_label('|Error|', fontsize=11)
         
+        # Set axis limits to true domain bounds
+        ax.set_xlim(x_min_all, x_max_all)
+        ax.set_ylim(z_min_all, z_max_all)
+        
         ax.set_xlabel('x', fontsize=12)
         ax.set_ylabel('z', fontsize=12)
         ax.set_title(f'{valid_cases[case_idx]} (Nx={nx[case_idx]}, Nz={nz[case_idx]})', fontsize=13, fontweight='bold')
@@ -585,8 +650,8 @@ if len(cell_size_array) > 1:
     coeffs_max_overall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_max), 1)
     coeffs_max_wall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_max_wall), 1)
     cell_trend = np.logspace(np.log10(cell_size_array.min()), np.log10(cell_size_array.max()), 50)
-    ax.loglog(cell_trend, np.exp(coeffs_max_overall[1]) * cell_trend**coeffs_max_overall[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_max_overall[0]:.2f})')
-    ax.loglog(cell_trend, np.exp(coeffs_max_wall[1]) * cell_trend**coeffs_max_wall[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_max_wall[0]:.2f})')
+    ax.loglog(cell_trend, 0.85 * np.exp(coeffs_max_overall[1]) * cell_trend**coeffs_max_overall[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_max_overall[0]:.2f})')
+    ax.loglog(cell_trend, 0.85 * np.exp(coeffs_max_wall[1]) * cell_trend**coeffs_max_wall[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_max_wall[0]:.2f})')
 ax.set_xlabel('Cell Size (h)', fontsize=12)
 ax.set_ylabel('Max Error', fontsize=12)
 ax.set_title('Max Norm Error vs Cell Size', fontsize=13)
@@ -601,8 +666,8 @@ if len(cell_size_array) > 1:
     coeffs_l2_overall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_l2), 1)
     coeffs_l2_wall = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_l2_wall), 1)
     cell_trend = np.logspace(np.log10(cell_size_array.min()), np.log10(cell_size_array.max()), 50)
-    ax.loglog(cell_trend, np.exp(coeffs_l2_overall[1]) * cell_trend**coeffs_l2_overall[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_l2_overall[0]:.2f})')
-    ax.loglog(cell_trend, np.exp(coeffs_l2_wall[1]) * cell_trend**coeffs_l2_wall[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_l2_wall[0]:.2f})')
+    ax.loglog(cell_trend, 0.85 * np.exp(coeffs_l2_overall[1]) * cell_trend**coeffs_l2_overall[0], '--', alpha=0.5, linewidth=1.5, color='C0', label=f'Overall Trend (slope={coeffs_l2_overall[0]:.2f})')
+    ax.loglog(cell_trend, 0.85 * np.exp(coeffs_l2_wall[1]) * cell_trend**coeffs_l2_wall[0], '--', alpha=0.5, linewidth=1.5, color='C1', label=f'Wall Trend (slope={coeffs_l2_wall[0]:.2f})')
 ax.set_xlabel('Cell Size (h)', fontsize=12)
 ax.set_ylabel('L2 Error', fontsize=12)
 ax.set_title('L2 Error vs Cell Size', fontsize=13)

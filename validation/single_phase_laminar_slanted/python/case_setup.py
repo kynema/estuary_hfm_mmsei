@@ -13,18 +13,18 @@ import argparse
 def calculate_channel_config(
     flat_mode=False,
     slanted_mode=False,
-    x_hi=4.0,
-    y_hi=0.0625,
-    z_hi=None,
-    H=1.0,
+    x_hi=1000.0,
+    y_hi=50.0,
+    z_hi=1000.0,
+    H=500.0,
     nx=256,
     blocking_factor=4,
-    channel_shift=None,
+    channel_shift=0.0,
     rho=1.0,
-    mu=1.0e-2,
-    Umax=1.0,
+    mu=500.0,
+    Umax=100.0,
     align='default',
-    nx_align=64,
+    nx_align=32,
 ):
     """
     Calculate channel configuration for flat or slanted modes.
@@ -78,28 +78,24 @@ def calculate_channel_config(
     
     # Calculate initial n_cell
     n_x = nx
-    n_y = int(np.round(y_hi / cell_size))
+    n_y = blocking_factor
     n_z = int(np.round((z_hi - z_lo) / cell_size))
-    
-    # Ensure n_y is at least blocking_factor
-    n_y = max(n_y, blocking_factor)
     
     # Round all n_cell to be divisible by blocking_factor
     def round_to_blocking_factor(n):
         return int(np.ceil(n / blocking_factor) * blocking_factor)
     n_x = round_to_blocking_factor(n_x)
-    n_y = round_to_blocking_factor(n_y)
     n_z = round_to_blocking_factor(n_z)
     
     # Recalculate actual cell sizes based on rounded n_cell
     dx = (x_hi - x_lo) / n_x
     
-    # Adjust y_hi and z_hi to ensure uniform grid spacing using dx
-    y_hi = dx * n_y
+    # Adjust z_hi to ensure uniform grid spacing using dx
+    print(f"Nx: {n_x}, Ny: {n_y}, Nz: {n_z}, dx: {dx:.6f}")
     z_hi = z_lo + dx * n_z
-    
-    dy = y_hi / n_y
     dz = (z_hi - z_lo) / n_z
+
+    dy = (y_hi - y_lo) / n_y
     
     # Calculate BodyForce magnitude
     # BodyForce.magnitude = 1/rho * 8 * mu * Umax / H^2 * (cos(theta), 0, sin(theta))
@@ -113,16 +109,16 @@ def calculate_channel_config(
     
     if flat_mode:
         # Single flat channel
-        if channel_shift is None:
-            channel_shift = 0.1
+        if channel_shift == 0.0:
+            nz_coarse = nx_align
+            dz_coarse = z_hi / nz_coarse
+
+            channel_shift = nz_coarse * dz_coarse / 4 
         
         # Calculate centerline z-position for flat channel
-        z_center = H / (2.0 * np.cos(theta_rad)) + channel_shift
-        
-        # Apply grid alignment for cell face alignment
-        if align == 'cf':
-            cell_size_align = (x_hi - x_lo) / nx_align
-            z_center = np.round(z_center / cell_size_align) * cell_size_align
+        z_center = channel_shift + H / 2.0
+        print("z_center: ",z_center)
+        print("channel_shift: ",channel_shift)
         
         segments.append({
             'label': 's1',
@@ -212,7 +208,7 @@ def print_config(config):
     
     print(f"\nChannel Height (perpendicular): H = {config['H']:.6f}")
     
-    print(f"\nMesh Resolution (isotropic cell size):")
+    print(f"\nMesh Resolution:")
     print(f"  amr.n_cell = {config['n_cell'][0]} {config['n_cell'][1]} {config['n_cell'][2]}")
     print(f"  Cell sizes:")
     print(f"    Δx = {config['dx']:.6f}")
@@ -235,17 +231,17 @@ def print_config(config):
         end = seg['end']
         h = seg['height']
         
-        print(f"\nChannelBuilder.{label}.flow_speed = 1.0")
-        print(f"ChannelBuilder.{label}.velocity_profile = Parabolic")
+        print(f"\nChannelBuilder.{label}.flow_speed = {config['Umax']:.4f}")
+        print(f"ChannelBuilder.{label}.velocity_profile = Uniform")
         print(f"ChannelBuilder.{label}.type = Trapezoid")
-        print(f"ChannelBuilder.{label}.top_width_start = 1.0")
-        print(f"ChannelBuilder.{label}.top_width_end = 1.0")
-        print(f"ChannelBuilder.{label}.bottom_width_start = 1.0")
-        print(f"ChannelBuilder.{label}.bottom_width_end = 1.0")
+        print(f"ChannelBuilder.{label}.top_width_start = {h:.4f}")
+        print(f"ChannelBuilder.{label}.top_width_end = {h:.4f}")
+        print(f"ChannelBuilder.{label}.bottom_width_start = {h:.4f}")
+        print(f"ChannelBuilder.{label}.bottom_width_end = {h:.4f}")
         print(f"ChannelBuilder.{label}.height_start = {h:.4f}")
         print(f"ChannelBuilder.{label}.height_end = {h:.4f}")
-        print(f"ChannelBuilder.{label}.segment_start_point = {start[0]:.16f} {start[1]:.6f} {start[2]:.16f}")
-        print(f"ChannelBuilder.{label}.segment_end_point = {end[0]:.16f} {end[1]:.6f} {end[2]:.16f}")
+        print(f"ChannelBuilder.{label}.segment_start_point = {start[0]:.1f} {start[1]:.1f} {start[2]:.1f}")
+        print(f"ChannelBuilder.{label}.segment_end_point = {end[0]:.1f} {end[1]:.1f} {end[2]:.1f}")
     
     print(f"\nFluid Properties:")
     print(f"  ρ (density) = {config['rho']:.4f}")
@@ -279,28 +275,29 @@ Examples:
     mode_group.add_argument('--flat', action='store_true', help='Flat channel configuration (theta=0)')
     mode_group.add_argument('--slanted', action='store_true', help='Slanted channel configuration (theta=45, 3 segments)')
     
-    parser.add_argument('--H', type=float, default=1.0, help='Channel height perpendicular (default: 1.0)')
+    parser.add_argument('--H', type=float, default=500.0, help='Channel height perpendicular (default: 500.0)')
     parser.add_argument('--nx', type=int, default=None, help='Number of cells in x-direction (default: 64 for flat, 32 for slanted)')
     parser.add_argument('--blocking_factor', type=int, default=4, help='AMR blocking factor (default: 4)')
-    parser.add_argument('--channel_shift', type=float, default=0.1, help='Vertical shift of flat channel (default: 0.1)')
+    parser.add_argument('--channel_shift', type=float, default=0, help='Vertical shift of flat channel (default: 0.1)')
     parser.add_argument('--rho', type=float, default=1.0, help='Fluid density (default: 1.0)')
-    parser.add_argument('--mu', type=float, default=1.0e-2, help='Dynamic viscosity (default: 1.0e-2)')
-    parser.add_argument('--Umax', type=float, default=1.0, help='Maximum velocity (default: 1.0)')
+    parser.add_argument('--mu', type=float, default=500.0, help='Dynamic viscosity (default: 500.0 for Re=100 with H=500, Umax=100)')
+    parser.add_argument('--Umax', type=float, default=100.0, help='Maximum velocity (default: 100.0)')
     parser.add_argument('--align', type=str, default='default', choices=['default', 'cf'], help='Grid alignment for flat channel: default (none) or cf (cell face)')
-    parser.add_argument('--nx_align', type=int, default=64, help='Reference nx for grid alignment in convergence studies (default: 64)')
+    parser.add_argument('--nx_align', type=int, default=32, help='Reference nx for grid alignment in convergence studies (default: 32)')
     
     args = parser.parse_args()
     
     # Set mode-specific defaults
     if args.flat:
-        x_hi = 4.0
-        y_hi = 0.0625
-        z_hi = 2.0
-        nx = args.nx if args.nx is not None else 64
+        x_hi = 1000.0
+        y_hi = 125.0
+        z_hi = 1000.0
+        nx = args.nx if args.nx is not None else 32
+        nx_align = 32 if args.nx_align == 64 else args.nx_align  # Updated default to 32
     else:  # slanted
-        x_hi = 2.0
-        y_hi = 0.0625
-        z_hi = 2.0
+        x_hi = 1000.0
+        y_hi = 125.0
+        z_hi = 1000.0
         nx = args.nx if args.nx is not None else 32
     
     config = calculate_channel_config(

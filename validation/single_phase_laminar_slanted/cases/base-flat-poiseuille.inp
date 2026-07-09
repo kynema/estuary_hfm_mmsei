@@ -13,8 +13,8 @@ time.cfl       =  0.95             # CFL factor
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
-time.plot_interval            =  100     # Steps between plot files
-time.checkpoint_interval      =  1000    # Steps between checkpoint files
+time.plot_time_interval            =  10     # Time between plot files
+time.checkpoint_time_interval      =  100    # Time between checkpoint files
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #               PHYSICS                 #
@@ -40,8 +40,7 @@ DragForcing.use_original_drag_limiter = false
 DragForcing.use_temporal_drag_limiter = true
 BodyForce.magnitude = 1.600 0.0 0.0 # Force value in m/s^2
 
-# Channel configuration for slanted Poiseuille flow
-# Walls are slanted; flow is parallel to walls
+# Channel configuration for flat Poiseuille flow
 ChannelBuilder.segment_labels = s1
 ChannelBuilder.s1.flow_speed = 100.0000
 ChannelBuilder.s1.velocity_profile = Uniform
@@ -66,8 +65,8 @@ amr.blocking_factor     = 4
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #              GEOMETRY                 #
 #.......................................#
-geometry.prob_lo = 0.0 0.000000 0.0
-geometry.prob_hi = 1000.0 125.000000 1000.0000
+geometry.prob_lo = 0.0 0.0 0.0
+geometry.prob_hi = 1000.0 125.0 1000.0
 geometry.is_periodic = 1 1 1 
 
 # Boundary conditions
