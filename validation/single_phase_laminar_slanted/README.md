@@ -98,23 +98,26 @@ Therefore, $U_{max}$ increases proportial to $H^2$. The IBFM implemented
 
 # Results
 
-The following results are from running multiple cases with the following number of FVM cells in each spatial direction:
+The following results are from running multiple cases in a domain $\Omega = [0,0,0] \times [1000, 125, 1000]$ ($m^3$) with the following number of FVM cells in each spatial direction:
 
-| Case | $N_x$ | $N_y$ | $N_z$ |
-| ---- | ----- | ----- | ----- |
-| 1    | 32    | 4     | 32    |
-| 2    | 64    | 4     | 64    |
-| 3    | 128   | 4     | 128   |
-| 4    | 256   | 4     | 256   |
+| Case | $N_x$ | $N_y$ | $N_z$ | $h_{x,z}$ (m) |
+| ---- | ----- | ----- | ----- | ----- |
+| 1    | 32    | 4     | 32    | 31.25 |
+| 2    | 64    | 4     | 64    | 15.625 |
+| 3    | 128   | 4     | 128   | 7.8125 |
+| 4    | 256   | 4     | 256   | 3.90625 |
+| 5    | 512   | 4     | 512   | 1.953125 |
+
+Note that the cell size in the $y$ direction, $h_y = 31.25$ m is fixed throughout. The cell size in the x- and z-directions, $h_{x,z}$, is always greater than 1 m to avoid inconsistent scale factors in the `CdM` term.
 
 All error analysis is conducted by calculating global errors for all $(x,z)$ satisfying $r < 1.2 \times H/2$. This ensures no artifacts from the additional channels required for the slanted case are included in the error calculations. Errors are calculated using the $L_\infty$ and $L_2$ norms of the error across all grid resolutions. 
 
 ## Flat Channel
 
-### Error Convergence Analysis
+### Error Convergence -- IB Aligned with Cell Faces
 
 
-The plot below shows both $L_\infty$ and $L_2$ norms of the error across all four grid resolutions for the two different drag configurations:
+The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the two different drag configurations:
 
 ![Error Convergence](figures/flat-drag-comparison/error_convergence.png)
 
@@ -124,31 +127,22 @@ The following figure shows the axial velocity,
 
 $$u_r (x,z) = u\cos\theta + w\sin\theta,$$
 
-of the slanted channel simulations from the coarsest to finest grid:
+of the slanted channel simulations for four of the meshes used in the study:
 
 ![Loaded Velocity](figures/slanted-meshes.png)
 
 ### Error Convergence Analysis
 
 
-The plot below shows both $L_\infty$ and $L_2$ norms of the error across all four grid resolutions for the two different drag configurations:
+The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the two different drag configurations:
 
-![Error Convergence](figures/flat-drag-comparison/error_convergence.png)
-
-
-### Error Field Visualization
-
-The spatial distribution of axial velocity error across all four cases:
-
-![Error Field](figures/error_field_visualization.png)
-
-The colormaps show where the largest errors occur, with careful attention to near-wall regions where boundary conditions are imposed.
+![Error Convergence](figures/slanted-drag-comparison/error_convergence.png)
 
 
 ### Velocity Profile Comparison
 
-Comparison of analytical and numerical axial velocity profiles at four streamwise locations (start, 1/5, 2/5, and midway) for the finest grid resolution:
+Comparison of analytical and numerical axial velocity profiles at three locations for the finest grid resolution:
 
-![Velocity Profile Comparison](figures/velocity_profile_comparison.png)
+![Velocity Profile Comparison](figures/slanted-drag-og/velocity_profile_comparison.png)
 
 Left column shows the velocity profiles with analytical solution (markers) overlaid on numerical solution (line). Right column shows the error growth along the domain.

@@ -26,7 +26,7 @@ def parse_inp_for_channel_geometry(inp_file):
     """Extract channel geometry and physics parameters from base-*.inp file
     
     Returns:
-        tuple: (z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu)
+        tuple: (z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu, x_start, x_end, z_start, z_end, L_channel)
         Raises RuntimeError if required parameters cannot be found
     """
     import re
@@ -62,6 +62,9 @@ def parse_inp_for_channel_geometry(inp_file):
         dz = z_end - z_start
         theta_rad = np.arctan2(dz, dx) if dx != 0 else 0.0
         theta_deg = np.rad2deg(theta_rad)
+        
+        # Channel length along centerline
+        L_channel = np.sqrt(dx**2 + dz**2)
         
         # Get x_hi (end x coordinate for segment s1)
         x_hi = x_end
@@ -106,7 +109,7 @@ def parse_inp_for_channel_geometry(inp_file):
         error_msg += f"  Missing: {', '.join(missing_params)}"
         raise RuntimeError(error_msg)
     
-    return z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu
+    return z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu, x_start, x_end, z_start, z_end, L_channel
 
 # ================================================================================
 # Parse command line arguments
@@ -154,7 +157,7 @@ if not os.path.exists(base_inp):
     raise RuntimeError(f"Error: Base input file not found: {base_inp}")
 
 try:
-    z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp, z_hi_from_inp, Umax_from_inp, rho_from_inp, mu_from_inp = parse_inp_for_channel_geometry(base_inp)
+    z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp, z_hi_from_inp, Umax_from_inp, rho_from_inp, mu_from_inp, x_start_cline, x_end_cline, z_start_cline, z_end_cline, L_channel = parse_inp_for_channel_geometry(base_inp)
     
     print(f'Read channel configuration from {os.path.basename(base_inp)}:')
     print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
@@ -162,6 +165,7 @@ try:
     print(f'  Channel angle theta = {theta_from_inp:.2f}°')
     print(f'  Domain: x_hi={x_hi_from_inp:.4f}, z_hi={z_hi_from_inp:.4f}')
     print(f'  Physics: Umax={Umax_from_inp:.4f}, rho={rho_from_inp:.4f}, mu={mu_from_inp:.4f}')
+    print(f'  Centerline length L = {L_channel:.6f}')
     
     # Update parameters from file
     channelHeight = H_from_inp
@@ -646,13 +650,21 @@ j_mid = ny[case_finest] // 2
 
 fig, axes = plt.subplots(3, 2, figsize=(14, 12))
 
-# Define x-locations to plot: x_hi * (0.25, 0.5, 0.75)
-x_hi = x[case_finest][-1]  # Last x coordinate
-x_positions = [x_hi * frac for frac in [0.25, 0.5, 0.75]]
+# Define positions along centerline: parametric positions at 0.25L, 0.5L, 0.75L
+frac_positions = [0.25, 0.5, 0.75]
+profile_positions_xy = []
+for frac in frac_positions:
+    x_pos = x_start_cline + frac * (x_end_cline - x_start_cline)
+    z_pos = z_start_cline + frac * (z_end_cline - z_start_cline)
+    profile_positions_xy.append((x_pos, z_pos, frac))
 
-# Find indices closest to these positions
-i_locations = [np.argmin(np.abs(x[case_finest] - xp)) for xp in x_positions]
-x_labels = ['$0.25 x_{hi}$', '$0.5 x_{hi}$', '$0.75 x_{hi}$']
+# Find indices closest to the profile positions
+i_locations = []
+profile_labels = []
+for x_pos, z_pos, frac in profile_positions_xy:
+    i_loc = np.argmin(np.abs(x[case_finest] - x_pos))
+    i_locations.append(i_loc)
+    profile_labels.append(f'{frac:.2f}L')
 
 # Extract 2D slices at midpoint
 u_2d = u[case_finest][:, j_mid, :]
@@ -669,8 +681,9 @@ for i_loc in i_locations:
     velocity_error = u_axial_num[i_loc, :] - u_axial_ana[i_loc, :]
     max_error_all = max(max_error_all, np.abs(velocity_error).max())
 
-for row_idx, (i_loc, x_label) in enumerate(zip(i_locations, x_labels)):
+for row_idx, (i_loc, label) in enumerate(zip(i_locations, profile_labels)):
     x_val = x[case_finest][i_loc]
+    z_val = z[case_finest][i_loc]
     
     # Left subplot: velocity profile
     ax = axes[row_idx, 0]
@@ -678,10 +691,10 @@ for row_idx, (i_loc, x_label) in enumerate(zip(i_locations, x_labels)):
     ax.plot(u_axial_num[i_loc, :], z[case_finest], '-', color='tab:blue', linewidth=3, label='Numerical')
     ax.set_xlabel('Axial Velocity (m/s)', fontsize=12)
     ax.set_ylabel('z (m)', fontsize=12)
-    ax.set_title(f'Axial Velocity Profile ({x_label}: x={x_val:.3f})', fontsize=12)
+    ax.set_title(f'Axial Velocity Profile at {label}', fontsize=12)
     # Reverse legend order so Numerical appears first
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles[::-1], labels[::-1], fontsize=10)
+    handles, labels_legend = ax.get_legend_handles_labels()
+    ax.legend(handles[::-1], labels_legend[::-1], fontsize=10)
     ax.grid(True, alpha=0.3)
     
     # Right subplot: error
@@ -691,7 +704,7 @@ for row_idx, (i_loc, x_label) in enumerate(zip(i_locations, x_labels)):
     ax.axvline(x=0, color='k', linestyle='--', alpha=0.5)
     ax.set_xlabel('Error in Axial Velocity (m/s)', fontsize=12)
     ax.set_ylabel('z (m)', fontsize=12)
-    ax.set_title(f'Axial Velocity Error ({x_label}: x={x_val:.3f})', fontsize=12)
+    ax.set_title(f'Axial Velocity Error at {label}', fontsize=12)
     ax.set_xlim(-max_error_all, max_error_all)
     ax.grid(True, alpha=0.3)
 

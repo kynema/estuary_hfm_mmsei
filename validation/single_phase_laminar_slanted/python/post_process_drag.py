@@ -444,10 +444,13 @@ if len(all_cell_sizes) > 1:
 
 ax.set_xlabel('Cell Size (h)', fontsize=14)
 ax.set_ylabel('Maximum Error', fontsize=14)
+ax.set_xticks([1e0, 4e0, 1e1, 4e1])
+ax.set_xticklabels(['$10^0$', '$4 \\times 10^0$', '$10^1$', '$4 \\times 10^1$'])
+ax.set_yticks([4e0, 1e1, 4e1])
+ax.set_yticklabels(['$4 \\times 10^0$', '$10^1$', '$4 \\times 10^1$'])
 ax.set_title(f'Drag Forcing Comparison: {mode_name.title()} Channel Convergence', fontsize=14)
 ax.legend(fontsize=11)
 ax.grid(True, alpha=0.3, which='both')
-
 plt.tight_layout()
 plt.savefig(f'{figureDir}/error_convergence.png', dpi=150)
 plt.show()
