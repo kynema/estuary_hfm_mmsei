@@ -104,12 +104,20 @@ def parse_inp_for_channel_geometry(inp_file):
         mu = None
         missing_params.append('transport.viscosity')
     
+    # Pressure gradient (dp/dx) from BodyForce.magnitude[0]
+    bodyforce_match = re.search(r'BodyForce\.magnitude\s*=\s*([\d.\-eE]+)\s+([\d.\-eE]+)\s+([\d.\-eE]+)', content)
+    if bodyforce_match:
+        dp_dx = float(bodyforce_match.group(1))  # First component of BodyForce
+    else:
+        dp_dx = None
+        missing_params.append('BodyForce.magnitude')
+    
     if missing_params:
         error_msg = f"Error: Could not parse required parameters from {os.path.basename(inp_file)}:\n"
         error_msg += f"  Missing: {', '.join(missing_params)}"
         raise RuntimeError(error_msg)
     
-    return z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu, x_start, x_end, z_start, z_end, L_channel
+    return z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu, x_start, x_end, z_start, z_end, L_channel, dp_dx
 
 # ================================================================================
 # Parse command line arguments
@@ -157,14 +165,14 @@ if not os.path.exists(base_inp):
     raise RuntimeError(f"Error: Base input file not found: {base_inp}")
 
 try:
-    z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp, z_hi_from_inp, Umax_from_inp, rho_from_inp, mu_from_inp, x_start_cline, x_end_cline, z_start_cline, z_end_cline, L_channel = parse_inp_for_channel_geometry(base_inp)
+    z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp, z_hi_from_inp, Umax_from_inp, rho_from_inp, mu_from_inp, x_start_cline, x_end_cline, z_start_cline, z_end_cline, L_channel, dp_dx_from_inp = parse_inp_for_channel_geometry(base_inp)
     
     print(f'Read channel configuration from {os.path.basename(base_inp)}:')
     print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
     print(f'  Channel height H = {H_from_inp:.6f}')
     print(f'  Channel angle theta = {theta_from_inp:.2f}°')
     print(f'  Domain: x_hi={x_hi_from_inp:.4f}, z_hi={z_hi_from_inp:.4f}')
-    print(f'  Physics: Umax={Umax_from_inp:.4f}, rho={rho_from_inp:.4f}, mu={mu_from_inp:.4f}')
+    print(f'  Physics: Umax={Umax_from_inp:.4f}, rho={rho_from_inp:.4f}, mu={mu_from_inp:.4f}, dp/dx={dp_dx_from_inp:.6f}')
     print(f'  Centerline length L = {L_channel:.6f}')
     
     # Update parameters from file
@@ -343,6 +351,20 @@ for case_idx in range(nCases):
     centerline_shift.append(z_s)
 
 print('Analytical solutions computed')
+
+# For flat cases with IB aligned to cell face: H_eff = H + h (cell-center offset above/below IB)
+# BodyForce.magnitude[0] is -1/rho * dp/dx, so dp/dx = -BodyForce.magnitude[0] * rho
+# U_max_eff = -dp/dx * H_eff^2 / (8*mu) = BodyForce.magnitude[0] * rho * H_eff^2 / (8*mu)
+if args.flat and np.abs(theta_deg) < 0.01:
+    print('\nEffective Height Correction (IB at cell face):')
+    print(f'  Geometric height H = {channelHeight:.6f}')
+    print(f'  BodyForce.magnitude[0] = {dp_dx_from_inp:.6f} (= -1/rho * dp/dx)')
+    print(f'  rho = {rho_from_inp:.6f}, mu = {mu_from_inp:.6f}')
+    for case_idx in range(nCases):
+        h_cell = dx[case_idx]
+        H_eff = channelHeight + h_cell
+        U_max_eff = dp_dx_from_inp * rho_from_inp * (H_eff ** 2) / (8.0 * mu_from_inp)
+        print(f'  nx={nx[case_idx]:3d}: h={h_cell:.6f}, H_eff={H_eff:.6f}, U_max_eff={U_max_eff:.6f}')
 
 # ================================================================================
 # Compute domain bounds for all plots
