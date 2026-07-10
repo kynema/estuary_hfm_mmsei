@@ -414,16 +414,14 @@ fig, ax = plt.subplots(figsize=(10, 7))
 
 colors = {'og': 'C0', 'temp': 'C1'}
 markers = {'og': 'o', 'temp': 's'}
+labels = {'og': 'OG Limiter', 'temp': 'Temporal Limiter'}
 
 for variant in drag_variants:
     cell_size_array = errors_by_variant[variant]['cell_size_array']
     u_axial_error_max = errors_by_variant[variant]['error_max']
-    u_axial_error_l2 = errors_by_variant[variant]['error_l2']
     
     ax.loglog(cell_size_array, u_axial_error_max, marker=markers[variant], linestyle='-', linewidth=2, 
-              markersize=10, label=f'{variant.upper()} - Max Error', color=colors[variant])
-    ax.loglog(cell_size_array, u_axial_error_l2, marker=markers[variant], linestyle='--', linewidth=2, 
-              markersize=8, label=f'{variant.upper()} - L2 Error', color=colors[variant])
+              markersize=10, label=labels[variant], color=colors[variant])
 
 # Add reference slopes using combined data
 all_cell_sizes = np.concatenate([errors_by_variant[v]['cell_size_array'] for v in drag_variants])
@@ -441,11 +439,11 @@ if len(all_cell_sizes) > 1:
     ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, ':', alpha=0.6, linewidth=2, color='gray', label='Slope: 1')
     
     # O(h^1/2) reference: error ~ C * h^0.5
-    C_slope05 = 0.85 * mean_error_max / (mean_cell_size ** 0.5)
+    C_slope05 = 1.25 * mean_error_max / (mean_cell_size ** 0.5)
     ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, '-.', alpha=0.6, linewidth=2, color='gray', label='Slope: 0.5')
 
 ax.set_xlabel('Cell Size (h)', fontsize=14)
-ax.set_ylabel('Axial Velocity Error', fontsize=14)
+ax.set_ylabel('Maximum Error', fontsize=14)
 ax.set_title(f'Drag Forcing Comparison: {mode_name.title()} Channel Convergence', fontsize=14)
 ax.legend(fontsize=11)
 ax.grid(True, alpha=0.3, which='both')
@@ -455,5 +453,3 @@ plt.savefig(f'{figureDir}/error_convergence.png', dpi=150)
 plt.show()
 
 print('\nPost-processing complete!')
-
-print('Post-processing complete!')
