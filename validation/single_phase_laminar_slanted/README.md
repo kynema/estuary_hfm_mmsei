@@ -88,13 +88,7 @@ $$z = x\tan\theta + z_s.$$
 
 The associated pressure gradient is:
 
-$$ \nabla p = - \frac{8\mu U_{max}}{H^2}[ \cos\theta, \; 0, \; \sin\theta]. $$
-
-From this, we can see that 
-
-$$ U_{max} = - \nabla p \frac{H^2}{8\mu} .$$
-
-Therefore, $U_{max}$ increases proportial to $H^2$. The IBFM implemented 
+$$ \nabla p = - \frac{8\mu U_{max}}{H^2} [ \cos\theta, 0, \sin\theta]. $$ 
 
 # Results
 
@@ -120,6 +114,20 @@ All error analysis is conducted by calculating global errors for all $(x,z)$ sat
 The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the two different drag configurations:
 
 ![Error Convergence](figures/flat-drag-comparison/error_convergence.png)
+
+From the analytical solution for the pressure gradient, we can see that 
+
+$$ U_{max} = -\frac{H^2}{8\mu} \nabla p  \cdot [ \cos\theta, 0, \sin\theta].$$
+
+Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is aligned with the cell faces, the effective channel height is $H_{eff} = H + h_{x,z}$. The table below shows the best case $U_{max}$ for each grid resolution
+
+| $N_x$ | $h_{x,z}$ | $H_{eff}$ | $U_{max,eff}$ |
+|---|---|---|---|
+| 32 | 31.250000 | 531.250000 | 112.890625 |
+| 64 | 15.625000 | 515.625000 | 106.347656 |
+| 128 | 7.812500 | 507.812500 | 103.149414 |
+| 256 | 3.906250 | 503.906250 | 101.568604 |
+| 512 | 1.953125 | 501.953125 | 100.782776 |
 
 ## Slanted Channel
 
