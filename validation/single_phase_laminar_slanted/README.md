@@ -5,7 +5,7 @@ This case simulates laminar channel flow for a single phase with two channel con
 - A flat channel where the lower and upper walls are defined using IB 
 - A slanted channel with $\theta = 45^\circ$, where $\theta$ is measured from the x-axis.
 
-In both cases, the IB is defined using `ChannelBuilder` physics and the flow is pressure driven with periodic boundary conditions at the inlet and outlet. The pressure gradient is determined from the analytical solution, and enforced via a body forcing term $ \vec{F} = -\frac{1}{\rho} \nabla p $.
+In both cases, the IB is defined using `ChannelBuilder` physics and the flow is pressure driven with periodic boundary conditions at the inlet and outlet. The pressure gradient is determined from the analytical solution, and enforced via a body forcing term $\vec{F} = -\frac{1}{\rho} \nabla p $.
 
 ## Flat Channel Configuration
 In the flat channel configuration, the channel is aligned with the cell faces. This is accomplished by setting the channel position based on the coarsest mesh $(N_x, N_y, N_z) = (32, 4, 32)$. This way each consecutive refinement remains aligned with the IB.  
