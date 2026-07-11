@@ -88,7 +88,7 @@ $$z = x\tan\theta + z_s.$$
 
 The associated pressure gradient is:
 
-$$ \nabla p = - \frac{8\mu U_{max}}{H^2} [ \cos\theta, 0, \sin\theta]. $$ 
+$$\nabla p = - \frac{8\mu U_{max}}{H^2} [ \cos\theta, 0, \sin\theta].$$ 
 
 # Results
 
