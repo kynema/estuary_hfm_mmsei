@@ -15,12 +15,30 @@ from base_setup import calculate_channel_config
 
 
 
-def generate_inp_content(config, template_path, drag_variant='temp', mode_name='flat', nx=32):
+def calculate_channel_center_cc(nz, z_hi=1000.0, H=500.0):
+    """Calculate channel centerline z-position aligned to cell centers."""
+    dz = z_hi / nz
+    
+    # Cell center coordinates in z
+    z_centers = [(i + 0.5) * dz for i in range(nz)]
+    
+    # Find cell centers closest to target boundaries
+    z_lo_target = (z_hi - H)/2
+    z_hi_target = z_lo_target + H
+    z_lo = min(z_centers, key=lambda z: abs(z - z_lo_target))
+    z_hi = min(z_centers, key=lambda z: abs(z - z_hi_target))
+    z_center = 0.5 * (z_hi + z_lo)
+    
+    return z_center
+
+
+def generate_inp_content(config, template_path, drag_variant='temp', mode_name='flat', nx=32, align='cf', ny=4, nz=32, x_hi=1000.0, y_hi=50.0, z_hi=1000.0, H=500.0):
     """
     Generate minimal .inp file that includes template and overrides n_cell.
     
-    drag_variant: 'temp' (default), 'og'
+    drag_variant: 'temp' (default), 'og', 'tf1'
     mode_name: 'flat' or 'slanted'
+    align: 'cf' (cell face) or 'cc' (cell center) for flat cases
     nx: resolution (for computing mac_proj smoothing parameters)
     """
     import math
@@ -41,6 +59,12 @@ def generate_inp_content(config, template_path, drag_variant='temp', mode_name='
         output += "DragForcing.use_temporal_drag_implementation = true\n"
         output += "DragForcing.bc_forcing_time_factor = 1.\n"
     
+    # For flat cases with cell-center alignment, override ChannelBuilder parameters
+    if mode_name == 'flat' and align == 'cc':
+        z_center = calculate_channel_center_cc(nz, z_hi)
+        output += f"ChannelBuilder.s1.segment_start_point = 0.0 62.5 {z_center:10.10f}\n"
+        output += f"ChannelBuilder.s1.segment_end_point = {x_hi:10.1f} 62.5 {z_center:10.10f}"
+    
     # Add mac_proj smoothing parameters for slanted cases with nx >= 128
     if mode_name == 'slanted' and nx >= 128:
         num_smooth = 4 * (1 + math.log2(nx / 128.0))
@@ -51,16 +75,13 @@ def generate_inp_content(config, template_path, drag_variant='temp', mode_name='
     return output
 
 
-def create_case_directory(case_path, config, template_path, mode_name, drag_variant='temp', nx=32):
+def create_case_directory(case_path, inp_content, mode_name):
     """
-    Create a case directory with minimal .inp file that references template.
+    Create a case directory with minimal .inp file.
     """
     
     # Create directory
     os.makedirs(case_path, exist_ok=True)
-    
-    # Generate .inp content (just references template and overrides n_cell)
-    inp_content = generate_inp_content(config, template_path, drag_variant=drag_variant, mode_name=mode_name, nx=nx)
     
     # Write .inp file
     inp_path = os.path.join(case_path, f"{mode_name}.inp")
@@ -97,6 +118,8 @@ Examples:
     drag_group.add_argument('--temp', action='store_true', help='Use temporal drag limiter variant (default)')
     drag_group.add_argument('--tf1', action='store_true', help='Use temporal implementation with time factor 1')
     
+    parser.add_argument('--align', type=str, default='cf', choices=['cf', 'cc'], 
+                       help='Channel alignment for flat cases: cf (cell face, default) or cc (cell center)')
     parser.add_argument('--nx', type=str, default=None, 
                        help='Comma-separated list of nx values (default: 32,64,128,256,512 for both modes)')
     parser.add_argument('--dry_run', action='store_true', help='Print what would be created without creating')
@@ -135,12 +158,14 @@ Examples:
     # Determine mode and template
     if args.flat:
         mode_name = 'flat'
-        case_prefix = f'flat-{drag_suffix}'
-        template_file = 'base-flat-poiseuille.inp'
+        align_suffix = f"-{args.align}" if args.align == 'cc' else ""  # Only add suffix for cc
+        case_prefix = f'flat-{drag_suffix}{align_suffix}'
+        template_file = 'base-flat-aligned-cf.inp'  # Use same template for both, cc will override params
     else:
         mode_name = 'slanted'
         case_prefix = f'slanted-{drag_suffix}'
-        template_file = 'base-slanted-poiseuille.inp'
+        template_file = 'base-slanted.inp'
+        args.align = None  # Alignment only applies to flat cases
     
     template_path = cases_dir / template_file
     
@@ -163,6 +188,10 @@ Examples:
     for nx in nx_values:
         print(f"Generating {case_prefix}-{nx}...")
         
+        # For flat cases, ny is always 4; for slanted, use same
+        ny = 4
+        nz = nx
+        
         config = calculate_channel_config(
             flat_mode=args.flat,
             slanted_mode=args.slanted,
@@ -171,20 +200,28 @@ Examples:
             z_hi=z_hi,
             H=H,
             nx=nx,
-            align='cf' if args.flat else 'default',
+            align=args.align if args.flat else 'default',
             nx_align=32,
         )
         
         case_name = f"{case_prefix}-{nx}"
         case_path = cases_dir / case_name
         
+        # Generate input content
+        inp_content = generate_inp_content(config, template_path, drag_variant=drag_variant, mode_name=mode_name, nx=nx, align=args.align if args.flat else 'cf', ny=ny, nz=nz, x_hi=x_hi, y_hi=y_hi, z_hi=z_hi, H=H)
+        
         if args.dry_run:
             print(f"  Would create: {case_path}")
+            print(f"  Input file content:")
+            print("  " + "\n  ".join(inp_content.split("\n")))
         else:
-            create_case_directory(str(case_path), config, template_path, mode_name, drag_variant=drag_variant, nx=nx)
+            create_case_directory(str(case_path), inp_content, mode_name)
         print(f"  n_cell: {config['n_cell']}")
         print(f"  BodyForce: ({config['body_force_x']:.6f}, {config['body_force_y']:.6f}, {config['body_force_z']:.6f})")
         print(f"  Drag variant: {drag_variant}")
+        if args.flat and args.align == 'cc':
+            z_center = calculate_channel_center_cc(nz, z_hi)
+            print(f"  Channel center (cc): z={z_center:10.6f}")
         if mode_name == 'slanted' and nx >= 128:
             num_smooth = 4 * (1 + math.log2(nx / 128.0))
             num_smooth = int(round(num_smooth))

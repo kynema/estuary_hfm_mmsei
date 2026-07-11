@@ -26,8 +26,8 @@ Channel 1 is shown in the figure below.
 
 There are two base input files for the flat and slanted cases, respectively:
 
-- `base-flat-poiseuille.inp`
-- `base-slanted-poiseuille.inp`
+- `base-flat-aligned-cf.inp`
+- `base-slanted.inp`
 
 Individual case subdirectories and inputs for convergence studies are generated via the python script `python/generate_cases.py`. To see a full list of options run `python generate_cases.py -h`. Each generated subdirectory has a naming convention: `{flat|slanted}-drag-{og|temp}-{nx}` where `og` and `temp` refer to original and temporal drag limiters respectively, and `nx` is the grid resolution. 
 
@@ -46,7 +46,7 @@ DragForcing.use_original_drag_limiter
 DragForcing.use_temporal_drag_limiter
 ~~~
 
-Running `python generate_cases.py` with `--og` (original limiter) or `--temp` (temporal limiter, default) adjusts both the subdirectory naming and the corresponding input file settings.
+Running `python generate_cases.py` with `--og` (original limiter), `--temp` (temporal limiter, default), or `--tf1` (temporal limiter with time factor 1), adjusts both the subdirectory naming and the corresponding input file settings.
 
 ## Pre and Post-Processing
 Pre-processing uses `python/base_setup.py` to generate channel configurations based on mode (`--flat` or `--slanted`), resolution (`--nx`), and drag variant (`--og` or `--temp`). Use the "help" option to see all available parameters:

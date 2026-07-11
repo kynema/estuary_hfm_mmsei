@@ -109,23 +109,49 @@ def calculate_channel_config(
     
     if flat_mode:
         # Single flat channel
-        if channel_shift == 0.0:
-            nz_coarse = nx_align
-            dz_coarse = z_hi / nz_coarse
 
-            channel_shift = nz_coarse * dz_coarse / 4 
+        if align == 'cf':
+            # Cell face aligned, use coarsest mesh to define channel shift
+            if channel_shift == 0.0:
+                nz_coarse = nx_align
+                dz_coarse = z_hi / nz_coarse
+
+                channel_shift = nz_coarse * dz_coarse / 4 
+            
+            # Calculate centerline z-position for flat channel
+            z_center = channel_shift + H / 2.0
+
+            print("z_center: ",z_center)
+            print("channel_shift: ",channel_shift)
+            
+            segments.append({
+                'label': 's1',
+                'start': [x_lo, y_mid, z_center],
+                'end': [x_hi, y_mid, z_center],
+                'height': H,
+            })
         
-        # Calculate centerline z-position for flat channel
-        z_center = channel_shift + H / 2.0
-        print("z_center: ",z_center)
-        print("channel_shift: ",channel_shift)
-        
-        segments.append({
-            'label': 's1',
-            'start': [x_lo, y_mid, z_center],
-            'end': [x_hi, y_mid, z_center],
-            'height': H,
-        })
+        elif align == 'cc':
+            # Cell center aligned - calculate z_center based on cell centers
+            dz = (z_hi - z_lo) / n_z
+            z_centers = [(z_lo + (i + 0.5) * dz) for i in range(n_z)]
+            
+            # Find cell centers closest to target boundaries (channel centered in domain)
+            z_lo_target = (z_hi - H) / 2.0
+            z_hi_target = z_lo_target + H
+            z_lo_cc = min(z_centers, key=lambda z: abs(z - z_lo_target))
+            z_hi_cc = min(z_centers, key=lambda z: abs(z - z_hi_target))
+            z_center = 0.5 * (z_hi_cc + z_lo_cc)
+            
+            print("z_center: ",z_center)
+            print("channel_shift: cc (cell-center aligned)")
+            
+            segments.append({
+                'label': 's1',
+                'start': [x_lo, y_mid, z_center],
+                'end': [x_hi, y_mid, z_center],
+                'height': H,
+            })
     
     else:  # slanted_mode
         # Three slanted channels at 45 degrees
@@ -240,8 +266,8 @@ def print_config(config):
         print(f"ChannelBuilder.{label}.bottom_width_end = {h:.4f}")
         print(f"ChannelBuilder.{label}.height_start = {h:.4f}")
         print(f"ChannelBuilder.{label}.height_end = {h:.4f}")
-        print(f"ChannelBuilder.{label}.segment_start_point = {start[0]:.1f} {start[1]:.1f} {start[2]:.1f}")
-        print(f"ChannelBuilder.{label}.segment_end_point = {end[0]:.1f} {end[1]:.1f} {end[2]:.1f}")
+        print(f"ChannelBuilder.{label}.segment_start_point = {start[0]:.1f} {start[1]:.1f} {start[2]:.10f}")
+        print(f"ChannelBuilder.{label}.segment_end_point = {end[0]:.1f} {end[1]:.1f} {end[2]:.10f}")
     
     print(f"\nFluid Properties:")
     print(f"  ρ (density) = {config['rho']:.4f}")
@@ -282,8 +308,8 @@ Examples:
     parser.add_argument('--rho', type=float, default=1.0, help='Fluid density (default: 1.0)')
     parser.add_argument('--mu', type=float, default=500.0, help='Dynamic viscosity (default: 500.0 for Re=100 with H=500, Umax=100)')
     parser.add_argument('--Umax', type=float, default=100.0, help='Maximum velocity (default: 100.0)')
-    parser.add_argument('--align', type=str, default='default', choices=['default', 'cf'], help='Grid alignment for flat channel: default (none) or cf (cell face)')
-    parser.add_argument('--nx_align', type=int, default=32, help='Reference nx for grid alignment in convergence studies (default: 32)')
+    parser.add_argument('--align', type=str, default='default', choices=['cf', 'cc'], help='Grid alignment for flat channel: default cf (cell face) or cc (cell center)')
+    parser.add_argument('--nx_align', type=int, default=32, help='Reference Nx for grid alignment in cf-aligned convergence studies (default: 32)')
     
     args = parser.parse_args()
     

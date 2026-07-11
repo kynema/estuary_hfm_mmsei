@@ -14,110 +14,19 @@ import yt
 import warnings
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
+from shared_functions import (
+    parse_inp_for_channel_geometry,
+    radial_distance_from_axis,
+    velocity_profile_analytical,
+    axial_velocity,
+    get_analytical_solution_grid,
+    print_effective_height_correction,
+    get_case_specific_centerlines
+)
 
 warnings.filterwarnings('ignore')
 
 print('Modules loaded')
-
-# ================================================================================
-# Helper functions
-# ================================================================================
-def parse_inp_for_channel_geometry(inp_file):
-    """Extract channel geometry and physics parameters from base-*.inp file
-    
-    Returns:
-        tuple: (z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu, x_start, x_end, z_start, z_end, L_channel)
-        Raises RuntimeError if required parameters cannot be found
-    """
-    import re
-    
-    with open(inp_file, 'r') as f:
-        content = f.read()
-    
-    missing_params = []
-    
-    # Extract segment start and end points
-    start_match = re.search(r'ChannelBuilder\.s1\.segment_start_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
-    end_match = re.search(r'ChannelBuilder\.s1\.segment_end_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
-    height_match = re.search(r'ChannelBuilder\.s1\.height_start\s*=\s*([\d.\-]+)', content)
-    
-    if not start_match or not end_match:
-        missing_params.append('ChannelBuilder.s1.segment_start_point or segment_end_point')
-    else:
-        x_start, y_start, z_start = float(start_match.group(1)), float(start_match.group(2)), float(start_match.group(3))
-        x_end, y_end, z_end = float(end_match.group(1)), float(end_match.group(2)), float(end_match.group(3))
-        H = float(height_match.group(1)) if height_match else None
-        
-        # z_s is the z-coordinate where the centerline crosses x=0
-        # For a line from (x_start, z_start) to (x_end, z_end):
-        # z(x) = z_start + (z_end - z_start)/(x_end - x_start) * (x - x_start)
-        # At x=0: z_s = z_start + (z_end - z_start)/(x_end - x_start) * (0 - x_start)
-        if x_end != x_start:
-            z_s = z_start - (z_end - z_start) * x_start / (x_end - x_start)
-        else:
-            z_s = z_start
-        
-        # Calculate theta from segment orientation
-        dx = x_end - x_start
-        dz = z_end - z_start
-        theta_rad = np.arctan2(dz, dx) if dx != 0 else 0.0
-        theta_deg = np.rad2deg(theta_rad)
-        
-        # Channel length along centerline
-        L_channel = np.sqrt(dx**2 + dz**2)
-        
-        # Get x_hi (end x coordinate for segment s1)
-        x_hi = x_end
-    
-    # Extract domain bounds from prob_hi
-    prob_hi_match = re.search(r'geometry\.prob_hi\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
-    if prob_hi_match:
-        x_hi = float(prob_hi_match.group(1))  # prob_hi[0]
-        # y_hi = float(prob_hi_match.group(2))  # prob_hi[1] - not needed
-        z_hi = float(prob_hi_match.group(3))  # prob_hi[2]
-    else:
-        z_hi = None
-        missing_params.append('geometry.prob_hi')
-    
-    # Extract physics parameters
-    # Umax from ChannelBuilder.s1.flow_speed
-    flow_speed_match = re.search(r'ChannelBuilder\.s1\.flow_speed\s*=\s*([\d.\-eE]+)', content)
-    if flow_speed_match:
-        Umax = float(flow_speed_match.group(1))
-    else:
-        Umax = None
-        missing_params.append('ChannelBuilder.s1.flow_speed')
-    
-    # Density from incflo.density
-    density_match = re.search(r'incflo\.density\s*=\s*([\d.\-eE]+)', content)
-    if density_match:
-        rho = float(density_match.group(1))
-    else:
-        rho = None
-        missing_params.append('incflo.density')
-    
-    # Viscosity from transport.viscosity
-    viscosity_match = re.search(r'transport\.viscosity\s*=\s*([\d.\-eE]+)', content)
-    if viscosity_match:
-        mu = float(viscosity_match.group(1))
-    else:
-        mu = None
-        missing_params.append('transport.viscosity')
-    
-    # Pressure gradient (dp/dx) from BodyForce.magnitude[0]
-    bodyforce_match = re.search(r'BodyForce\.magnitude\s*=\s*([\d.\-eE]+)\s+([\d.\-eE]+)\s+([\d.\-eE]+)', content)
-    if bodyforce_match:
-        dp_dx = float(bodyforce_match.group(1))  # First component of BodyForce
-    else:
-        dp_dx = None
-        missing_params.append('BodyForce.magnitude')
-    
-    if missing_params:
-        error_msg = f"Error: Could not parse required parameters from {os.path.basename(inp_file)}:\n"
-        error_msg += f"  Missing: {', '.join(missing_params)}"
-        raise RuntimeError(error_msg)
-    
-    return z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu, x_start, x_end, z_start, z_end, L_channel, dp_dx
 
 # ================================================================================
 # Parse command line arguments
@@ -131,14 +40,19 @@ mode_group.add_argument('--slanted', action='store_true', help='Post-process sla
 drag_group = parser.add_mutually_exclusive_group(required=False)
 drag_group.add_argument('--og', action='store_true', help='Use original drag forcing variant')
 drag_group.add_argument('--temp', action='store_true', help='Use temporal drag forcing variant (default)')
+drag_group.add_argument('--tf1', action='store_true', help='Use temporal drag forcing with time factor 1')
 
-parser.add_argument('--align', type=str, default='default', choices=['default', 'cf'], help='Grid alignment when theta=0: default (none) or cf (cell face)')
-parser.add_argument('--nx_align', type=int, default=64, help='Reference nx for grid alignment (default: 64)')
+parser.add_argument('--align', type=str, default='cf', choices=['cf', 'cc'], help='Grid alignment for flat cases: cf (cell face, default) or cc (cell center)')
 parser.add_argument('--H', type=float, default=1.0, help='Channel height (default: 1.0)')
 args = parser.parse_args()
 
 # Determine drag variant (default to 'temp' if not specified)
-drag_variant = 'og' if args.og else 'temp'
+if args.og:
+    drag_variant = 'og'
+elif args.tf1:
+    drag_variant = 'tf1'
+else:
+    drag_variant = 'temp'
 
 # ================================================================================
 # Physical parameters
@@ -146,15 +60,21 @@ drag_variant = 'og' if args.og else 'temp'
 # Set theta_deg based on mode
 if args.flat:
     theta_deg = 0.0
-    case_prefix = f'flat-drag-{drag_variant}'
+    case_prefix = f'flat-drag-{drag_variant}-{args.align}'
 else:  # slanted
     theta_deg = 45.0  # Default for slanted; will be overridden by parsing .inp
     case_prefix = f'slanted-drag-{drag_variant}'
 
 # Define paths
-rootDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/cases'
-figureDir_base = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/figures'
-base_inp = os.path.join(rootDir, 'base-flat-poiseuille.inp' if args.flat else 'base-slanted-poiseuille.inp')
+file_dir = os.path.dirname(os.path.abspath(__file__))
+rootDir = os.path.join(os.path.dirname(file_dir), 'cases')
+figureDir_base = os.path.join(os.path.dirname(file_dir), 'figures')
+
+# Select alignment-specific base file for flat cases
+if args.flat:
+    base_inp = os.path.join(rootDir, f'base-flat-aligned-{args.align}.inp')
+else:
+    base_inp = os.path.join(rootDir, 'base-slanted.inp')
 
 theta_rad = np.deg2rad(theta_deg)
 channelHeight = args.H
@@ -165,7 +85,7 @@ if not os.path.exists(base_inp):
     raise RuntimeError(f"Error: Base input file not found: {base_inp}")
 
 try:
-    z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp, z_hi_from_inp, Umax_from_inp, rho_from_inp, mu_from_inp, x_start_cline, x_end_cline, z_start_cline, z_end_cline, L_channel, dp_dx_from_inp = parse_inp_for_channel_geometry(base_inp)
+    z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp, z_hi_from_inp, Umax_from_inp, rho_from_inp, mu_from_inp, x_start_cline, x_end_cline, z_start_cline, z_end_cline, L_channel, dp_dx_from_inp = parse_inp_for_channel_geometry(base_inp, return_dp_dx=True)
     
     print(f'Read channel configuration from {os.path.basename(base_inp)}:')
     print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
@@ -188,18 +108,6 @@ except RuntimeError as e:
 # Create figure output directory with drag variant subdirectory
 figureDir = os.path.join(figureDir_base, case_prefix)
 os.makedirs(figureDir, exist_ok=True)
-    
-
-# ================================================================================
-# Helper functions for analytical solution
-# ================================================================================
-def radial_distance_from_axis(x_coord, z_coord, z_s, theta):
-    """Perpendicular distance from tilted centerline"""
-    return np.abs((z_coord - z_s) * np.cos(theta) - x_coord * np.sin(theta))
-
-def velocity_profile_analytical(r, U_max=1.0, H=1.0):
-    """Parabolic profile: u(r) = U_max * (1 - (2r/H)^2)"""
-    return U_max * np.maximum(0.0, 1.0 - (2.0 * r / H)**2)
 
 # ================================================================================
 # Case discovery and loading
@@ -228,7 +136,7 @@ print(f'\nAnalytical Solution Parameters:')
 print(f'  θ = {theta_deg:.2f}°')
 print(f'  H = {channelHeight:.6f}')
 print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
-print(f'  Alignment: {args.align if np.abs(theta_deg) < 0.01 else "N/A (slanted)"}')
+print(f'  Grid alignment: {args.align if args.flat else "N/A (slanted)"}')
 
 # ================================================================================
 # Load datasets using yt
@@ -311,6 +219,13 @@ nCases = len(ds_list)
 print(f'Loaded {nCases} cases\n')
 
 # ================================================================================
+# Read Resolution-Specific Centerline Positions (for --align cc mode)
+# ================================================================================
+z_s_case_specific = get_case_specific_centerlines(rootDir, 'flat' if args.flat else 'slanted', 
+                                                  args.align, valid_cases, z_s_analytical)
+print()
+
+# ================================================================================
 # Define Analytical Solution
 # ================================================================================
 # The axial velocity (along the tilted flow direction) for parabolic pipe flow is:
@@ -323,48 +238,21 @@ print(f'Loaded {nCases} cases\n')
 # 
 # and rotated at an angle theta about the point (0, 0, sigma) in x-z plane.
 
-def get_analytical_solution_grid(case_idx):
-    X, Y, Z = np.meshgrid(x[case_idx], y[case_idx], z[case_idx], indexing='ij')
-    r = radial_distance_from_axis(X, Z, z_s_analytical, theta_rad)
-    u_r = velocity_profile_analytical(r, maxVelocity, channelHeight)
-    
-    # For slanted cases, use looser mask (r <= 1.2*H) to account for 3 segments
-    # For flat cases, mask strictly to channel interior (r <= H/2)
-    if args.slanted:
-        channel_mask = r <= (1.2 * channelHeight)
-    else:
-        channel_mask = r <= (channelHeight / 2.0)
-    u_r[~channel_mask] = 0.0
-
-    return u_r, r, z_s_analytical
-
-def axial_velocity(u, w, theta):
-    """Compute axial velocity along the tilted flow direction"""
-    return u * np.cos(theta) + w * np.sin(theta)
-
-# Compute analytical solutions
+# Compute analytical solutions (using resolution-specific z_s for cc mode)
 ur_exact, r_dist, centerline_shift = [], [], []
 for case_idx in range(nCases):
-    ur_a, r, z_s = get_analytical_solution_grid(case_idx)
+    ur_a, r, z_s = get_analytical_solution_grid(x[case_idx], y[case_idx], z[case_idx], 
+                                                 z_s_case_specific[case_idx], theta_rad, maxVelocity,
+                                                 channelHeight, is_slanted=args.slanted)
     ur_exact.append(ur_a)
     r_dist.append(r)
     centerline_shift.append(z_s)
 
 print('Analytical solutions computed')
 
-# For flat cases with IB aligned to cell face: H_eff = H + h (cell-center offset above/below IB)
-# BodyForce.magnitude[0] is -1/rho * dp/dx, so dp/dx = -BodyForce.magnitude[0] * rho
-# U_max_eff = -dp/dx * H_eff^2 / (8*mu) = BodyForce.magnitude[0] * rho * H_eff^2 / (8*mu)
 if args.flat and np.abs(theta_deg) < 0.01:
-    print('\nEffective Height Correction (IB at cell face):')
-    print(f'  Geometric height H = {channelHeight:.6f}')
-    print(f'  BodyForce.magnitude[0] = {dp_dx_from_inp:.6f} (= -1/rho * dp/dx)')
-    print(f'  rho = {rho_from_inp:.6f}, mu = {mu_from_inp:.6f}')
-    for case_idx in range(nCases):
-        h_cell = dx[case_idx]
-        H_eff = channelHeight + h_cell
-        U_max_eff = dp_dx_from_inp * rho_from_inp * (H_eff ** 2) / (8.0 * mu_from_inp)
-        print(f'  nx={nx[case_idx]:3d}: h={h_cell:.6f}, H_eff={H_eff:.6f}, U_max_eff={U_max_eff:.6f}')
+    print_effective_height_correction(args.align, channelHeight, dp_dx_from_inp, rho_from_inp, 
+                                     mu_from_inp, nx, dx)
 
 # ================================================================================
 # Compute domain bounds for all plots

@@ -12,101 +12,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 import yt
 import warnings
-from matplotlib.colors import Normalize
-from matplotlib.cm import ScalarMappable
+from shared_functions import (
+    parse_inp_for_channel_geometry,
+    radial_distance_from_axis,
+    axial_velocity,
+    discover_case_variants_with_align,
+    get_analytical_solution_grid,
+    print_effective_height_correction,
+    get_case_specific_centerlines
+)
 
 warnings.filterwarnings('ignore')
 
 print('Modules loaded')
-
-# ================================================================================
-# Helper functions
-# ================================================================================
-def parse_inp_for_channel_geometry(inp_file):
-    """Extract channel geometry and physics parameters from base-*.inp file
-    
-    Returns:
-        tuple: (z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu)
-        Raises RuntimeError if required parameters cannot be found
-    """
-    import re
-    
-    with open(inp_file, 'r') as f:
-        content = f.read()
-    
-    missing_params = []
-    
-    # Extract segment start and end points
-    start_match = re.search(r'ChannelBuilder\.s1\.segment_start_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
-    end_match = re.search(r'ChannelBuilder\.s1\.segment_end_point\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
-    height_match = re.search(r'ChannelBuilder\.s1\.height_start\s*=\s*([\d.\-]+)', content)
-    
-    if not start_match or not end_match:
-        missing_params.append('ChannelBuilder.s1.segment_start_point or segment_end_point')
-    else:
-        x_start, y_start, z_start = float(start_match.group(1)), float(start_match.group(2)), float(start_match.group(3))
-        x_end, y_end, z_end = float(end_match.group(1)), float(end_match.group(2)), float(end_match.group(3))
-        H = float(height_match.group(1)) if height_match else None
-        
-        # z_s is the z-coordinate where the centerline crosses x=0
-        # For a line from (x_start, z_start) to (x_end, z_end):
-        # z(x) = z_start + (z_end - z_start)/(x_end - x_start) * (x - x_start)
-        # At x=0: z_s = z_start + (z_end - z_start)/(x_end - x_start) * (0 - x_start)
-        if x_end != x_start:
-            z_s = z_start - (z_end - z_start) * x_start / (x_end - x_start)
-        else:
-            z_s = z_start
-        
-        # Calculate theta from segment orientation
-        dx = x_end - x_start
-        dz = z_end - z_start
-        theta_rad = np.arctan2(dz, dx) if dx != 0 else 0.0
-        theta_deg = np.rad2deg(theta_rad)
-        
-        # Get x_hi (end x coordinate for segment s1)
-        x_hi = x_end
-    
-    # Extract domain bounds from prob_hi
-    prob_hi_match = re.search(r'geometry\.prob_hi\s*=\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)', content)
-    if prob_hi_match:
-        x_hi = float(prob_hi_match.group(1))  # prob_hi[0]
-        # y_hi = float(prob_hi_match.group(2))  # prob_hi[1] - not needed
-        z_hi = float(prob_hi_match.group(3))  # prob_hi[2]
-    else:
-        z_hi = None
-        missing_params.append('geometry.prob_hi')
-    
-    # Extract physics parameters
-    # Umax from ChannelBuilder.s1.flow_speed
-    flow_speed_match = re.search(r'ChannelBuilder\.s1\.flow_speed\s*=\s*([\d.\-eE]+)', content)
-    if flow_speed_match:
-        Umax = float(flow_speed_match.group(1))
-    else:
-        Umax = None
-        missing_params.append('ChannelBuilder.s1.flow_speed')
-    
-    # Density from incflo.density
-    density_match = re.search(r'incflo\.density\s*=\s*([\d.\-eE]+)', content)
-    if density_match:
-        rho = float(density_match.group(1))
-    else:
-        rho = None
-        missing_params.append('incflo.density')
-    
-    # Viscosity from transport.viscosity
-    viscosity_match = re.search(r'transport\.viscosity\s*=\s*([\d.\-eE]+)', content)
-    if viscosity_match:
-        mu = float(viscosity_match.group(1))
-    else:
-        mu = None
-        missing_params.append('transport.viscosity')
-    
-    if missing_params:
-        error_msg = f"Error: Could not parse required parameters from {os.path.basename(inp_file)}:\n"
-        error_msg += f"  Missing: {', '.join(missing_params)}"
-        raise RuntimeError(error_msg)
-    
-    return z_s, H, theta_deg, x_hi, z_hi, Umax, rho, mu
 
 # ================================================================================
 # Parse command line arguments
@@ -117,8 +35,11 @@ mode_group = parser.add_mutually_exclusive_group(required=True)
 mode_group.add_argument('--flat', action='store_true', help='Post-process flat channel cases')
 mode_group.add_argument('--slanted', action='store_true', help='Post-process slanted channel cases')
 
-parser.add_argument('--align', type=str, default='default', choices=['default', 'cf'], help='Grid alignment when theta=0: default (none) or cf (cell face)')
-parser.add_argument('--nx_align', type=int, default=64, help='Reference nx for grid alignment (default: 64)')
+variant_group = parser.add_mutually_exclusive_group(required=False)
+variant_group.add_argument('--og-temp', action='store_true', help='Compare og and temp variants (default)')
+variant_group.add_argument('--temp-tf1', action='store_true', help='Compare temp and tf1 variants')
+
+parser.add_argument('--align', type=str, default='cf', choices=['cf', 'cc'], help='Grid alignment for flat cases: cf (cell face, default) or cc (cell center)')
 parser.add_argument('--H', type=float, default=1.0, help='Channel height (default: 1.0)')
 args = parser.parse_args()
 
@@ -134,13 +55,46 @@ else:  # slanted
     mode_name = 'slanted'
 
 # Define paths
-rootDir = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/cases'
-figureDir_base = '/Users/dmontgo2/Documents/Kynema/estuary_hfm_mmsei/validation/single_phase_laminar_slanted/figures'
-base_inp = os.path.join(rootDir, 'base-flat-poiseuille.inp' if args.flat else 'base-slanted-poiseuille.inp')
+file_dir = os.path.dirname(os.path.abspath(__file__))
+rootDir = os.path.join(os.path.dirname(file_dir), 'cases')
+figureDir_base = os.path.join(os.path.dirname(file_dir), 'figures')
+base_inp = os.path.join(rootDir, 'base-flat-aligned-cf.inp' if args.flat else 'base-slanted.inp')
 
 # Figure directory for drag comparison (mode_name-drag-comparison)
-figureDir = os.path.join(figureDir_base, f'{mode_name}-drag-comparison')
+if args.flat:
+    figureDir = os.path.join(figureDir_base, f'{mode_name}-drag-comparison-{args.align}')
+else:
+    figureDir = os.path.join(figureDir_base, f'{mode_name}-drag-comparison')
 os.makedirs(figureDir, exist_ok=True)
+
+# Auto-detect available variants in the cases directory
+print('Auto-detecting available drag variants...')
+available_variants = set()
+resolutions = [32, 64, 128, 256, 512]
+possible_variants = ['og', 'temp', 'tf1']
+
+for variant in possible_variants:
+    for resolution in resolutions:
+        if mode_name == 'flat':
+            case_name = f'{mode_name}-drag-{variant}-{args.align}-{resolution}'
+        else:
+            case_name = f'{mode_name}-drag-{variant}-{resolution}'
+        case_dir = os.path.join(rootDir, case_name)
+        if os.path.exists(case_dir):
+            plt_dirs = [d for d in os.listdir(case_dir) if d.startswith('plt')]
+            if plt_dirs:
+                available_variants.add(variant)
+                break
+
+# If no variants found, default to og and temp
+if not available_variants:
+    drag_variants = ['og', 'temp']
+else:
+    # Sort for consistent ordering: og, temp, tf1
+    variant_order = ['og', 'temp', 'tf1']
+    drag_variants = [v for v in variant_order if v in available_variants]
+
+print(f'Found variants: {drag_variants}\n')
 
 # Initialize parameters
 theta_rad = np.deg2rad(theta_deg)
@@ -172,33 +126,20 @@ except RuntimeError as e:
     raise
 
 # ================================================================================
-# Helper functions for analytical solution
-# ================================================================================
-def radial_distance_from_axis(x_coord, z_coord, z_s, theta):
-    """Perpendicular distance from tilted centerline"""
-    return np.abs((z_coord - z_s) * np.cos(theta) - x_coord * np.sin(theta))
-
-def velocity_profile_analytical(r, U_max=1.0, H=1.0):
-    """Parabolic profile: u(r) = U_max * (1 - (2r/H)^2)"""
-    return U_max * np.maximum(0.0, 1.0 - (2.0 * r / H)**2)
-
-def axial_velocity(u, w, theta):
-    """Compute axial velocity along the tilted flow direction"""
-    return u * np.cos(theta) + w * np.sin(theta)
-
-# ================================================================================
 # Case discovery and loading
 # ================================================================================
-# Build case specifications to load both og and temp variants
+# Build case specifications to load selected variants
 resolutions = [32, 64, 128, 256, 512]
-drag_variants = ['og', 'temp']
 
-case_paths_dict = {'og': [], 'temp': []}  # Organize by drag variant
-valid_cases_dict = {'og': [], 'temp': []}
+case_paths_dict = {variant: [] for variant in drag_variants}  # Organize by drag variant
+valid_cases_dict = {variant: [] for variant in drag_variants}
 
 for variant in drag_variants:
     for resolution in resolutions:
-        case_name = f'{mode_name}-drag-{variant}-{resolution}'
+        if mode_name == 'flat':
+            case_name = f'{mode_name}-drag-{variant}-{args.align}-{resolution}'
+        else:
+            case_name = f'{mode_name}-drag-{variant}-{resolution}'
         case_dir = os.path.join(rootDir, case_name)
         if os.path.exists(case_dir):
             plt_dirs = sorted([d for d in os.listdir(case_dir) if d.startswith('plt')])
@@ -207,15 +148,29 @@ for variant in drag_variants:
                 valid_cases_dict[variant].append(case_name)
                 print(f'{case_name}: {plt_dirs[-1]}')
 
-nCases_og = len(valid_cases_dict['og'])
-nCases_temp = len(valid_cases_dict['temp'])
-print(f'\nFound {nCases_og} OG cases and {nCases_temp} TEMP cases')
+# Report found cases
+for variant in drag_variants:
+    nCases = len(valid_cases_dict[variant])
+    print(f'\nFound {nCases} {variant.upper()} cases')
+
+print()
 
 print(f'\nAnalytical Solution Parameters:')
 print(f'  θ = {theta_deg:.2f}°')
 print(f'  H = {channelHeight:.6f}')
 print(f'  Channel centerline z_s = {z_s_analytical:.6f}')
 print(f'  Alignment: {args.align if np.abs(theta_deg) < 0.01 else "N/A (slanted)"}')
+
+# ================================================================================
+# Read Resolution-Specific Centerline Positions (for --align cc mode)
+# ================================================================================
+z_s_case_specific_dict = {}
+for variant in drag_variants:
+    z_s_case_specific_dict[variant] = get_case_specific_centerlines(
+        rootDir, mode_name, args.align, valid_cases_dict[variant], z_s_analytical
+    )
+if mode_name == 'flat' and args.align == 'cc':
+    print()
 
 # ================================================================================
 # Load datasets using yt for both drag variants
@@ -308,28 +263,15 @@ for variant in drag_variants:
             import traceback
             traceback.print_exc()
 
-# Compute analytical solutions for each variant
-def get_analytical_solution_grid(x_arr, y_arr, z_arr):
-    X, Y, Z = np.meshgrid(x_arr, y_arr, z_arr, indexing='ij')
-    r = radial_distance_from_axis(X, Z, z_s_analytical, theta_rad)
-    u_r = velocity_profile_analytical(r, maxVelocity, channelHeight)
-    
-    # For slanted cases, use looser mask (r <= 1.2*H) to account for 3 segments
-    # For flat cases, mask strictly to channel interior (r <= H/2)
-    if args.slanted:
-        channel_mask = r <= (1.2 * channelHeight)
-    else:
-        channel_mask = r <= (channelHeight / 2.0)
-    u_r[~channel_mask] = 0.0
-
-    return u_r, r, z_s_analytical
-
+# Compute analytical solutions for each variant (using resolution-specific z_s for cc mode)
 for variant in drag_variants:
     for case_idx in range(len(data_by_variant[variant]['x'])):
         ur_a, r, z_s = get_analytical_solution_grid(
             data_by_variant[variant]['x'][case_idx],
             data_by_variant[variant]['y'][case_idx],
-            data_by_variant[variant]['z'][case_idx]
+            data_by_variant[variant]['z'][case_idx],
+            z_s_case_specific_dict[variant][case_idx], theta_rad, maxVelocity, channelHeight, 
+            is_slanted=args.slanted
         )
         data_by_variant[variant]['ur_exact'].append(ur_a)
         data_by_variant[variant]['r_dist'].append(r)
@@ -410,11 +352,17 @@ for variant in drag_variants:
 # ================================================================================
 # Error Convergence vs Cell Size (Drag Comparison)
 # ================================================================================
-fig, ax = plt.subplots(figsize=(10, 7))
+# Define styling for all possible variants
+all_colors = {'og': 'C0', 'temp': 'C1', 'tf1': 'C2'}
+all_markers = {'og': 'o', 'temp': 's', 'tf1': '^'}
+all_labels = {'og': 'OG Limiter', 'temp': 'Temporal Limiter', 'tf1': 'Temporal Limiter (tf = 1)'}
 
-colors = {'og': 'C0', 'temp': 'C1'}
-markers = {'og': 'o', 'temp': 's'}
-labels = {'og': 'OG Limiter', 'temp': 'Temporal Limiter'}
+# Select only the colors/markers/labels for variants being compared
+colors = {v: all_colors[v] for v in drag_variants}
+markers = {v: all_markers[v] for v in drag_variants}
+labels = {v: all_labels[v] for v in drag_variants}
+
+fig, ax = plt.subplots(figsize=(10, 7))
 
 for variant in drag_variants:
     cell_size_array = errors_by_variant[variant]['cell_size_array']
