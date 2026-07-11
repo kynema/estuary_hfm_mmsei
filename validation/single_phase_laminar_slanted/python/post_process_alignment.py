@@ -209,53 +209,74 @@ for align in ['cf', 'cc']:
 print(f'\n\nData loading complete')
 
 # ================================================================================
-# Convergence comparison plots
+# Convergence comparison plot (single axis)
 # ================================================================================
-fig, axes = plt.subplots(1, len(drag_models), figsize=(7*len(drag_models), 6))
-if len(drag_models) == 1:
-    axes = [axes]
+fig, ax = plt.subplots(1, 1, figsize=(10, 7))
 
-for col_idx, drag_model in enumerate(drag_models):
-    ax = axes[col_idx]
-    
-    # Collect all data for this drag model to compute reference lines
-    all_dx_data = []
-    all_error_data = []
-    
-    for align in ['cf', 'cc']:
-        if drag_model in data_by_alignment[align]:
-            data = data_by_alignment[align][drag_model]
-            align_label = 'Cell Centers' if align == 'cc' else 'Cell Faces'
-            ax.loglog(data['dx'], data['error_max'], 'o-', linewidth=2.5, 
-                     markersize=10, label=f'{align_label} ({drag_model})', alpha=0.85)
-            all_dx_data.append(data['dx'])
-            all_error_data.append(data['error_max'])
-    
-    # Add reference lines if we have data
-    if len(all_dx_data) > 0:
-        # Combine all data for reference line scaling
-        combined_dx = np.concatenate(all_dx_data)
-        combined_error = np.concatenate(all_error_data)
-        
-        if len(combined_dx) > 1:
-            cell_trend = np.logspace(np.log10(combined_dx.min()), np.log10(combined_dx.max()), 50)
-            
-            # Scale reference lines to pass through mean of error data
-            mean_error = np.mean(combined_error)
-            mean_cell_size = np.mean(combined_dx)
-            
-            # O(h) reference: error ~ C * h
-            C_slope1 = 0.85 * mean_error / (mean_cell_size ** 1.0)
-            ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, ':', alpha=0.6, linewidth=2, color='gray', label='Slope: 1')
-            
-            # O(h^0.5) reference: error ~ C * h^0.5
-            C_slope05 = 1.25 * mean_error / (mean_cell_size ** 0.5)
-            ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, '-.', alpha=0.6, linewidth=2, color='gray', label='Slope: 0.5')
-    
-    ax.set_xlabel('Cell Size (h)', fontsize=12)
-    ax.set_ylabel('Maximum Error', fontsize=12)
-    ax.legend(fontsize=11)
-    ax.grid(True, alpha=0.3, which='both')
+# Keep color consistent within each drag model across alignments
+color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
+drag_color_map = {drag_model: color_cycle[idx % len(color_cycle)] for idx, drag_model in enumerate(drag_models)}
+
+# Collect all points for reference-line scaling
+all_dx_data = []
+all_error_data = []
+
+for drag_model in drag_models:
+    color = drag_color_map[drag_model]
+
+    # Cell Faces: '-s' (solid with square markers)
+    if drag_model in data_by_alignment['cf']:
+        data_cf = data_by_alignment['cf'][drag_model]
+        ax.loglog(
+            data_cf['dx'],
+            data_cf['error_max'],
+            '-s',
+            linewidth=2.5,
+            markersize=8,
+            color=color,
+            label=f'Cell Faces ({drag_model})',
+            alpha=0.9
+        )
+        all_dx_data.append(data_cf['dx'])
+        all_error_data.append(data_cf['error_max'])
+
+    # Cell Centers: '--o' (dash with circle markers)
+    if drag_model in data_by_alignment['cc']:
+        data_cc = data_by_alignment['cc'][drag_model]
+        ax.loglog(
+            data_cc['dx'],
+            data_cc['error_max'],
+            '--o',
+            linewidth=2.5,
+            markersize=8,
+            color=color,
+            label=f'Cell Centers ({drag_model})',
+            alpha=0.9
+        )
+        all_dx_data.append(data_cc['dx'])
+        all_error_data.append(data_cc['error_max'])
+
+# Add O(h) and O(h^0.5) reference lines once
+if len(all_dx_data) > 0:
+    combined_dx = np.concatenate(all_dx_data)
+    combined_error = np.concatenate(all_error_data)
+
+    if len(combined_dx) > 1:
+        cell_trend = np.logspace(np.log10(combined_dx.min()), np.log10(combined_dx.max()), 50)
+        mean_error = np.mean(combined_error)
+        mean_cell_size = np.mean(combined_dx)
+
+        C_slope1 = 0.85 * mean_error / (mean_cell_size ** 1.0)
+        ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, ':', alpha=0.6, linewidth=2, color='gray', label='Slope: 1')
+
+        C_slope05 = 1.05 * mean_error / (mean_cell_size ** 0.5)
+        ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, '-.', alpha=0.6, linewidth=2, color='black', label='Slope: 0.5')
+
+ax.set_xlabel('Cell Size (h)', fontsize=12)
+ax.set_ylabel('Maximum Error', fontsize=12)
+ax.set_title('Alignment Comparison Across Drag Variants', fontsize=13, fontweight='bold')
+ax.legend(fontsize=10)
+ax.grid(True, alpha=0.3, which='both')
 
 plt.tight_layout()
 figureDir = os.path.join(figureDir_base, 'alignment-comparison')
