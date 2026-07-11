@@ -5,14 +5,16 @@ This case simulates laminar channel flow for a single phase with two channel con
 - A flat channel where the lower and upper walls are defined using IB 
 - A slanted channel with $\theta = 45^\circ$, where $\theta$ is measured from the x-axis.
 
-In both cases, the IB is defined using `ChannelBuilder` physics and the flow is pressure driven with periodic boundary conditions at the inlet and outlet. The pressure gradient is determined from the analytical solution, and enforced via a body forcing term $\vec{F} = -\frac{1}{\rho} \nabla p $.
+In both cases, the IB is defined using `ChannelBuilder` physics and the flow is pressure driven with periodic boundary conditions at the inlet and outlet. The pressure gradient is determined from the analytical solution for Poiseuille flow, and enforced via a body forcing term $\vec{F} = -\frac{1}{\rho} \nabla p $.
 
 ## Flat Channel Configuration
-In the flat channel configuration, the channel is aligned with the cell faces. This is accomplished by setting the channel position based on the coarsest mesh $(N_x, N_y, N_z) = (32, 4, 32)$. This way each consecutive refinement remains aligned with the IB.  
+In the flat channel configuration, the channel can be aligned with the cell faces or cell centers. The cell face aligment configuration is accomplished by setting the channel position based on the coarsest mesh $(N_x, N_y, N_z) = (32, 4, 32)$. This way each consecutive refinement remains aligned with the IB.  The cell center alignment requires changing the position of the channels centerline dependent on the mesh resolution.
 ![Domain](figures/flat_geometry_setup.png)
 
+
+
 ## Slanted Channel Configuration
-For the slanted channel case, periodicty is maintained by defining three channels with the following start and end points for the `ChannelBuilder` segments:
+The slanted channel case is angled at $45^\circ$ from the x-axis. Periodicty is maintained by defining three channels with the following start and end points for the `ChannelBuilder` segments:
 
 1. $(0, 0, 0) \rightarrow (L_x, 0, L_z)$
 1. $(-L_x/2, 0, L_z/2) \rightarrow (L_x/2, 0, 3L_z/2)$
@@ -56,9 +58,9 @@ Pre-processing uses `python/generate_cases.py` to generate case directories and 
 - Drag variant: `--og`, `--temp` (default), or `--tf1`
 - Grid alignment (flat only): `--align cf` (cell-face, default) or `--align cc` (cell-center)
 
-Use the "help" option to see all available parameters:
+Use the "help" option, `-h`, to see all available parameters. As an example, the subdirectories and input files for the flat channel with the original drag model, aligned to cell faces, can be generated using:
 ~~~
-python python/generate_cases.py -h
+python python/generate_cases.py --flat --og --align cf
 ~~~
 
 Individual case post-processing is handled by `python/post_process.py`, which performs convergence analysis and generates visualization plots organized by drag variant and alignment. The script automatically parses all required parameters from the base input files:
@@ -110,7 +112,9 @@ $$z = x\tan\theta + z_s.$$
 
 The associated pressure gradient is:
 
-$$\nabla p = - \frac{8\mu U_{max}}{H^2} [ \cos\theta, 0, \sin\theta].$$ 
+$$ \nabla p = - \frac{8 \mu U_{max}}{H^2} [\cos\theta, 0, \sin\theta].$$
+
+ 
 
 # Results
 
@@ -124,9 +128,9 @@ The following results are from running multiple cases in a domain $\Omega = [0,0
 | 4    | 256   | 4     | 256   | 3.90625 |
 | 5    | 512   | 4     | 512   | 1.953125 |
 
-Note that the cell size in the $y$ direction, $h_y = 31.25$ m is fixed throughout. The cell size in the x- and z-directions, $h_{x,z}$, is always greater than 1 m to avoid inconsistent scale factors in the `CdM` term.
+Note that the cell size in the $y$ direction, $h_y = 31.25$ m is fixed throughout. The cell size in the x- and z-directions, $h_{x,z},$ is always greater than 1 m to avoid inconsistent scale factors in the `CdM` term.
 
-All error analysis is conducted by calculating global errors for all $(x,z)$ satisfying $r < 1.2 \times H/2$. This ensures no artifacts from the additional channels required for the slanted case are included in the error calculations. Errors are calculated using the $L_\infty$ and $L_2$ norms of the error across all grid resolutions. 
+All error analysis is conducted by calculating global errors for all $(x,z)$ satisfying $r < 1.2 \times H/2$. This ensures no artifacts from the additional channels required for the slanted case are included in the error calculations. Errors are calculated using the $L_\infty$ norm across all grid resolutions. 
 
 ## Flat Channel
 
@@ -140,11 +144,11 @@ Two alignment modes are available for flat channels:
 
 ### Error Convergence -- IB Aligned with Cell Faces
 
-The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the two different drag configurations:
+The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the three different drag configurations: the original limiter (`og`), temporal limiter (`temp`), and temporal limiter with time factor set to 1 (`tf1`). 
 
-![Error Convergence](figures/flat-drag-comparison/error_convergence.png)
+![Flat Drag Comparison](figures/flat-drag-comparison/error_convergence.png)
 
-From the analytical solution for the pressure gradient, we can see that 
+The `tf1` variant outperforms the other two, demonstrating that adjusting the temporal drag limiter's time factor substantially improves numerical accuracy across all mesh resolutions. From the analytical solution for the pressure gradient, we can see that 
 
 $$ U_{max} = -\frac{H^2}{8\mu} \nabla p  \cdot [ \cos\theta, 0, \sin\theta].$$
 
@@ -157,19 +161,12 @@ Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is 
 | 128 | 7.812500 | 507.812500 | 103.149414 |
 | 256 | 3.906250 | 503.906250 | 101.568604 |
 | 512 | 1.953125 | 501.953125 | 100.782776 |
-
-### Drag Model Comparison
-
-Three drag forcing variants are evaluated for cell-face-aligned flat channels: the original limiter (`og`), temporal limiter (`temp`), and temporal limiter with time factor set to 1 (`tf1`). The convergence plot below compares error convergence across all three variants:
-
-![Flat Drag Comparison](figures/flat-drag-comparison/error_convergence.png)
-
-The `tf1` variant outperforms the other two, demonstrating that adjusting the temporal drag limiter's time factor substantially improves numerical accuracy across all mesh resolutions. 
+ 
 
 
 ### Alignment Comparison
 
-The cell-center alignment mode allows for direct comparison of error convergence between cf and cc alignments. Use `python/post_process_alignment.py` to generate convergence plots comparing both modes:
+The plot below compares errors of the `tf1` drag variant for flat channels aligned to cell faces or to cell centers. 
 
 ![Alignment Comparison](figures/alignment-comparison/alignment_convergence_comparison.png)
 
