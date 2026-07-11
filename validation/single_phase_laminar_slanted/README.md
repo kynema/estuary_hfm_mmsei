@@ -158,6 +158,15 @@ Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is 
 | 256 | 3.906250 | 503.906250 | 101.568604 |
 | 512 | 1.953125 | 501.953125 | 100.782776 |
 
+### Drag Model Comparison
+
+Three drag forcing variants are evaluated for cell-face-aligned flat channels: the original limiter (`og`), temporal limiter (`temp`), and temporal limiter with time factor set to 1 (`tf1`). The convergence plot below compares error convergence across all three variants:
+
+![Flat Drag Comparison](figures/flat-drag-comparison/error_convergence.png)
+
+The `tf1` variant outperforms the other two, demonstrating that adjusting the temporal drag limiter's time factor substantially improves numerical accuracy across all mesh resolutions. 
+
+
 ### Alignment Comparison
 
 The cell-center alignment mode allows for direct comparison of error convergence between cf and cc alignments. Use `python/post_process_alignment.py` to generate convergence plots comparing both modes:
