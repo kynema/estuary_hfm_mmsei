@@ -37,6 +37,9 @@ def generate_inp_content(config, template_path, drag_variant='temp', mode_name='
     elif drag_variant == 'temp':
         output += "DragForcing.use_original_drag_limiter = false\n"
         output += "DragForcing.use_temporal_drag_limiter = true\n"
+    elif drag_variant == 'tf1':
+        output += "DragForcing.use_temporal_drag_implementation = true\n"
+        output += "DragForcing.bc_forcing_time_factor = 1.\n"
     
     # Add mac_proj smoothing parameters for slanted cases with nx >= 128
     if mode_name == 'slanted' and nx >= 128:
@@ -92,6 +95,7 @@ Examples:
     drag_group = parser.add_mutually_exclusive_group()
     drag_group.add_argument('--og', action='store_true', help='Use original drag limiter variant')
     drag_group.add_argument('--temp', action='store_true', help='Use temporal drag limiter variant (default)')
+    drag_group.add_argument('--tf1', action='store_true', help='Use temporal implementation with time factor 1')
     
     parser.add_argument('--nx', type=str, default=None, 
                        help='Comma-separated list of nx values (default: 32,64,128,256,512 for both modes)')
@@ -120,6 +124,9 @@ Examples:
     elif args.temp:
         drag_variant = 'temp'
         drag_suffix = 'drag-temp'
+    elif args.tf1:
+        drag_variant = 'tf1'
+        drag_suffix = 'drag-tf1'
     else:
         # Default to temporal variant
         drag_variant = 'temp'
