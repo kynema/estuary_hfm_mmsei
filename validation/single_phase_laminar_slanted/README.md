@@ -60,6 +60,13 @@ python python/post_process.py --flat --temp
 python python/post_process.py --slanted --og
 ~~~
 
+For direct comparison of drag forcing variants, use `python/post_process_drag.py`, which automatically loads both `og` and `temp` variants for a given mode and generates side-by-side convergence analysis (e.g., error plots comparing both limiters):
+~~~
+python python/post_process_drag.py --flat
+python python/post_process_drag.py --slanted
+~~~
+Results are saved to `figures/{mode}-drag-comparison/` for convenient variant comparison.
+
 ## Analytical Solution
 
 Provided a 2D domain in the x-z plane with periodic boundaries in $y$,the analytical solution for fully-developed channel flow is:
