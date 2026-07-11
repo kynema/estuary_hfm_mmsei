@@ -24,12 +24,13 @@ Channel 1 is shown in the figure below.
 
 ## Input Files and Organization
 
-There are two base input files for the flat and slanted cases, respectively:
+There are three base input files for the flat and slanted cases:
 
-- `base-flat-aligned-cf.inp`
+- `base-flat-aligned-cf.inp` (cell-face alignment)
+- `base-flat-aligned-cc.inp` (cell-center alignment)
 - `base-slanted.inp`
 
-Individual case subdirectories and inputs for convergence studies are generated via the python script `python/generate_cases.py`. To see a full list of options run `python generate_cases.py -h`. Each generated subdirectory has a naming convention: `{flat|slanted}-drag-{og|temp}-{nx}` where `og` and `temp` refer to original and temporal drag limiters respectively, and `nx` is the grid resolution. 
+The `aligned-cf` and `aligned-cc` designate the alignment of the channel with the mesh, either cell-face or cell-center alignment. Individual case subdirectories and inputs for convergence studies are generated via the python script `python/generate_cases.py`. To see a full list of options run `python generate_cases.py -h`. Each generated subdirectory has a naming convention: `{flat|slanted}-drag-{og|temp|tf1}-{cf|cc}-{nx}` where `og`, `temp`, and `tf1` refer to original drag limiter, temporal drag limiter, and temporal drag limiter with time factor 1 respectively; `cf`/`cc` specify grid alignment (flat cases only); and `nx` is the grid resolution.
 
 Each subdirectory contains an input file with two lines:
 
@@ -40,32 +41,46 @@ amr.n_cell = Nx Ny Nz
 
 These directories store `plt` and `chk` files at different grid resolutions for error convergence analysis. The base input file `base-{flat|slanted}-poiseuille.inp` is shared by all cases and contains all channel geometry and physics parameters.
 
-The cases are setup to test various drag forcing parameters:
+The cases are setup to test various drag forcing parameters and grid alignments:
 ~~~
 DragForcing.use_original_drag_limiter
 DragForcing.use_temporal_drag_limiter
 ~~~
 
-Running `python generate_cases.py` with `--og` (original limiter), `--temp` (temporal limiter, default), or `--tf1` (temporal limiter with time factor 1), adjusts both the subdirectory naming and the corresponding input file settings.
+Running `python generate_cases.py` with `--og` (original limiter), `--temp` (temporal limiter, default), or `--tf1` (temporal limiter with time factor 1), adjusts both the subdirectory naming and the corresponding input file settings. For flat cases, `--align cf` or `--align cc` selects the grid alignment mode.
 
 ## Pre and Post-Processing
-Pre-processing uses `python/base_setup.py` to generate channel configurations based on mode (`--flat` or `--slanted`), resolution (`--nx`), and drag variant (`--og` or `--temp`). Use the "help" option to see all available parameters:
+Pre-processing uses `python/generate_cases.py` to generate case directories and input files based on:
+- Mode: `--flat` or `--slanted`
+- Resolution: `--nx` (grid cells in x and z)
+- Drag variant: `--og`, `--temp` (default), or `--tf1`
+- Grid alignment (flat only): `--align cf` (cell-face, default) or `--align cc` (cell-center)
+
+Use the "help" option to see all available parameters:
 ~~~
-python python/case_setup.py -h
+python python/generate_cases.py -h
 ~~~
 
-Post-processing is handled by `python/post_process.py`, which performs convergence analysis and generates visualization plots organized by drag variant (e.g., `figures/flat-drag-og/`, `figures/slanted-drag-temp/`). The script automatically parses all required parameters from the base input files:
+Individual case post-processing is handled by `python/post_process.py`, which performs convergence analysis and generates visualization plots organized by drag variant and alignment. The script automatically parses all required parameters from the base input files:
 ~~~
-python python/post_process.py --flat --temp
-python python/post_process.py --slanted --og
+python python/post_process.py --flat --align cf --temp
+python python/post_process.py --flat --align cc --og
+python python/post_process.py --slanted --tf1
 ~~~
 
-For direct comparison of drag forcing variants, use `python/post_process_drag.py`, which automatically loads both `og` and `temp` variants for a given mode and generates side-by-side convergence analysis (e.g., error plots comparing both limiters):
+For direct comparison of drag forcing variants, use `python/post_process_drag.py`, which automatically loads multiple drag variants for a given mode and alignment, generating side-by-side convergence analysis:
 ~~~
-python python/post_process_drag.py --flat
+python python/post_process_drag.py --flat --align cf
 python python/post_process_drag.py --slanted
 ~~~
-Results are saved to `figures/{mode}-drag-comparison/` for convenient variant comparison.
+Results are saved to `figures/{mode}-drag-comparison[-{align}]/` for convenient variant comparison.
+
+For direct comparison of grid alignments (cell-face vs cell-center) on flat channels, use `python/post_process_alignment.py`, which compares convergence across both alignment modes for specified drag variants:
+~~~
+python python/post_process_alignment.py --drag og
+python python/post_process_alignment.py --drag og,temp,tf1
+~~~
+Results are saved to `figures/alignment-comparison/` showing error convergence for both cf and cc alignments.
 
 ## Analytical Solution
 
@@ -115,8 +130,15 @@ All error analysis is conducted by calculating global errors for all $(x,z)$ sat
 
 ## Flat Channel
 
-### Error Convergence -- IB Aligned with Cell Faces
+### Grid Alignment Modes
 
+Two alignment modes are available for flat channels:
+
+**Cell-Face Alignment (cf):** The channel walls are aligned with cell face boundaries. The effective channel height is $H_{eff} = H + h_{x,z}$, where $h_{x,z}$ is the cell size.
+
+**Cell-Center Alignment (cc):** The channel is aligned with cell centers. Each grid resolution has its own centerline position read from the case-specific `.inp` file, allowing the effective channel height to be constant ($H_{eff} = H$) across refinement levels.
+
+### Error Convergence -- IB Aligned with Cell Faces
 
 The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the two different drag configurations:
 
@@ -135,6 +157,12 @@ Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is 
 | 128 | 7.812500 | 507.812500 | 103.149414 |
 | 256 | 3.906250 | 503.906250 | 101.568604 |
 | 512 | 1.953125 | 501.953125 | 100.782776 |
+
+### Alignment Comparison
+
+The cell-center alignment mode allows for direct comparison of error convergence between cf and cc alignments. Use `python/post_process_alignment.py` to generate convergence plots comparing both modes:
+
+![Alignment Comparison](figures/alignment-comparison/alignment_convergence_comparison.png)
 
 ## Slanted Channel
 
@@ -158,6 +186,6 @@ The plot below shows the $L_\infty$ norm of the error across all five grid resol
 
 Comparison of analytical and numerical axial velocity profiles at three locations for the finest grid resolution:
 
-![Velocity Profile Comparison](figures/slanted-drag-og/velocity_profile_comparison.png)
+![Velocity Profile Comparison](figures/slanted-drag-tf1/velocity_profile_comparison.png)
 
 Left column shows the velocity profiles with analytical solution (markers) overlaid on numerical solution (line). Right column shows the error growth along the domain.
