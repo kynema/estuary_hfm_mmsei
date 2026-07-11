@@ -9,17 +9,22 @@ Usage:
 
 import os
 import argparse
+import math
 from pathlib import Path
 from base_setup import calculate_channel_config
 
 
 
-def generate_inp_content(config, template_path, drag_variant='temp'):
+def generate_inp_content(config, template_path, drag_variant='temp', mode_name='flat', nx=32):
     """
     Generate minimal .inp file that includes template and overrides n_cell.
     
     drag_variant: 'temp' (default), 'og'
+    mode_name: 'flat' or 'slanted'
+    nx: resolution (for computing mac_proj smoothing parameters)
     """
+    import math
+    
     # Make path relative to cases directory
     output = f"FILE = ../{template_path.name}\n"
     n_cell = config['n_cell']
@@ -28,15 +33,22 @@ def generate_inp_content(config, template_path, drag_variant='temp'):
     # Add drag forcing settings based on variant
     if drag_variant == 'og':
         output += "DragForcing.use_original_drag_limiter = true\n"
-        output += "DragForcing.use_temporal_drag_limiter = false"
+        output += "DragForcing.use_temporal_drag_limiter = false\n"
     elif drag_variant == 'temp':
         output += "DragForcing.use_original_drag_limiter = false\n"
-        output += "DragForcing.use_temporal_drag_limiter = true"
+        output += "DragForcing.use_temporal_drag_limiter = true\n"
+    
+    # Add mac_proj smoothing parameters for slanted cases with nx >= 128
+    if mode_name == 'slanted' and nx >= 128:
+        num_smooth = 4 * (1 + math.log2(nx / 128.0))
+        num_smooth = int(round(num_smooth))
+        output += f"mac_proj.num_pre_smooth = {num_smooth}\n"
+        output += f"mac_proj.num_post_smooth = {num_smooth}"
     
     return output
 
 
-def create_case_directory(case_path, config, template_path, mode_name, drag_variant='temp'):
+def create_case_directory(case_path, config, template_path, mode_name, drag_variant='temp', nx=32):
     """
     Create a case directory with minimal .inp file that references template.
     """
@@ -45,7 +57,7 @@ def create_case_directory(case_path, config, template_path, mode_name, drag_vari
     os.makedirs(case_path, exist_ok=True)
     
     # Generate .inp content (just references template and overrides n_cell)
-    inp_content = generate_inp_content(config, template_path, drag_variant=drag_variant)
+    inp_content = generate_inp_content(config, template_path, drag_variant=drag_variant, mode_name=mode_name, nx=nx)
     
     # Write .inp file
     inp_path = os.path.join(case_path, f"{mode_name}.inp")
@@ -161,14 +173,16 @@ Examples:
         
         if args.dry_run:
             print(f"  Would create: {case_path}")
-            print(f"  n_cell: {config['n_cell']}")
-            print(f"  BodyForce: ({config['body_force_x']:.6f}, {config['body_force_y']:.6f}, {config['body_force_z']:.6f})")
-            print(f"  Drag variant: {drag_variant}")
         else:
-            create_case_directory(str(case_path), config, template_path, mode_name, drag_variant=drag_variant)
-            print(f"  n_cell: {config['n_cell']}")
-            print(f"  BodyForce: ({config['body_force_x']:.6f}, {config['body_force_y']:.6f}, {config['body_force_z']:.6f})")
-            print(f"  Drag variant: {drag_variant}")
+            create_case_directory(str(case_path), config, template_path, mode_name, drag_variant=drag_variant, nx=nx)
+        print(f"  n_cell: {config['n_cell']}")
+        print(f"  BodyForce: ({config['body_force_x']:.6f}, {config['body_force_y']:.6f}, {config['body_force_z']:.6f})")
+        print(f"  Drag variant: {drag_variant}")
+        if mode_name == 'slanted' and nx >= 128:
+            num_smooth = 4 * (1 + math.log2(nx / 128.0))
+            num_smooth = int(round(num_smooth))
+            print(f"  MAC projection pre smoothers: {num_smooth}")
+            print(f"  MAC projection post smoothers: {num_smooth}")
         print()
     
     return 0
