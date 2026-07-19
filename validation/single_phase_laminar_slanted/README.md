@@ -8,7 +8,7 @@ This case simulates laminar channel flow for a single phase with two channel con
 In both cases, the IB is defined using `ChannelBuilder` physics and the flow is pressure driven with periodic boundary conditions at the inlet and outlet. The pressure gradient is determined from the analytical solution for Poiseuille flow, and enforced via a body forcing term $\vec{F} = -\frac{1}{\rho} \nabla p $.
 
 ## Flat Channel Configuration
-In the flat channel configuration, the channel can be aligned with the cell faces or cell centers. The cell face aligment configuration is accomplished by setting the channel position based on the coarsest mesh $(N_x, N_y, N_z) = (32, 4, 32)$. This way each consecutive refinement remains aligned with the IB.  The cell center alignment requires changing the position of the channels centerline dependent on the mesh resolution.
+In the flat channel configuration, the channel can be aligned with the cell faces or cell centers. The cell face aligment configuration is accomplished by setting the channel position based on the coarsest mesh $(N_x, N_y, N_z) = (32, 4, 32)$. This way each consecutive refinement remains aligned with the IB.  The cell center alignment requires changing the position of the channels centerline dependent on the mesh resolution. Additionally, a non-IB case is provided for reference purposes. The non-IB case confirms second-order accuracy of Kynema-SGF. 
 ![Domain](figures/flat_geometry_setup.png)
 
 
@@ -49,7 +49,7 @@ DragForcing.use_original_drag_limiter
 DragForcing.use_temporal_drag_limiter
 ~~~
 
-Running `python generate_cases.py` with `--og` (original limiter), `--temp` (temporal limiter, default), or `--tf1` (temporal limiter with time factor 1), adjusts both the subdirectory naming and the corresponding input file settings. For flat cases, `--align cf` or `--align cc` selects the grid alignment mode.
+Running `python generate_cases.py` with `--og` (original limiter), `--temp` (temporal limiter, default), or `--tf1` (temporal implementation with time factor 1), adjusts both the subdirectory naming and the corresponding input file settings. For flat cases, `--align cf` or `--align cc` selects the grid alignment mode.
 
 ## Pre and Post-Processing
 Pre-processing uses `python/generate_cases.py` to generate case directories and input files based on:
@@ -57,6 +57,7 @@ Pre-processing uses `python/generate_cases.py` to generate case directories and 
 - Resolution: `--nx` (grid cells in x and z)
 - Drag variant: `--og`, `--temp` (default), or `--tf1`
 - Grid alignment (flat only): `--align cf` (cell-face, default) or `--align cc` (cell-center)
+- Non-IB (flat only): `--no_ib` 
 
 Use the "help" option, `-h`, to see all available parameters. As an example, the subdirectories and input files for the flat channel with the original drag model, aligned to cell faces, can be generated using:
 ~~~
@@ -81,8 +82,9 @@ For direct comparison of grid alignments (cell-face vs cell-center) on flat chan
 ~~~
 python python/post_process_alignment.py --drag og
 python python/post_process_alignment.py --drag og,temp,tf1
+python python/post_process_alignment.py --drag og,temp,tf1 --no_ib
 ~~~
-Results are saved to `figures/alignment-comparison/` showing error convergence for both cf and cc alignments.
+The last option `--no_ib` will plot data from non-IB cases along with the IB cases for reference. Regardless of the options used, results are saved to `figures/alignment-comparison/` showing error convergence for both cf and cc alignments.
 
 ## Analytical Solution
 
@@ -146,7 +148,7 @@ Two alignment modes are available for flat channels:
 
 ### Error Convergence -- IB Aligned with Cell Faces
 
-The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the three different drag configurations: the original limiter (`og`), temporal limiter (`temp`), and temporal limiter with time factor set to 1 (`tf1`). 
+The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the three different drag configurations: the original limiter (`og`), temporal limiter (`temp`), and temporal implementation with time factor set to 1 (`tf1`). 
 
 ![Flat Drag Comparison](figures/flat-drag-comparison/error_convergence.png)
 
@@ -168,7 +170,7 @@ Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is 
 
 ### Alignment Comparison
 
-The plot below compares errors of the `tf1` drag variant for flat channels aligned to cell faces or to cell centers. 
+The plot below compares errors of the `tf1` drag variant for flat channels aligned to cell faces or to cell centers. The non-IB case is provided for reference. 
 
 ![Alignment Comparison](figures/alignment-comparison/alignment_convergence_comparison.png)
 
