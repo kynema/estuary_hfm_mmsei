@@ -32,7 +32,7 @@ def calculate_channel_center_cc(nz, z_hi=1000.0, H=500.0):
     return z_center
 
 
-def generate_inp_content(config, template_path, drag_variant='temp', mode_name='flat', nx=32, align='cf', ny=4, nz=32, x_hi=1000.0, y_hi=50.0, z_hi=1000.0, H=500.0):
+def generate_inp_content(config, template_path, drag_variant='temp', mode_name='flat', nx=32, align='cf', ny=4, nz=32, x_hi=1000.0, y_hi=50.0, z_hi=1000.0, H=500.0, no_ib=False):
     """
     Generate minimal .inp file that includes template and overrides n_cell.
     
@@ -40,6 +40,7 @@ def generate_inp_content(config, template_path, drag_variant='temp', mode_name='
     mode_name: 'flat' or 'slanted'
     align: 'cf' (cell face) or 'cc' (cell center) for flat cases
     nx: resolution (for computing mac_proj smoothing parameters)
+    no_ib: True for flat cases without immersed boundary
     """
     import math
     
@@ -48,19 +49,21 @@ def generate_inp_content(config, template_path, drag_variant='temp', mode_name='
     n_cell = config['n_cell']
     output += f"amr.n_cell = {n_cell[0]} {n_cell[1]} {n_cell[2]}\n"
     
-    # Add drag forcing settings based on variant
-    if drag_variant == 'og':
-        output += "DragForcing.use_original_drag_limiter = true\n"
-        output += "DragForcing.use_temporal_drag_limiter = false\n"
-    elif drag_variant == 'temp':
-        output += "DragForcing.use_original_drag_limiter = false\n"
-        output += "DragForcing.use_temporal_drag_limiter = true\n"
-    elif drag_variant == 'tf1':
-        output += "DragForcing.use_temporal_drag_implementation = true\n"
-        output += "DragForcing.bc_forcing_time_factor = 1.\n"
+    # Add drag forcing settings based on variant (skip for no_ib cases)
+    if not no_ib:
+        if drag_variant == 'og':
+            output += "DragForcing.use_original_drag_limiter = true\n"
+            output += "DragForcing.use_temporal_drag_limiter = false\n"
+        elif drag_variant == 'temp':
+            output += "DragForcing.use_original_drag_limiter = false\n"
+            output += "DragForcing.use_temporal_drag_limiter = true\n"
+        elif drag_variant == 'tf1':
+            output += "DragForcing.use_temporal_drag_implementation = true\n"
+            output += "DragForcing.bc_forcing_time_factor = 1.\n"
     
     # For flat cases with cell-center alignment, override ChannelBuilder parameters
-    if mode_name == 'flat' and align == 'cc':
+    # Skip ChannelBuilder parameters for no-ib cases
+    if mode_name == 'flat' and align == 'cc' and not no_ib:
         z_center = calculate_channel_center_cc(nz, z_hi)
         output += f"ChannelBuilder.s1.segment_start_point = 0.0 62.5 {z_center:10.10f}\n"
         output += f"ChannelBuilder.s1.segment_end_point = {x_hi:10.1f} 62.5 {z_center:10.10f}"
@@ -123,8 +126,14 @@ Examples:
     parser.add_argument('--nx', type=str, default=None, 
                        help='Comma-separated list of nx values (default: 32,64,128,256,512 for both modes)')
     parser.add_argument('--dry_run', action='store_true', help='Print what would be created without creating')
+    parser.add_argument('--no_ib', action='store_true', help='Generate flat channel without IB')
     
     args = parser.parse_args()
+    
+    # Validate --no_ib can only be used with --flat
+    if args.no_ib and not args.flat:
+        print("Error: --no_ib can only be used with --flat")
+        return 1
     
     # Set mode-specific defaults for nx if not provided
     if args.nx is None:
@@ -160,7 +169,14 @@ Examples:
         mode_name = 'flat'
         align_suffix = f"-{args.align}" if args.align == 'cc' else ""  # Only add suffix for cc
         case_prefix = f'flat-{drag_suffix}{align_suffix}'
-        template_file = 'base-flat-aligned-cf.inp'  # Use same template for both, cc will override params
+        # Use alignment-specific template
+        if args.align == 'cc':
+            template_file = 'base-flat-aligned-cc.inp'
+        else:
+            template_file = 'base-flat-aligned-cf.inp'
+        if args.no_ib:
+            case_prefix = "flat-no-ib"
+            template_file = 'base-flat-no-ib.inp'
     else:
         mode_name = 'slanted'
         case_prefix = f'slanted-{drag_suffix}'
@@ -176,6 +192,8 @@ Examples:
     print(f"Using template: {template_path}")
     print(f"Cases directory: {cases_dir}")
     print(f"Mode: {mode_name}")
+    if args.no_ib:
+        print(f"Immersed boundary: DISABLED")
     print()
     
     # Set domain parameters (matching case_setup.py main())
@@ -204,11 +222,16 @@ Examples:
             nx_align=32,
         )
         
+        # For no-ib cases, override n_cell: nx, ny, nx/2
+        if args.no_ib:
+            nz_no_ib = nx // 2
+            config['n_cell'] = (nx, ny, nz_no_ib)
+        
         case_name = f"{case_prefix}-{nx}"
         case_path = cases_dir / case_name
         
         # Generate input content
-        inp_content = generate_inp_content(config, template_path, drag_variant=drag_variant, mode_name=mode_name, nx=nx, align=args.align if args.flat else 'cf', ny=ny, nz=nz, x_hi=x_hi, y_hi=y_hi, z_hi=z_hi, H=H)
+        inp_content = generate_inp_content(config, template_path, drag_variant=drag_variant, mode_name=mode_name, nx=nx, align=args.align if args.flat else 'cf', ny=ny, nz=nz, x_hi=x_hi, y_hi=y_hi, z_hi=z_hi, H=H, no_ib=args.no_ib)
         
         if args.dry_run:
             print(f"  Would create: {case_path}")

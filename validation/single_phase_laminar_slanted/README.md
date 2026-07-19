@@ -142,6 +142,8 @@ Two alignment modes are available for flat channels:
 
 **Cell-Center Alignment (cc):** The channel is aligned with cell centers. Each grid resolution has its own centerline position read from the case-specific `.inp` file, allowing the effective channel height to be constant ($H_{eff} = H$) across refinement levels.
 
+**No Immersed Boundary:** The channel walls are non-slip walls. These cases can be run to provide reference error convergence. The domain is $\Omega = [0, 0, 250] \times [1000, 125, 750]$. 
+
 ### Error Convergence -- IB Aligned with Cell Faces
 
 The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the three different drag configurations: the original limiter (`og`), temporal limiter (`temp`), and temporal limiter with time factor set to 1 (`tf1`). 

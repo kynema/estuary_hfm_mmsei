@@ -43,6 +43,7 @@ drag_group.add_argument('--temp', action='store_true', help='Use temporal drag f
 drag_group.add_argument('--tf1', action='store_true', help='Use temporal drag forcing with time factor 1')
 
 parser.add_argument('--align', type=str, default='cf', choices=['cf', 'cc'], help='Grid alignment for flat cases: cf (cell face, default) or cc (cell center)')
+parser.add_argument('--no_ib', action='store_true', help='Analyze flat channel without immersed boundary (ignores --align and drag model options)')
 parser.add_argument('--H', type=float, default=1.0, help='Channel height (default: 1.0)')
 args = parser.parse_args()
 
@@ -70,9 +71,12 @@ file_dir = os.path.dirname(os.path.abspath(__file__))
 rootDir = os.path.join(os.path.dirname(file_dir), 'cases')
 figureDir_base = os.path.join(os.path.dirname(file_dir), 'figures')
 
-# Select alignment-specific base file for flat cases
+# Select base input file for flat cases
 if args.flat:
-    base_inp = os.path.join(rootDir, f'base-flat-aligned-{args.align}.inp')
+    if args.no_ib:
+        base_inp = os.path.join(rootDir, 'base-flat-no-ib.inp')
+    else:
+        base_inp = os.path.join(rootDir, f'base-flat-aligned-{args.align}.inp')
 else:
     base_inp = os.path.join(rootDir, 'base-slanted.inp')
 
@@ -106,7 +110,10 @@ except RuntimeError as e:
     raise
 
 # Create figure output directory with drag variant subdirectory
-figureDir = os.path.join(figureDir_base, case_prefix)
+if args.flat and args.no_ib:
+    figureDir = os.path.join(figureDir_base, 'flat-no-ib')
+else:
+    figureDir = os.path.join(figureDir_base, case_prefix)
 os.makedirs(figureDir, exist_ok=True)
 
 # ================================================================================
@@ -114,7 +121,14 @@ os.makedirs(figureDir, exist_ok=True)
 # ================================================================================
 # Build case specifications based on mode
 if args.flat:
-    case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
+    if args.no_ib:
+        # For no-ib cases, use the no-ib naming (no drag variant)
+        case_specs = [(f'flat-no-ib-32', 32), (f'flat-no-ib-64', 64), 
+                      (f'flat-no-ib-128', 128), (f'flat-no-ib-256', 256), 
+                      (f'flat-no-ib-512', 512)]
+    else:
+        # For aligned cases, load based on alignment and drag variant
+        case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
 else:  # slanted
     case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
 
@@ -217,6 +231,20 @@ for case_idx, case_path in enumerate(case_paths):
 
 nCases = len(ds_list)
 print(f'Loaded {nCases} cases\n')
+
+# Check if any cases were loaded
+if nCases == 0:
+    print('ERROR: No cases found to analyze.')
+    if args.flat and args.no_ib:
+        print('Make sure no-ib cases have been generated:')
+        print('  python generate_cases.py --flat --no_ib --nx 32,64,128,256,512')
+    elif args.flat:
+        print('Make sure cases have been generated:')
+        print(f'  python generate_cases.py --flat --align {args.align} --nx 32,64,128,256,512')
+    else:
+        print('Make sure slanted cases have been generated:')
+        print('  python generate_cases.py --slanted --nx 32,64,128,256,512')
+    exit(1)
 
 # ================================================================================
 # Read Resolution-Specific Centerline Positions (for --align cc mode)
@@ -469,6 +497,11 @@ if len(cell_size_array) > 1:
     # O(h^1/2) reference: error ~ C * h^0.5
     C_slope05 = 1.25 * mean_error_max / (mean_cell_size ** 0.5)
     ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, '-.', alpha=0.6, linewidth=2, color='gray', label='Slope: 0.5')
+    
+    # O(h^2) reference for no-ib cases: error ~ C * h^2
+    if args.no_ib:
+        C_slope2 = 1.5 * mean_error_max / (mean_cell_size ** 2.0)
+        ax.loglog(cell_trend, C_slope2 * cell_trend**2.0, '--', alpha=0.6, linewidth=2, color='gray', label='Slope: 2')
 
 ax.set_xlabel('Cell Size (h)', fontsize=14)
 ax.set_ylabel('Maximum Error', fontsize=14)
@@ -592,9 +625,6 @@ for i_loc in i_locations:
     max_error_all = max(max_error_all, np.abs(velocity_error).max())
 
 for row_idx, (i_loc, label) in enumerate(zip(i_locations, profile_labels)):
-    x_val = x[case_finest][i_loc]
-    z_val = z[case_finest][i_loc]
-    
     # Left subplot: velocity profile
     ax = axes[row_idx, 0]
     ax.plot(u_axial_ana[i_loc, :], z[case_finest], 'o', color='tab:red', markersize=5, label='Analytical')

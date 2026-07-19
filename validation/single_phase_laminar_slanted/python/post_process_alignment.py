@@ -32,6 +32,7 @@ parser = argparse.ArgumentParser(description='Compare cell alignment effects (cf
 
 parser.add_argument('--drag', type=str, default='og', 
                    help='Drag models to compare (comma-separated: og,temp,tf1). Default: og')
+parser.add_argument('--no_ib', action='store_true', help='Include flat channel without IB cases for comparison')
 
 args = parser.parse_args()
 
@@ -57,6 +58,12 @@ base_inp_cf = os.path.join(rootDir, 'base-flat-aligned-cf.inp')
 if not os.path.exists(base_inp_cf):
     raise RuntimeError(f"Error: Base input file not found: {base_inp_cf}")
 
+# For no-ib, use the no-ib base file
+if args.no_ib:
+    base_inp_no_ib = os.path.join(rootDir, 'base-flat-no-ib.inp')
+    if not os.path.exists(base_inp_no_ib):
+        raise RuntimeError(f"Error: Base input file not found: {base_inp_no_ib}")
+
 try:
     z_s_analytical, H_from_inp, theta_from_inp, x_hi_from_inp, z_hi_from_inp, Umax_from_inp, rho_from_inp, mu_from_inp, x_start_cline, x_end_cline, z_start_cline, z_end_cline, L_channel, dp_dx_from_inp = parse_inp_for_channel_geometry(base_inp_cf, return_dp_dx=True)
     
@@ -78,7 +85,11 @@ except RuntimeError as e:
 data_by_alignment = {}
 resolutions = [32, 64, 128, 256, 512]
 
-for align in ['cf', 'cc']:
+alignments_to_load = ['cf', 'cc']
+if args.no_ib:
+    alignments_to_load.append('no-ib')
+
+for align in alignments_to_load:
     data_by_alignment[align] = {}
     
     for drag_model in drag_models:
@@ -86,7 +97,11 @@ for align in ['cf', 'cc']:
         print(f'Loading {align.upper()} alignment, {drag_model} drag model')
         print(f'{"="*80}')
         
-        case_prefix = f'flat-drag-{drag_model}-{align}'
+        # Case naming differs for no-ib: flat-no-ib-{nx} instead of flat-drag-{variant}-{align}-{nx}
+        if align == 'no-ib':
+            case_prefix = f'flat-no-ib'
+        else:
+            case_prefix = f'flat-drag-{drag_model}-{align}'
         case_specs = [(f'{case_prefix}-{nx}', nx) for nx in resolutions]
         
         case_paths, valid_cases, case_resolutions = [], [], []
@@ -116,11 +131,17 @@ for align in ['cf', 'cc']:
         dx_array = []
         
         # Get base z_s for this alignment
-        base_inp_align = os.path.join(rootDir, f'base-flat-aligned-{align}.inp')
+        if align == 'no-ib':
+            base_inp_align = os.path.join(rootDir, 'base-flat-no-ib.inp')
+        else:
+            base_inp_align = os.path.join(rootDir, f'base-flat-aligned-{align}.inp')
         z_s_align, _, _, _, _, _, _, _ = parse_inp_for_channel_geometry(base_inp_align, return_dp_dx=False)
         
-        # Get case-specific centerlines for cc alignment
-        z_s_cases = get_case_specific_centerlines(rootDir, 'flat', align, valid_cases, z_s_align)
+        # Get case-specific centerlines (only for cc alignment; cf and no-ib use constant z_s)
+        if align == 'cc':
+            z_s_cases = get_case_specific_centerlines(rootDir, 'flat', align, valid_cases, z_s_align)
+        else:
+            z_s_cases = [z_s_align] * len(valid_cases)
         
         for case_idx, case_path in enumerate(case_paths):
             print(f'  Loading {valid_cases[case_idx]}...')
@@ -208,6 +229,19 @@ for align in ['cf', 'cc']:
 
 print(f'\n\nData loading complete')
 
+# Check if any data was collected
+total_data_points = sum(len(data_by_alignment[align]) for align in alignments_to_load)
+if total_data_points == 0:
+    print('ERROR: No cases found to analyze.')
+    if args.no_ib:
+        print('Make sure cases have been generated with --no_ib:')
+        print('  python generate_cases.py --flat --no_ib --nx 32,64,128,256,512')
+    else:
+        print('Make sure flat cases have been generated:')
+        print('  python generate_cases.py --flat --align cf --nx 32,64,128,256,512')
+        print('  python generate_cases.py --flat --align cc --nx 32,64,128,256,512')
+    exit(1)
+
 # ================================================================================
 # Convergence comparison plot (single axis)
 # ================================================================================
@@ -256,6 +290,25 @@ for drag_model in drag_models:
         all_dx_data.append(data_cc['dx'])
         all_error_data.append(data_cc['error_max'])
 
+# Plot No-IB cases separately (outside drag_model loop, since no-ib has no drag variants)
+if args.no_ib and 'no-ib' in data_by_alignment and len(drag_models) > 0:
+    # Get a drag_model's data for no-ib (they're all the same, so use first one)
+    first_drag = list(data_by_alignment['no-ib'].keys())[0] if data_by_alignment['no-ib'] else None
+    if first_drag:
+        data_no_ib = data_by_alignment['no-ib'][first_drag]
+        ax.loglog(
+            data_no_ib['dx'],
+            data_no_ib['error_max'],
+            '-^',
+            linewidth=2.5,
+            markersize=8,
+            color='purple',
+            label='No IB',
+            alpha=0.9
+        )
+        all_dx_data.append(data_no_ib['dx'])
+        all_error_data.append(data_no_ib['error_max'])
+
 # Add O(h) and O(h^0.5) reference lines once
 if len(all_dx_data) > 0:
     combined_dx = np.concatenate(all_dx_data)
@@ -266,11 +319,16 @@ if len(all_dx_data) > 0:
         mean_error = np.mean(combined_error)
         mean_cell_size = np.mean(combined_dx)
 
-        C_slope1 = 0.85 * mean_error / (mean_cell_size ** 1.0)
-        ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, ':', alpha=0.6, linewidth=2, color='gray', label='Slope: 1')
+        C_slope05 = 0.15 * mean_error / (mean_cell_size ** 0.5)
+        ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, ':', linewidth=2, color='black', label='Slope: 0.5')
 
-        C_slope05 = 1.05 * mean_error / (mean_cell_size ** 0.5)
-        ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, '-.', alpha=0.6, linewidth=2, color='black', label='Slope: 0.5')
+        C_slope1 = 0.1 * mean_error / (mean_cell_size ** 1.0)
+        ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, '-.', linewidth=2, color='black', label='Slope: 1')
+        
+        # Add O(h^2) reference if no-ib cases are included
+        if args.no_ib:
+            C_slope2 = 0.04 * mean_error / (mean_cell_size ** 2.0)
+            ax.loglog(cell_trend, C_slope2 * cell_trend**2.0, '--', linewidth=2, color='black', label='Slope: 2')
 
 ax.set_xlabel('Cell Size (h)', fontsize=12)
 ax.set_ylabel('Maximum Error', fontsize=12)

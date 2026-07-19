@@ -35,12 +35,7 @@ mode_group = parser.add_mutually_exclusive_group(required=True)
 mode_group.add_argument('--flat', action='store_true', help='Post-process flat channel cases')
 mode_group.add_argument('--slanted', action='store_true', help='Post-process slanted channel cases')
 
-variant_group = parser.add_mutually_exclusive_group(required=False)
-variant_group.add_argument('--og-temp', action='store_true', help='Compare og and temp variants (default)')
-variant_group.add_argument('--temp-tf1', action='store_true', help='Compare temp and tf1 variants')
-
 parser.add_argument('--align', type=str, default='cf', choices=['cf', 'cc'], help='Grid alignment for flat cases: cf (cell face, default) or cc (cell center)')
-parser.add_argument('--H', type=float, default=1.0, help='Channel height (default: 1.0)')
 args = parser.parse_args()
 
 # ================================================================================
@@ -98,7 +93,7 @@ print(f'Found variants: {drag_variants}\n')
 
 # Initialize parameters
 theta_rad = np.deg2rad(theta_deg)
-channelHeight = args.H
+channelHeight = 500.0
 maxVelocity = 1.0
 
 # Read channel geometry and physics parameters from base .inp file
@@ -355,7 +350,7 @@ for variant in drag_variants:
 # Define styling for all possible variants
 all_colors = {'og': 'C0', 'temp': 'C1', 'tf1': 'C2'}
 all_markers = {'og': 'o', 'temp': 's', 'tf1': '^'}
-all_labels = {'og': 'OG Limiter', 'temp': 'Temporal Limiter', 'tf1': 'Temporal Limiter (tf = 1)'}
+all_labels = {'og': 'OG Limiter', 'temp': 'Temporal Limiter', 'tf1': 'Temporal Implementation'}
 
 # Select only the colors/markers/labels for variants being compared
 colors = {v: all_colors[v] for v in drag_variants}
@@ -382,13 +377,15 @@ if len(all_cell_sizes) > 1:
     mean_error_max = np.mean(all_errors)
     mean_cell_size = np.mean(all_cell_sizes)
     
-    # O(h) reference: error ~ C * h
-    C_slope1 = 0.85 * mean_error_max / (mean_cell_size ** 1.0)
-    ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, ':', alpha=0.6, linewidth=2, color='gray', label='Slope: 1')
-    
     # O(h^1/2) reference: error ~ C * h^0.5
     C_slope05 = 1.25 * mean_error_max / (mean_cell_size ** 0.5)
-    ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, '-.', alpha=0.6, linewidth=2, color='gray', label='Slope: 0.5')
+    ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, ':', linewidth=2, color='black', label='Slope: 0.5')
+
+    # O(h) reference: error ~ C * h
+    C_slope1 = 0.85 * mean_error_max / (mean_cell_size ** 1.0)
+    ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, '-.', linewidth=2, color='black', label='Slope: 1')
+    
+    
 
 ax.set_xlabel('Cell Size (h)', fontsize=14)
 ax.set_ylabel('Maximum Error', fontsize=14)
