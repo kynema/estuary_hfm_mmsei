@@ -358,7 +358,11 @@ z_lower = z_s + x_boundary_full * np.tan(theta_rad) - perp_offset * np.cos(theta
 z_upper = z_s + x_boundary_full * np.tan(theta_rad) + perp_offset * np.cos(theta_rad)
 
 # Draw immersed boundary walls in deeppink
-ax.plot(x_boundary_full, z_lower, color='deeppink', linewidth=5, label='Immersed boundary')
+if args.no_ib:
+    wall_lab = 'No Slip Wall'
+else:
+    wall_lab = 'Immersed Boundary'
+ax.plot(x_boundary_full, z_lower, color='deeppink', linewidth=5, label=wall_lab)
 ax.plot(x_boundary_full, z_upper, color='deeppink', linewidth=5)
 
 # Fill regions outside the channel with grey (gainsboro)
@@ -490,18 +494,18 @@ if len(cell_size_array) > 1:
     mean_error_max = np.mean(u_axial_error_max)
     mean_cell_size = np.mean(cell_size_array)
     
-    # O(h) reference: error ~ C * h
-    C_slope1 = 0.85 * mean_error_max / (mean_cell_size ** 1.0)
-    ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, ':', alpha=0.6, linewidth=2, color='gray', label='Slope: 1')
-    
-    # O(h^1/2) reference: error ~ C * h^0.5
-    C_slope05 = 1.25 * mean_error_max / (mean_cell_size ** 0.5)
-    ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, '-.', alpha=0.6, linewidth=2, color='gray', label='Slope: 0.5')
-    
-    # O(h^2) reference for no-ib cases: error ~ C * h^2
-    if args.no_ib:
+    if not args.no_ib:
+        # O(h^1/2) reference: error ~ C * h^0.5
+        C_slope05 = 1.25 * mean_error_max / (mean_cell_size ** 0.5)
+        ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, ':', linewidth=2, color='black', label='Slope: 0.5')
+
+        # O(h) reference: error ~ C * h
+        C_slope1 = 0.85 * mean_error_max / (mean_cell_size ** 1.0)
+        ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, '-.', linewidth=2, color='black', label='Slope: 1')
+    else:
+        # O(h^2) reference for no-ib cases: error ~ C * h^2
         C_slope2 = 1.5 * mean_error_max / (mean_cell_size ** 2.0)
-        ax.loglog(cell_trend, C_slope2 * cell_trend**2.0, '--', alpha=0.6, linewidth=2, color='gray', label='Slope: 2')
+        ax.loglog(cell_trend, C_slope2 * cell_trend**2.0, '--', linewidth=2, color='black', label='Slope: 2')
 
 ax.set_xlabel('Cell Size (h)', fontsize=14)
 ax.set_ylabel('Maximum Error', fontsize=14)
@@ -644,8 +648,8 @@ for row_idx, (i_loc, label) in enumerate(zip(i_locations, profile_labels)):
     ax.axvline(x=0, color='k', linestyle='--', alpha=0.5)
     ax.set_xlabel('Error in Axial Velocity (m/s)', fontsize=12)
     ax.set_ylabel('z (m)', fontsize=12)
-    ax.set_title(f'Axial Velocity Error at {label}', fontsize=12)
-    ax.set_xlim(-max_error_all, max_error_all)
+    ax.set_title(r'$u_r^{sim} - u_r^{exact}$ at ' + label, fontsize=12)
+    ax.set_xlim(-max_error_all/8, max_error_all)
     ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
