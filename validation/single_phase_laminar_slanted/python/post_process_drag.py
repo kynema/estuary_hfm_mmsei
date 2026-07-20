@@ -36,6 +36,7 @@ mode_group.add_argument('--flat', action='store_true', help='Post-process flat c
 mode_group.add_argument('--slanted', action='store_true', help='Post-process slanted channel cases')
 
 parser.add_argument('--align', type=str, default='cf', choices=['cf', 'cc'], help='Grid alignment for flat cases: cf (cell face, default) or cc (cell center)')
+parser.add_argument('--rel', action='store_true', help='Plot errors relative to maximum velocity (default: absolute errors)')
 args = parser.parse_args()
 
 # ================================================================================
@@ -284,8 +285,6 @@ for variant in drag_variants:
     errors_by_variant[variant] = {
         'error_max': [],
         'error_l2': [],
-        'error_max_wall': [],
-        'error_l2_wall': [],
         'nx_array': [],
         'cell_size_array': []
     }
@@ -318,29 +317,23 @@ for variant in drag_variants:
         u_axial_max = np.max(np.abs(u_axial_err[channel_mask])) if np.any(channel_mask) else 0.0
         u_axial_l2 = np.sqrt(np.sum(u_axial_err[channel_mask]**2)) / np.sqrt(np.sum(channel_mask)) if np.any(channel_mask) else 0.0
         
-        # Near-wall error (quarter of channel height from wall)
-        wall_distance = channelHeight / 4.0
-        near_wall_mask = (r_dist_2d > (channelHeight / 2.0 - wall_distance)) & (r_dist_2d <= (channelHeight / 2.0))
-        u_axial_max_wall = np.max(np.abs(u_axial_err[near_wall_mask])) if np.any(near_wall_mask) else 0.0
-        u_axial_l2_wall = np.sqrt(np.sum(u_axial_err[near_wall_mask]**2)) / np.sqrt(np.sum(near_wall_mask)) if np.any(near_wall_mask) else 0.0
+        # Normalize to relative errors if requested
+        if args.rel:
+            u_axial_max /= maxVelocity
+            u_axial_l2 /= maxVelocity
         
         errors_by_variant[variant]['error_max'].append(u_axial_max)
         errors_by_variant[variant]['error_l2'].append(u_axial_l2)
-        errors_by_variant[variant]['error_max_wall'].append(u_axial_max_wall)
-        errors_by_variant[variant]['error_l2_wall'].append(u_axial_l2_wall)
         errors_by_variant[variant]['nx_array'].append(data_by_variant[variant]['nx'][case_idx])
         errors_by_variant[variant]['cell_size_array'].append(data_by_variant[variant]['dx'][case_idx])
         
-        print(f'  {case_name} (y-index {j_mid}):')
-        print(f'    Overall - Max: {u_axial_max:.6e}, L2: {u_axial_l2:.6e}')
-        print(f'    Wall    - Max: {u_axial_max_wall:.6e}, L2: {u_axial_l2_wall:.6e}')
+        print(f'  {case_name} (y-index {j_mid}):' )
+        print(f'    Max: {u_axial_max:.6e}, L2: {u_axial_l2:.6e}')
 
 # Convert to numpy arrays for plotting
 for variant in drag_variants:
     errors_by_variant[variant]['error_max'] = np.array(errors_by_variant[variant]['error_max'])
     errors_by_variant[variant]['error_l2'] = np.array(errors_by_variant[variant]['error_l2'])
-    errors_by_variant[variant]['error_max_wall'] = np.array(errors_by_variant[variant]['error_max_wall'])
-    errors_by_variant[variant]['error_l2_wall'] = np.array(errors_by_variant[variant]['error_l2_wall'])
     errors_by_variant[variant]['cell_size_array'] = np.array(errors_by_variant[variant]['cell_size_array'])
     errors_by_variant[variant]['nx_array'] = np.array(errors_by_variant[variant]['nx_array'])
 
@@ -378,26 +371,31 @@ if len(all_cell_sizes) > 1:
     mean_cell_size = np.mean(all_cell_sizes)
     
     # O(h^1/2) reference: error ~ C * h^0.5
-    C_slope05 = 1.25 * mean_error_max / (mean_cell_size ** 0.5)
+    C_slope05 = 0.6 * mean_error_max / (mean_cell_size ** 0.5)
     ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, ':', linewidth=2, color='black', label='Slope: 0.5')
 
-    # O(h) reference: error ~ C * h
-    C_slope1 = 0.85 * mean_error_max / (mean_cell_size ** 1.0)
-    ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, '-.', linewidth=2, color='black', label='Slope: 1')
+    ## O(h) reference: error ~ C * h
+    #C_slope1 = 0.85 * mean_error_max / (mean_cell_size ** 1.0)
+    #ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, '-.', linewidth=2, color='black', label='Slope: 1')
     
     
 
 ax.set_xlabel('Cell Size (h)', fontsize=14)
-ax.set_ylabel('Maximum Error', fontsize=14)
+ylab = 'Relative Error' if args.rel else 'Absolute Error'
+ax.set_ylabel(ylab, fontsize=14)
 ax.set_xticks([1e0, 4e0, 1e1, 4e1])
 ax.set_xticklabels(['$10^0$', '$4 \\times 10^0$', '$10^1$', '$4 \\times 10^1$'])
-ax.set_yticks([4e0, 1e1, 4e1])
-ax.set_yticklabels(['$4 \\times 10^0$', '$10^1$', '$4 \\times 10^1$'])
+#ax.set_yticks([4e0, 1e1, 4e1])
+#ax.set_yticklabels(['$4 \\times 10^0$', '$10^1$', '$4 \\times 10^1$'])
 ax.set_title(f'Drag Forcing Comparison: {mode_name.title()} Channel Convergence', fontsize=14)
 ax.legend(fontsize=11)
 ax.grid(True, alpha=0.3, which='both')
 plt.tight_layout()
-plt.savefig(f'{figureDir}/error_convergence.png', dpi=150)
+fname = 'error_convergence'
+if args.rel:    
+    fname += '_relative'
+fname += '.png'
+plt.savefig(f'{figureDir}/{fname}', dpi=150)
 plt.show()
 
 print('\nPost-processing complete!')

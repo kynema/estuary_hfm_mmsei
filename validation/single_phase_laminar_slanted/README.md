@@ -170,7 +170,7 @@ Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is 
 
 ### Error Convergence - All Flat Cases
 
-The plot below compares errors from all drag variants for flat channels aligned to cell faces or to cell centers. The non-IB case is provided for reference. 
+The plot below compares errors across drag variants for flat channels aligned to cell faces or to cell centers. The non-IB case is provided for reference. Note that the original drag implementation and temporal limiter show identical results. Therefore, the temporal drag limiter has been omited.
 
 ![Alignment Comparison](figures/alignment-comparison/alignment_convergence_comparison.png)
 
@@ -193,7 +193,7 @@ As the number of cells increases, the number of iterations required for the MAC 
 
 The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the two different drag configurations:
 
-![Error Convergence](figures/slanted-drag-comparison/error_convergence.png)
+![Error Convergence](figures/slanted-drag-comparison/error_convergence_relative.png)
 
 
 ### Velocity Profile Comparison

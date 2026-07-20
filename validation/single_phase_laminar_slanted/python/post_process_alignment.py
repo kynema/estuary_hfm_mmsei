@@ -33,6 +33,7 @@ parser = argparse.ArgumentParser(description='Compare cell alignment effects (cf
 parser.add_argument('--drag', type=str, default='og', 
                    help='Drag models to compare (comma-separated: og,temp,tf1). Default: og')
 parser.add_argument('--no_ib', action='store_true', help='Include flat channel without IB cases for comparison')
+parser.add_argument('--rel', action='store_true', help='Plot errors relative to maximum velocity (default: absolute errors)')
 
 args = parser.parse_args()
 
@@ -125,8 +126,6 @@ for align in alignments_to_load:
         # Load datasets and compute errors
         u_axial_error_max = []
         u_axial_error_l2 = []
-        u_axial_error_max_wall = []
-        u_axial_error_l2_wall = []
         nx_array = []
         dx_array = []
         
@@ -198,18 +197,15 @@ for align in alignments_to_load:
                 u_axial_max = np.max(np.abs(u_axial_err[channel_mask])) if np.any(channel_mask) else 0.0
                 u_axial_l2 = np.sqrt(np.sum(u_axial_err[channel_mask]**2)) / np.sqrt(np.sum(channel_mask)) if np.any(channel_mask) else 0.0
                 
-                # Near-wall error (quarter of channel height from wall)
-                wall_distance = channelHeight / 4.0
-                near_wall_mask = (r_dist_2d > (channelHeight / 2.0 - wall_distance)) & (r_dist_2d <= (channelHeight / 2.0))
-                u_axial_max_wall = np.max(np.abs(u_axial_err[near_wall_mask])) if np.any(near_wall_mask) else 0.0
-                u_axial_l2_wall = np.sqrt(np.sum(u_axial_err[near_wall_mask]**2)) / np.sqrt(np.sum(near_wall_mask)) if np.any(near_wall_mask) else 0.0
+                # Normalize to relative errors if requested
+                if args.rel:
+                    u_axial_max /= maxVelocity
+                    u_axial_l2 /= maxVelocity
                 
                 u_axial_error_max.append(u_axial_max)
                 u_axial_error_l2.append(u_axial_l2)
-                u_axial_error_max_wall.append(u_axial_max_wall)
-                u_axial_error_l2_wall.append(u_axial_l2_wall)
                 
-                print(f'    nx={nx}: Overall Max={u_axial_max:.6e}, L2={u_axial_l2:.6e}  |  Wall Max={u_axial_max_wall:.6e}, L2={u_axial_l2_wall:.6e}')
+                print(f'    nx={nx}: Max={u_axial_max:.6e}, L2={u_axial_l2:.6e}')
                 
             except Exception as e:
                 print(f'    Error: {e}')
@@ -222,9 +218,7 @@ for align in alignments_to_load:
                 'nx': np.array(nx_array),
                 'dx': np.array(dx_array),
                 'error_max': np.array(u_axial_error_max),
-                'error_l2': np.array(u_axial_error_l2),
-                'error_max_wall': np.array(u_axial_error_max_wall),
-                'error_l2_wall': np.array(u_axial_error_l2_wall)
+                'error_l2': np.array(u_axial_error_l2)
             }
 
 print(f'\n\nData loading complete')
@@ -258,13 +252,13 @@ all_error_data = []
 for drag_model in drag_models:
     color = drag_color_map[drag_model]
 
-    # Cell Faces: '-s' (solid with square markers)
+    # Cell Faces: '--s' (dashed with square markers)
     if drag_model in data_by_alignment['cf']:
         data_cf = data_by_alignment['cf'][drag_model]
         ax.loglog(
             data_cf['dx'],
             data_cf['error_max'],
-            '-s',
+            '--s',
             linewidth=2.5,
             markersize=8,
             color=color,
@@ -274,13 +268,13 @@ for drag_model in drag_models:
         all_dx_data.append(data_cf['dx'])
         all_error_data.append(data_cf['error_max'])
 
-    # Cell Centers: '--o' (dash with circle markers)
+    # Cell Centers: ':o' (dotted with circle markers)
     if drag_model in data_by_alignment['cc']:
         data_cc = data_by_alignment['cc'][drag_model]
         ax.loglog(
             data_cc['dx'],
             data_cc['error_max'],
-            '--o',
+            ':o',
             linewidth=2.5,
             markersize=8,
             color=color,
@@ -331,7 +325,8 @@ if len(all_dx_data) > 0:
             ax.loglog(cell_trend, C_slope2 * cell_trend**2.0, '--', linewidth=2, color='black', label='Slope: 2')
 
 ax.set_xlabel('Cell Size (h)', fontsize=12)
-ax.set_ylabel('Maximum Error', fontsize=12)
+ylab = 'Relative Error' if args.rel else 'Absolute Error'
+ax.set_ylabel(ylab, fontsize=12)
 ax.set_title('Alignment Comparison Across Drag Variants', fontsize=13, fontweight='bold')
 ax.legend(fontsize=10)
 ax.grid(True, alpha=0.3, which='both')
@@ -339,7 +334,11 @@ ax.grid(True, alpha=0.3, which='both')
 plt.tight_layout()
 figureDir = os.path.join(figureDir_base, 'alignment-comparison')
 os.makedirs(figureDir, exist_ok=True)
-plt.savefig(f'{figureDir}/alignment_convergence_comparison.png', dpi=150, bbox_inches='tight')
+fname = 'alignment_convergence_comparison'
+if args.rel:
+    fname += '_relative'
+fname += '.png'
+plt.savefig(f'{figureDir}/{fname}', dpi=150, bbox_inches='tight')
 plt.show()
 
 print('\nAlignment comparison plots saved to figures/alignment-comparison/')
