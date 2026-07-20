@@ -167,7 +167,7 @@ Examples:
     # Determine mode and template
     if args.flat:
         mode_name = 'flat'
-        align_suffix = f"-{args.align}" if args.align == 'cc' else ""  # Only add suffix for cc
+        align_suffix = f"-{args.align}"
         case_prefix = f'flat-{drag_suffix}{align_suffix}'
         # Use alignment-specific template
         if args.align == 'cc':
