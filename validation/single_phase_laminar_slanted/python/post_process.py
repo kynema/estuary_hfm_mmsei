@@ -125,12 +125,12 @@ if args.flat:
         # For no-ib cases, use the no-ib naming (no drag variant)
         case_specs = [(f'flat-no-ib-32', 32), (f'flat-no-ib-64', 64), 
                       (f'flat-no-ib-128', 128), (f'flat-no-ib-256', 256), 
-                      (f'flat-no-ib-512', 512)]
+                      (f'flat-no-ib-512', 512), (f'flat-no-ib-1024', 1024)]
     else:
         # For aligned cases, load based on alignment and drag variant
-        case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
+        case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512), (f'{case_prefix}-1024', 1024)]
 else:  # slanted
-    case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512)]
+    case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512), (f'{case_prefix}-1024', 1024)]
 
 case_paths, case_resolutions, valid_cases = [], [], []
 for case_name, resolution in case_specs:

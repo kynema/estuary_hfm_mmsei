@@ -83,7 +83,7 @@ except RuntimeError as e:
 # Case discovery and loading for each alignment
 # ================================================================================
 data_by_alignment = {}
-resolutions = [32, 64, 128, 256, 512]
+resolutions = [32, 64, 128, 256, 512, 1024]
 
 alignments_to_load = ['cf', 'cc']
 if args.no_ib:

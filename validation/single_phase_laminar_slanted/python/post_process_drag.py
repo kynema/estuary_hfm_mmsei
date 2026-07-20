@@ -65,7 +65,7 @@ os.makedirs(figureDir, exist_ok=True)
 # Auto-detect available variants in the cases directory
 print('Auto-detecting available drag variants...')
 available_variants = set()
-resolutions = [32, 64, 128, 256, 512]
+resolutions = [32, 64, 128, 256, 512, 1024]
 possible_variants = ['og', 'temp', 'tf1']
 
 for variant in possible_variants:
@@ -124,7 +124,7 @@ except RuntimeError as e:
 # Case discovery and loading
 # ================================================================================
 # Build case specifications to load selected variants
-resolutions = [32, 64, 128, 256, 512]
+resolutions = [32, 64, 128, 256, 512, 1024]
 
 case_paths_dict = {variant: [] for variant in drag_variants}  # Organize by drag variant
 valid_cases_dict = {variant: [] for variant in drag_variants}
