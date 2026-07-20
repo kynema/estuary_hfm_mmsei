@@ -5,3 +5,5 @@ post_processing
 Backtrace.*
 bndry_plane
 .DS_Store
+*.out
+*.err
