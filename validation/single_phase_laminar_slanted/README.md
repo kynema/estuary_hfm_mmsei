@@ -5,7 +5,7 @@ This case simulates laminar channel flow for a single phase with two channel con
 - A flat channel where the lower and upper walls are defined using IB 
 - A slanted channel with $\theta = 45^\circ$, where $\theta$ is measured from the x-axis.
 
-In both cases, the IB is defined using `ChannelBuilder` physics and the flow is pressure driven with periodic boundary conditions at the inlet and outlet. The pressure gradient is determined from the analytical solution for Poiseuille flow, and enforced via a body forcing term $\vec{F} = -\frac{1}{\rho} \nabla p $.
+In both cases, the IB is defined using `ChannelBuilder` physics and the flow is pressure driven with periodic boundary conditions at the inlet and outlet. The pressure gradient is determined from the analytical solution for Poiseuille flow, and enforced via a body forcing term $\vec{F} = -\frac{1}{\rho} \nabla p $. The flow field is initialized as $U(r) = U_{max}$, then run for 500 seconds to steady state. 
 
 ## Flat Channel Configuration
 In the flat channel configuration, the channel can be aligned with the cell faces or cell centers. The cell face aligment configuration is accomplished by setting the channel position based on the coarsest mesh $(N_x, N_y, N_z) = (32, 4, 32)$. This way each consecutive refinement remains aligned with the IB.  The cell center alignment requires changing the position of the channels centerline dependent on the mesh resolution. Additionally, a non-IB case is provided for reference purposes. The non-IB case confirms second-order accuracy of Kynema-SGF. 
@@ -146,11 +146,11 @@ Two alignment modes are available for flat channels:
 
 **No Immersed Boundary:** The channel walls are non-slip walls. These cases can be run to provide reference error convergence. The domain is $\Omega = [0, 0, 250] \times [1000, 125, 750]$. 
 
-### Error Convergence -- IB Aligned with Cell Faces
+### Error Convergence - IB Aligned with Cell Faces
 
 The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the three different drag configurations: the original limiter (`og`), temporal limiter (`temp`), and temporal implementation with time factor set to 1 (`tf1`). 
 
-![Flat Drag Comparison](figures/flat-drag-comparison/error_convergence.png)
+![Flat Drag Comparison](figures/flat-drag-comparison-cf/error_convergence.png)
 
 The `tf1` variant outperforms the other two, demonstrating that adjusting the temporal drag limiter's time factor substantially improves numerical accuracy across all mesh resolutions. From the analytical solution for the pressure gradient, we can see that 
 
@@ -168,9 +168,9 @@ Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is 
  
 
 
-### Alignment Comparison
+### Error Convergence - All Flat Cases
 
-The plot below compares errors of the `tf1` drag variant for flat channels aligned to cell faces or to cell centers. The non-IB case is provided for reference. 
+The plot below compares errors from all drag variants for flat channels aligned to cell faces or to cell centers. The non-IB case is provided for reference. 
 
 ![Alignment Comparison](figures/alignment-comparison/alignment_convergence_comparison.png)
 
@@ -183,6 +183,10 @@ $$u_r (x,z) = u\cos\theta + w\sin\theta,$$
 of the slanted channel simulations for four of the meshes used in the study:
 
 ![Loaded Velocity](figures/slanted-meshes.png)
+
+### Linear Solver Observations
+
+As the number of cells increases, the number of iterations required for the MAC projection and velocity solves to converge increases. Therefore, as the number of cells increase the number of pre- and post-smoothers for the MAC projection solve increase. 
 
 ### Error Convergence Analysis
 
