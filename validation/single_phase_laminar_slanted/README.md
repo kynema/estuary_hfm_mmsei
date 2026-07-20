@@ -152,7 +152,9 @@ The plot below shows the $L_\infty$ norm of the error across all five grid resol
 
 ![Flat Drag Comparison](figures/flat-drag-comparison-cf/error_convergence.png)
 
-The `tf1` variant outperforms the other two, demonstrating that adjusting the temporal drag limiter's time factor substantially improves numerical accuracy across all mesh resolutions. From the analytical solution for the pressure gradient, we can see that 
+The `tf1` variant outperforms the other two, demonstrating that temporal implementation with unity time factor substantially improves numerical accuracy across all mesh resolutions. 
+
+From the analytical solution for the pressure gradient, we can see that 
 
 $$ U_{max} = -\frac{H^2}{8\mu} \nabla p  \cdot [ \cos\theta, 0, \sin\theta].$$
 
@@ -191,7 +193,7 @@ As the number of cells increases, the number of iterations required for the MAC 
 ### Error Convergence Analysis
 
 
-The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the two different drag configurations:
+The plot below shows the relative error across all five grid resolutions for the two different drag configurations:
 
 ![Error Convergence](figures/slanted-drag-comparison/error_convergence_relative.png)
 

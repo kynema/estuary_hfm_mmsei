@@ -252,22 +252,6 @@ all_error_data = []
 for drag_model in drag_models:
     color = drag_color_map[drag_model]
 
-    # Cell Faces: '--s' (dashed with square markers)
-    if drag_model in data_by_alignment['cf']:
-        data_cf = data_by_alignment['cf'][drag_model]
-        ax.loglog(
-            data_cf['dx'],
-            data_cf['error_max'],
-            '--s',
-            linewidth=2.5,
-            markersize=8,
-            color=color,
-            label=f'Cell Faces ({drag_model})',
-            alpha=0.9
-        )
-        all_dx_data.append(data_cf['dx'])
-        all_error_data.append(data_cf['error_max'])
-
     # Cell Centers: ':o' (dotted with circle markers)
     if drag_model in data_by_alignment['cc']:
         data_cc = data_by_alignment['cc'][drag_model]
@@ -283,6 +267,22 @@ for drag_model in drag_models:
         )
         all_dx_data.append(data_cc['dx'])
         all_error_data.append(data_cc['error_max'])
+    
+    # Cell Faces: '--s' (dashed with square markers)
+    if drag_model in data_by_alignment['cf']:
+        data_cf = data_by_alignment['cf'][drag_model]
+        ax.loglog(
+            data_cf['dx'],
+            data_cf['error_max'],
+            '--s',
+            linewidth=2.5,
+            markersize=8,
+            color=color,
+            label=f'Cell Faces ({drag_model})',
+            alpha=0.9
+        )
+        all_dx_data.append(data_cf['dx'])
+        all_error_data.append(data_cf['error_max'])
 
 # Plot No-IB cases separately (outside drag_model loop, since no-ib has no drag variants)
 if args.no_ib and 'no-ib' in data_by_alignment and len(drag_models) > 0:
