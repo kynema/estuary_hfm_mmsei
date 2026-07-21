@@ -129,8 +129,11 @@ The following results are from running multiple cases in a domain $\Omega = [0,0
 | 3    | 128   | 4     | 128   | 7.8125 |
 | 4    | 256   | 4     | 256   | 3.90625 |
 | 5    | 512   | 4     | 512   | 1.953125 |
+| 6    | 1024  | 4     | 1024  | 0.976562 |
+| 7    | 2048  | 4     | 2048  | 0.488281 |
 
-Note that the cell size in the $y$ direction, $h_y = 31.25$ m is fixed throughout. The cell size in the x- and z-directions, $h_{x,z},$ is always greater than 1 m to avoid inconsistent scale factors in the `CdM` term.
+
+Note that the cell size in the $y$ direction, $h_y = 31.25$ m is fixed throughout. The cell size in the x- and z-directions, $h_{x,z},$ is uniform.
 
 All error analysis is conducted by calculating global errors for all $(x,z)$ satisfying $r < 1.2 \times H/2$. This ensures no artifacts from the additional channels required for the slanted case are included in the error calculations. Errors are calculated using the $L_\infty$ norm across all grid resolutions. 
 
@@ -167,6 +170,8 @@ Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is 
 | 128 | 7.812500 | 507.812500 | 103.149414 |
 | 256 | 3.906250 | 503.906250 | 101.568604 |
 | 512 | 1.953125 | 501.953125 | 100.782776 |
+| 1024 | 0.976562 | 500.976562 | 100.391006 |
+| 2048 | 0.488281 | 500.488281 | 100.195408 |
  
 
 
@@ -174,7 +179,7 @@ Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is 
 
 The plot below compares errors across drag variants for flat channels aligned to cell faces or to cell centers. The non-IB case is provided for reference. Note that the original drag implementation and temporal limiter show identical results. Therefore, the temporal drag limiter has been omited.
 
-![Alignment Comparison](figures/alignment-comparison/alignment_convergence_comparison.png)
+![Alignment Comparison](figures/alignment-comparison/alignment_convergence_comparison_relative.png)
 
 ## Slanted Channel
 
