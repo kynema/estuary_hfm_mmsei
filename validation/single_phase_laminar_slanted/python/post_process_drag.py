@@ -27,6 +27,28 @@ warnings.filterwarnings('ignore')
 print('Modules loaded')
 
 # ================================================================================
+# Helper function to read time from Header file
+# ================================================================================
+def get_time_from_header(plt_dir):
+    """Read simulation time from plt###/Header file (13th line) and round to nearest integer."""
+    header_file = os.path.join(plt_dir, 'Header')
+    try:
+        with open(header_file, 'r') as f:
+            lines = f.readlines()
+            if len(lines) >= 13:
+                time_line = lines[12].strip()  # 13th line (0-indexed)
+                # Parse time value - could be "time = 100.0" or just "100.008612413216781"
+                if '=' in time_line:
+                    time_value = float(time_line.split('=')[1].strip())
+                else:
+                    time_value = float(time_line)
+                # Round to nearest integer to handle floating point noise
+                return round(time_value)
+    except:
+        pass
+    return None
+
+# ================================================================================
 # Parse command line arguments
 # ================================================================================
 parser = argparse.ArgumentParser(description='Post-process slanted/flat channel simulations')
@@ -37,6 +59,7 @@ mode_group.add_argument('--slanted', action='store_true', help='Post-process sla
 
 parser.add_argument('--align', type=str, default='cf', choices=['cf', 'cc'], help='Grid alignment for flat cases: cf (cell face, default) or cc (cell center)')
 parser.add_argument('--rel', action='store_true', help='Plot errors relative to maximum velocity (default: absolute errors)')
+parser.add_argument('--time', type=float, default=None, help='Simulation time to analyze (default: use last plot file)')
 args = parser.parse_args()
 
 # ================================================================================
@@ -140,9 +163,28 @@ for variant in drag_variants:
         if os.path.exists(case_dir):
             plt_dirs = sorted([d for d in os.listdir(case_dir) if d.startswith('plt')])
             if plt_dirs:
-                case_paths_dict[variant].append(os.path.join(case_dir, plt_dirs[-1]))
-                valid_cases_dict[variant].append(case_name)
-                print(f'{case_name}: {plt_dirs[-1]}')
+                # Select plot file based on --time option
+                if args.time is not None:
+                    # Find plot file closest to requested time
+                    best_plt = None
+                    best_time_diff = float('inf')
+                    for plt_dir in plt_dirs:
+                        full_plt_path = os.path.join(case_dir, plt_dir)
+                        file_time = get_time_from_header(full_plt_path)
+                        if file_time is not None:
+                            time_diff = abs(file_time - args.time)
+                            if time_diff < best_time_diff:
+                                best_time_diff = time_diff
+                                best_plt = full_plt_path
+                    if best_plt is not None:
+                        case_paths_dict[variant].append(best_plt)
+                        valid_cases_dict[variant].append(case_name)
+                        print(f'{case_name}: {os.path.basename(best_plt)} (time={get_time_from_header(best_plt):.2f})')
+                else:
+                    # Default: use last plot file
+                    case_paths_dict[variant].append(os.path.join(case_dir, plt_dirs[-1]))
+                    valid_cases_dict[variant].append(case_name)
+                    print(f'{case_name}: {plt_dirs[-1]}')
 
 # Report found cases
 for variant in drag_variants:
@@ -150,6 +192,10 @@ for variant in drag_variants:
     print(f'\nFound {nCases} {variant.upper()} cases')
 
 print()
+if args.time is not None:
+    print(f'Using plot files closest to time: {args.time}s')
+else:
+    print('Using latest plot files (default)')
 
 print(f'\nAnalytical Solution Parameters:')
 print(f'  θ = {theta_deg:.2f}°')
