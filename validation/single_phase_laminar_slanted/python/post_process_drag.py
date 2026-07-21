@@ -466,7 +466,7 @@ for variant in drag_variants:
         if target_time is not None:
             legend_label = f'{labels[variant]} (t={target_time}s)'
         else:
-            legend_label = f'{labels[variant]} (latest)'
+            legend_label = f'{labels[variant]}'
         
         ax.loglog(cell_size_array, u_axial_error_max, marker=markers[variant], linestyle=linestyle, 
                   linewidth=2.5, markersize=10, label=legend_label, color=colors[variant])
