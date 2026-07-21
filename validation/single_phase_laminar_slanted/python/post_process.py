@@ -44,7 +44,6 @@ drag_group.add_argument('--tf1', action='store_true', help='Use temporal drag fo
 
 parser.add_argument('--align', type=str, default='cf', choices=['cf', 'cc'], help='Grid alignment for flat cases: cf (cell face, default) or cc (cell center)')
 parser.add_argument('--no_ib', action='store_true', help='Analyze flat channel without immersed boundary (ignores --align and drag model options)')
-parser.add_argument('--H', type=float, default=1.0, help='Channel height (default: 1.0)')
 args = parser.parse_args()
 
 # Determine drag variant (default to 'temp' if not specified)
@@ -81,7 +80,7 @@ else:
     base_inp = os.path.join(rootDir, 'base-slanted.inp')
 
 theta_rad = np.deg2rad(theta_deg)
-channelHeight = args.H
+channelHeight = 500.0
 maxVelocity = 1.0
 
 # Read channel geometry and physics parameters from base .inp file
@@ -116,21 +115,24 @@ else:
     figureDir = os.path.join(figureDir_base, case_prefix)
 os.makedirs(figureDir, exist_ok=True)
 
+print(f'Figure directory: {figureDir}\n')
+
 # ================================================================================
 # Case discovery and loading
 # ================================================================================
+# Define resolutions to load
+resolutions = [32, 64, 128, 256, 512, 1024, 2048]
+
 # Build case specifications based on mode
-if args.flat:
-    if args.no_ib:
-        # For no-ib cases, use the no-ib naming (no drag variant)
-        case_specs = [(f'flat-no-ib-32', 32), (f'flat-no-ib-64', 64), 
-                      (f'flat-no-ib-128', 128), (f'flat-no-ib-256', 256), 
-                      (f'flat-no-ib-512', 512), (f'flat-no-ib-1024', 1024)]
-    else:
-        # For aligned cases, load based on alignment and drag variant
-        case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512), (f'{case_prefix}-1024', 1024)]
-else:  # slanted
-    case_specs = [(f'{case_prefix}-32', 32), (f'{case_prefix}-64', 64), (f'{case_prefix}-128', 128), (f'{case_prefix}-256', 256), (f'{case_prefix}-512', 512), (f'{case_prefix}-1024', 1024)]
+case_specs = []
+for resolution in resolutions:
+    if args.flat and args.no_ib:
+        case_name = f'flat-no-ib-{resolution}'
+    elif args.flat:
+        case_name = f'{case_prefix}-{resolution}'
+    else:  # slanted
+        case_name = f'{case_prefix}-{resolution}'
+    case_specs.append((case_name, resolution))
 
 case_paths, case_resolutions, valid_cases = [], [], []
 for case_name, resolution in case_specs:
@@ -496,11 +498,11 @@ if len(cell_size_array) > 1:
     
     if not args.no_ib:
         # O(h^1/2) reference: error ~ C * h^0.5
-        C_slope05 = 1.25 * mean_error_max / (mean_cell_size ** 0.5)
+        C_slope05 = 1.6 * mean_error_max / (mean_cell_size ** 0.5)
         ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, ':', linewidth=2, color='black', label='Slope: 0.5')
 
         # O(h) reference: error ~ C * h
-        C_slope1 = 0.85 * mean_error_max / (mean_cell_size ** 1.0)
+        C_slope1 = 0.7 * mean_error_max / (mean_cell_size ** 1.0)
         ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, '-.', linewidth=2, color='black', label='Slope: 1')
     else:
         # O(h^2) reference for no-ib cases: error ~ C * h^2
@@ -518,8 +520,45 @@ plt.savefig(f'{figureDir}/error_convergence.png', dpi=150)
 plt.show()
 
 # ================================================================================
-# Error Field Visualization
+# Error Convergence vs Cell Size (Relative)
 # ================================================================================
+fig, ax = plt.subplots(figsize=(10, 7))
+
+u_axial_error_max_relative = u_axial_error_max / maxVelocity
+u_axial_error_l2_relative = u_axial_error_l2 / maxVelocity
+
+ax.loglog(cell_size_array, u_axial_error_max_relative, 'o-', linewidth=2, markersize=10, label='Max Error')
+if len(cell_size_array) > 1:
+    # Trend lines
+    coeffs_max = np.polyfit(np.log(cell_size_array), np.log(u_axial_error_max_relative), 1)
+    cell_trend = np.logspace(np.log10(cell_size_array.min()), np.log10(cell_size_array.max()), 50)
+    
+    # Scale reference lines to pass through mean of max error data
+    mean_error_max = np.mean(u_axial_error_max_relative)
+    mean_cell_size = np.mean(cell_size_array)
+    
+    if not args.no_ib:
+        # O(h^1/2) reference: error ~ C * h^0.5
+        C_slope05 = 1.6 * mean_error_max / (mean_cell_size ** 0.5)
+        ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, ':', linewidth=2, color='black', label='Slope: 0.5')
+
+        # O(h) reference: error ~ C * h
+        C_slope1 = 0.7 * mean_error_max / (mean_cell_size ** 1.0)
+        ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, '-.', linewidth=2, color='black', label='Slope: 1')
+    else:
+        # O(h^2) reference for no-ib cases: error ~ C * h^2
+        C_slope2 = 1.5 * mean_error_max / (mean_cell_size ** 2.0)
+        ax.loglog(cell_trend, C_slope2 * cell_trend**2.0, '--', linewidth=2, color='black', label='Slope: 2')
+
+ax.set_xlabel('Cell Size (h)', fontsize=14)
+ax.set_ylabel('Relative Maximum Error', fontsize=14)
+ax.set_title('Relative Error Convergence vs Cell Size', fontsize=14)
+ax.legend(fontsize=11)
+ax.grid(True, alpha=0.3, which='both')
+
+plt.tight_layout()
+plt.savefig(f'{figureDir}/error_convergence_relative.png', dpi=150)
+plt.show()
 fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 axes = axes.flatten()
 

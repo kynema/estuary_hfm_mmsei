@@ -84,7 +84,7 @@ except RuntimeError as e:
 # Case discovery and loading for each alignment
 # ================================================================================
 data_by_alignment = {}
-resolutions = [32, 64, 128, 256, 512, 1024]
+resolutions = [32, 64, 128, 256, 512, 1024, 2048]
 
 alignments_to_load = ['cf', 'cc']
 if args.no_ib:
@@ -313,7 +313,7 @@ if len(all_dx_data) > 0:
         mean_error = np.mean(combined_error)
         mean_cell_size = np.mean(combined_dx)
 
-        C_slope05 = 0.15 * mean_error / (mean_cell_size ** 0.5)
+        C_slope05 = 0.2 * mean_error / (mean_cell_size ** 0.5)
         ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, ':', linewidth=2, color='black', label='Slope: 0.5')
 
         C_slope1 = 0.1 * mean_error / (mean_cell_size ** 1.0)
@@ -321,7 +321,7 @@ if len(all_dx_data) > 0:
         
         # Add O(h^2) reference if no-ib cases are included
         if args.no_ib:
-            C_slope2 = 0.04 * mean_error / (mean_cell_size ** 2.0)
+            C_slope2 = 0.01 * mean_error / (mean_cell_size ** 2.0)
             ax.loglog(cell_trend, C_slope2 * cell_trend**2.0, '--', linewidth=2, color='black', label='Slope: 2')
 
 ax.set_xlabel('Cell Size (h)', fontsize=12)

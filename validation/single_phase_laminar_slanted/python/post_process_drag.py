@@ -66,7 +66,7 @@ os.makedirs(figureDir, exist_ok=True)
 # Auto-detect available variants in the cases directory
 print('Auto-detecting available drag variants...')
 available_variants = set()
-resolutions = [32, 64, 128, 256, 512, 1024]
+resolutions = [32, 64, 128, 256, 512, 1024, 2048]  # Include 2048 for detection, even if not used in convergence
 possible_variants = ['og', 'temp', 'tf1']
 
 for variant in possible_variants:
@@ -125,7 +125,7 @@ except RuntimeError as e:
 # Case discovery and loading
 # ================================================================================
 # Build case specifications to load selected variants
-resolutions = [32, 64, 128, 256, 512, 1024]
+resolutions = [32, 64, 128, 256, 512, 1024, 2048]
 
 case_paths_dict = {variant: [] for variant in drag_variants}  # Organize by drag variant
 valid_cases_dict = {variant: [] for variant in drag_variants}
@@ -371,12 +371,12 @@ if len(all_cell_sizes) > 1:
     mean_cell_size = np.mean(all_cell_sizes)
     
     # O(h^1/2) reference: error ~ C * h^0.5
-    C_slope05 = 0.6 * mean_error_max / (mean_cell_size ** 0.5)
+    C_slope05 = 1.1 * mean_error_max / (mean_cell_size ** 0.5)
     ax.loglog(cell_trend, C_slope05 * cell_trend**0.5, ':', linewidth=2, color='black', label='Slope: 0.5')
 
-    ## O(h) reference: error ~ C * h
-    #C_slope1 = 0.85 * mean_error_max / (mean_cell_size ** 1.0)
-    #ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, '-.', linewidth=2, color='black', label='Slope: 1')
+    # O(h) reference: error ~ C * h
+    C_slope1 = 0.6 * mean_error_max / (mean_cell_size ** 1.0)
+    ax.loglog(cell_trend, C_slope1 * cell_trend**1.0, '-.', linewidth=2, color='black', label='Slope: 1')
     
     
 
