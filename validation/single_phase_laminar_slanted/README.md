@@ -51,7 +51,7 @@ DragForcing.use_temporal_drag_limiter
 
 Running `python generate_cases.py` with `--og` (original limiter), `--temp` (temporal limiter, default), or `--tf1` (temporal implementation with time factor 1), adjusts both the subdirectory naming and the corresponding input file settings. For flat cases, `--align cf` or `--align cc` selects the grid alignment mode.
 
-## Pre and Post-Processing
+## Pre Processing
 Pre-processing uses `python/generate_cases.py` to generate case directories and input files based on:
 - Mode: `--flat` or `--slanted`
 - Resolution: `--nx` (grid cells in x and z)
@@ -61,7 +61,13 @@ Pre-processing uses `python/generate_cases.py` to generate case directories and 
 
 Use the "help" option, `-h`, to see all available parameters. As an example, the subdirectories and input files for the flat channel with the original drag model, aligned to cell faces, can be generated using:
 ~~~
-python python/generate_cases.py --flat --og --align cf
+python python/generate_cases.py --flat --og --align cf --nx 32,64,128,256,512,1024,2048
+~~~
+
+## Post Processing
+All post processing requires yt and matplotlib. A conda environment can be created using the provided `estuary_hfm_mmsei/validation/kynema-env.yml` file along with the following command:
+~~~ 
+conda env create -f kynema-env.yml
 ~~~
 
 Individual case post-processing is handled by `python/post_process.py`, which performs convergence analysis and generates visualization plots organized by drag variant and alignment. The script automatically parses all required parameters from the base input files:
@@ -153,7 +159,7 @@ Two alignment modes are available for flat channels:
 
 The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the three different drag configurations: the original limiter (`og`), temporal limiter (`temp`), and temporal implementation with time factor set to 1 (`tf1`). 
 
-![Flat Drag Comparison](figures/flat-drag-comparison-cf/error_convergence.png)
+![Flat Drag Comparison](figures/flat-drag-comparison-cf/error_convergence_relative.png)
 
 The `tf1` variant outperforms the other two, demonstrating that temporal implementation with unity time factor substantially improves numerical accuracy across all mesh resolutions. 
 
