@@ -70,18 +70,36 @@ class InterpolatedEstuaryDensityVOF:
         assert xg.shape == yg.shape
         assert xg.shape == zg.shape
 
+        # Get the vertical grid resolution.
+        dx = xg[1,0,0] - xg[0,0,0]
+        dy = yg[0,1,0] - yg[0,0,0]
+        dz = zg[0,0,1] - zg[0,0,0]
+
         # Interpolate the water level to the boundary points using the scipy interpolator passed here.
         waterLev = self.interpolatorWaterLev(xg,yg)
 
-        # Check to see if the point actually lies within the water or air and set the value accordingly.
+        # Set the field values.  Begin by just setting everything to the air value
         field = self.airVal*np.ones(xg.shape)
-        
+
+        # Loop over the whole field
         field_ = field.flat
         zg_ = zg.flat
         waterLev_ = waterLev.flat
         for i in range(len(field_)):
-            if (zg_[i] < waterLev_[i]):
+            # First check to see if the grid cell contains the air water interface.  If so, set the value as a linear blend between
+            # air and water values based on how much of the cell is in air versus water.
+            distFromWaterSurface = zg_[i] - waterLev_[i]
+            if (np.abs(distFromWaterSurface) < 0.5*dz):
+                coeff = (waterLev_[i] - (zg_[i] - 0.5*dz))/dz
+                field_[i] = coeff*self.waterVal + (1.0-coeff)*self.airVal
+               #print('waterLev:',waterLev_[i],'   zg:',zg_[i],'   dz:',dz,'   coeff:',coeff,'   field_:',field_[i])
+
+
+            # If fully below the water level, set to full water value
+            elif (zg_[i] < waterLev_[i]):
                 field_[i] = self.waterVal
+
+            # Otherwise, leave alone with the pre-poplulated air value.
 
 
        #self.contPlot(yg,zg,field)

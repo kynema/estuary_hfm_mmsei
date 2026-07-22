@@ -68,6 +68,9 @@ def adjust_plane(ori, prob_lo, prob_hi, n_cell):
     return prob_lo, prob_hi, n_cell
 
 
+
+
+
 class NativeBoundaryPlane:
     def __init__(self, field, ncomp, ori, odir):
         self.field = field
@@ -75,6 +78,9 @@ class NativeBoundaryPlane:
         self.ori = ori
         self.odir = odir
         self.hname = self.odir / f"Header_{ori}_{field}"
+        self.prob_lo = []
+        self.prob_hi = []
+
 
     def define_from_file(self, iname, step, time):
         spacedim = amr.Config.spacedim
@@ -91,6 +97,8 @@ class NativeBoundaryPlane:
         domain = amr.Box(domain_lo, domain_hi)
 
         prob_lo, prob_hi, n_cell = adjust_plane(self.ori, prob_lo, prob_hi, n_cell)
+        self.prob_lo = prob_lo
+        self.prob_hi = prob_hi
 
         prob_domain = [domain]
         bas = [amr.BoxArray(domain)]
@@ -163,6 +171,8 @@ class NativeBoundaryPlane:
             iname
         )
         prob_lo, prob_hi, n_cell = adjust_plane(self.ori, prob_lo, prob_hi, n_cell)
+        self.prob_lo = prob_lo
+        self.prob_hi = prob_hi
         assert nlevels == len(mfs)
 
         bas = [mf.box_array() for mf in mfs]
