@@ -211,8 +211,8 @@ The plot below shows the relative error across all five grid resolutions for the
 
 ### Velocity Profile Comparison
 
-Comparison of analytical and numerical axial velocity profiles at three locations for the finest grid resolution:
+Comparison of analytical and numerical axial velocity profiles at three locations for the finest grid resolution $(N_x, N_y, N_z) = (1024, 4, 1024)$:
 
 ![Velocity Profile Comparison](figures/slanted-drag-tf1/velocity_profile_comparison.png)
 
-Left column shows the velocity profiles with analytical solution (markers) overlaid on numerical solution (line). Right column shows the error growth along the domain.
+Left column shows the axial velocity profiles with analytical solution (markers) compared to the numerical solution (line). Right column shows the error between the analytical and numerical solutions. The error is calculated as $u_{r}^{error} = u_{r}^{sim} - u_r^{exact}$.
