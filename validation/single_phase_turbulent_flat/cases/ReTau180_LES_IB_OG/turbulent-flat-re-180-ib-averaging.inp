@@ -1,12 +1,9 @@
 FILE = turbulent-flat-re-180-ib.inp
 io.plot_file = "pltAvg"
 io.check_file = "chkAvg"
-io.restart_file = chk07000
 
 time.stop_time = 0.054590 # ~30 flow-through times for statistics
 #time.stop_time = 0.072786 # ~40 flow-through times for statistics
-
-ChannelBuilder.initialize_drag_cells = true
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #             Statistics                #
