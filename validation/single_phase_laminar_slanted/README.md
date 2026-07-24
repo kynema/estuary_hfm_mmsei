@@ -1,111 +1,218 @@
-# Slanted Poiseuille Flow
+# Single Phase Laminar with IB
 
-This is a laminar channel flow in a single phase with a channel that has been slanted at an angle $\theta$ as measured in the $x$-direction.  The flow is represented as a half-channel using a symmetry plane.  The analytical solution for velocity is applied as Dirichlet inflow.  The outflow is Dirichlet on pressure, and a pressure gradient naturally forms.
+This case simulates laminar channel flow for a single phase with two channel configurations:
+
+- A flat channel where the lower and upper walls are defined using IB 
+- A slanted channel with $\theta = 45^\circ$, where $\theta$ is measured from the x-axis.
+
+In both cases, the IB is defined using `ChannelBuilder` physics and the flow is pressure driven with periodic boundary conditions at the inlet and outlet. The pressure gradient is determined from the analytical solution for Poiseuille flow, and enforced via a body forcing term $\vec{F} = -\frac{1}{\rho} \nabla p $. The flow field is initialized as $U(r) = U_{max}$, then run for 500 seconds to steady state. 
+
+## Flat Channel Configuration
+In the flat channel configuration, the channel can be aligned with the cell faces or cell centers. The cell face aligment configuration is accomplished by setting the channel position based on the coarsest mesh $(N_x, N_y, N_z) = (32, 4, 32)$. This way each consecutive refinement remains aligned with the IB.  The cell center alignment requires changing the position of the channels centerline dependent on the mesh resolution. Additionally, a non-IB case is provided for reference purposes. The non-IB case confirms second-order accuracy of Kynema-SGF. 
+![Domain](figures/flat_geometry_setup.png)
+
+
+
+## Slanted Channel Configuration
+The slanted channel case is angled at $45^\circ$ from the x-axis. Periodicty is maintained by defining three channels with the following start and end points for the `ChannelBuilder` segments:
+
+1. $(0, 0, 0) \rightarrow (L_x, 0, L_z)$
+1. $(-L_x/2, 0, L_z/2) \rightarrow (L_x/2, 0, 3L_z/2)$
+1. $(L_x/2, 0, -L_z/2) \rightarrow (3L_x/2, 0, L_z/2)$
+
+Channel 1 is shown in the figure below.
 
 ![Domain](figures/slanted_geometry_setup.png)
 
 ## Input Files and Organization
 
-Each subdirectory in the `cases` directory contains an input file with two lines:
+There are three base input files for the flat and slanted cases:
+
+- `base-flat-aligned-cf.inp` (cell-face alignment)
+- `base-flat-aligned-cc.inp` (cell-center alignment)
+- `base-slanted.inp`
+
+The `aligned-cf` and `aligned-cc` designate the alignment of the channel with the mesh, either cell-face or cell-center alignment. Individual case subdirectories and inputs for convergence studies are generated via the python script `python/generate_cases.py`. To see a full list of options run `python generate_cases.py -h`. Each generated subdirectory has a naming convention: `{flat|slanted}-drag-{og|temp|tf1}-{cf|cc}-{nx}` where `og`, `temp`, and `tf1` refer to original drag limiter, temporal drag limiter, and temporal drag limiter with time factor 1 respectively; `cf`/`cc` specify grid alignment (flat cases only); and `nx` is the grid resolution.
+
+Each subdirectory contains an input file with two lines:
 
 ~~~
-FILE = ../base-slanted-poiseuille.inp
+FILE = ../base-<flat-or-slanted>-poiseuille.inp
 amr.n_cell = Nx Ny Nz 
 ~~~
 
-These directories are for storing `plt` and `chk` files at different grid resolutions for error convergence analysis. The input file `base-slanted-poiseuille.inp` is shared by all cases and can be updated using values outputed from the pre-processing script `python/SlantedChannelConfig.py`.
+These directories store `plt` and `chk` files at different grid resolutions for error convergence analysis. The base input file `base-{flat|slanted}-poiseuille.inp` is shared by all cases and contains all channel geometry and physics parameters.
 
-## Pre and Post-Processing
-There are two associated python pre- and post-processing scripts. These scripts require the following python packages:
-
+The cases are setup to test various drag forcing parameters and grid alignments:
 ~~~
-numpy matplotlib yt
+DragForcing.use_original_drag_limiter
+DragForcing.use_temporal_drag_limiter
+~~~
+
+Running `python generate_cases.py` with `--og` (original limiter), `--temp` (temporal limiter, default), or `--tf1` (temporal implementation with time factor 1), adjusts both the subdirectory naming and the corresponding input file settings. For flat cases, `--align cf` or `--align cc` selects the grid alignment mode.
+
+## Pre Processing
+Pre-processing uses `python/generate_cases.py` to generate case directories and input files based on:
+- Mode: `--flat` or `--slanted`
+- Resolution: `--nx` (grid cells in x and z)
+- Drag variant: `--og`, `--temp` (default), or `--tf1`
+- Grid alignment (flat only): `--align cf` (cell-face, default) or `--align cc` (cell-center)
+- Non-IB (flat only): `--no_ib` 
+
+Use the "help" option, `-h`, to see all available parameters. As an example, the subdirectories and input files for the flat channel with the original drag model, aligned to cell faces, can be generated using:
+~~~
+python python/generate_cases.py --flat --og --align cf --nx 32,64,128,256,512,1024,2048
+~~~
+
+## Post Processing
+All post processing requires yt and matplotlib. A conda environment can be created using the provided `estuary_hfm_mmsei/validation/kynema-env.yml` file along with the following command:
 ~~~ 
-
-Pre-processing is handled by the `SlantedChannelConfig.py` script, which prints out input parameters for the simulation provided an angle $\theta$ in degrees or radians. Use the "help" option to see a full list of optional parameters and example usage:
-~~~
-python python/SlantedChannelConfig.py -h
+conda env create -f kynema-env.yml
 ~~~
 
-Post processing is handled by running each cell of the `SlantedChannelPostProcess.ipynb` notebook. Note that this will only look for data in the `cases/slanted-ibfm-###` directories, and by default grabs the last `plt` file. 
+Individual case post-processing is handled by `python/post_process.py`, which performs convergence analysis and generates visualization plots organized by drag variant and alignment. The script automatically parses all required parameters from the base input files:
+~~~
+python python/post_process.py --flat --align cf --temp
+python python/post_process.py --flat --align cc --og
+python python/post_process.py --slanted --tf1
+~~~
+
+For direct comparison of drag forcing variants, use `python/post_process_drag.py`, which automatically loads multiple drag variants for a given mode and alignment, generating side-by-side convergence analysis:
+~~~
+python python/post_process_drag.py --flat --align cf
+python python/post_process_drag.py --slanted
+~~~
+Results are saved to `figures/{mode}-drag-comparison[-{align}]/` for convenient variant comparison.
+
+For direct comparison of grid alignments (cell-face vs cell-center) on flat channels, use `python/post_process_alignment.py`, which compares convergence across both alignment modes for specified drag variants:
+~~~
+python python/post_process_alignment.py --drag og
+python python/post_process_alignment.py --drag og,temp,tf1
+python python/post_process_alignment.py --drag og,temp,tf1 --no_ib
+~~~
+The last option `--no_ib` will plot data from non-IB cases along with the IB cases for reference. Regardless of the options used, results are saved to `figures/alignment-comparison/` showing error convergence for both cf and cc alignments.
 
 ## Analytical Solution
 
-Provided a 2D domain in the x-z plane with periodic boundaries in $y$,the analytical solution for fully-developed parabolic (Poiseuille) channel flow in a tilted, vertically-shifted configuration is:
+Provided a 2D domain in the x-z plane with periodic boundaries in $y$,the analytical solution for fully-developed channel flow is:
 
 $$u(r) = U_{\max} \left(1 - \left(\frac{2r}{H}\right)^2\right)$$
 
 where:
 - $r$ = perpendicular distance from centerline
 - $U_{\max}$ = maximum velocity (at centerline, $r=0$)
-- $H$ = pipe diameter
+- $H$ = channel height
 - $u(r) = 0$ for $r > H/2$ (at pipe wall)
 
 Here, $r$ is measured in the x-z plane perpendicular to the tilted centerline as:
 
 $$r = |x\sin\theta - (z-z_s)\cos\theta|.$$
 
-The centerline is shifted vertically by $z_s$ in the $z$-direction, 
+The centerline is shifted vertically by $z_s$ in the z-direction, 
 
 $$z_s = \frac{H}{2\cos\theta} + \sigma$$
 
-and rotated at an angle $\theta$ about the point $(0, 0, \sigma)$ in x-z plane. Here, $\sigma is height in the $z$-direction where the bottom left corner of the channel intersects the domain boundary at $x = x_lo$.
+and rotated at an angle $\theta$ about the point $(0, 0, \sigma)$ in x-z plane. Here, $\sigma$ is height in the z-direction where the bottom left corner of the channel intersects the domain boundary at $x = x_{lo}$.
 
 The equation for the centerline is given by:
 
 $$z = x\tan\theta + z_s.$$
 
+The associated pressure gradient is:
+
+$$ \nabla p = - \frac{8 \mu U_{max}}{H^2} [\cos\theta, 0, \sin\theta].$$
+
+ 
+
 # Results
 
-The following results are from running four cases with the following number of FVM cells in each spatial direction:
+The following results are from running multiple cases in a domain $\Omega = [0,0,0] \times [1000, 125, 1000]$ ($m^3$) with the following number of FVM cells in each spatial direction:
 
-| Case | $N_x$ | $N_y$ | $N_z$ |
-| ---- | ----- | ----- | ----- |
-| 1    | 64    | 4     | 32    |
-| 2    | 128   | 4     | 64    |
-| 3    | 256   | 4     | 128   |
-| 4    | 512   | 8     | 256   |
+| Case | $N_x$ | $N_y$ | $N_z$ | $h_{x,z}$ (m) |
+| ---- | ----- | ----- | ----- | ----- |
+| 1    | 32    | 4     | 32    | 31.25 |
+| 2    | 64    | 4     | 64    | 15.625 |
+| 3    | 128   | 4     | 128   | 7.8125 |
+| 4    | 256   | 4     | 256   | 3.90625 |
+| 5    | 512   | 4     | 512   | 1.953125 |
+| 6    | 1024  | 4     | 1024  | 0.976562 |
+| 7    | 2048  | 4     | 2048  | 0.488281 |
 
-## Numerical Velocity Field
 
-The following shows the axial velocity, 
+Note that the cell size in the $y$ direction, $h_y = 31.25$ m is fixed throughout. The cell size in the x- and z-directions, $h_{x,z},$ is uniform.
+
+All error analysis is conducted by calculating global errors for all $(x,z)$ satisfying $r < 1.2 \times H/2$. This ensures no artifacts from the additional channels required for the slanted case are included in the error calculations. Errors are calculated using the $L_\infty$ norm across all grid resolutions. 
+
+## Flat Channel
+
+### Grid Alignment Modes
+
+Two alignment modes are available for flat channels:
+
+**Cell-Face Alignment (cf):** The channel walls are aligned with cell face boundaries. The effective channel height is $H_{eff} = H + h_{x,z}$, where $h_{x,z}$ is the cell size.
+
+**Cell-Center Alignment (cc):** The channel is aligned with cell centers. Each grid resolution has its own centerline position read from the case-specific `.inp` file, allowing the effective channel height to be constant ($H_{eff} = H$) across refinement levels.
+
+**No Immersed Boundary:** The channel walls are non-slip walls. These cases can be run to provide reference error convergence. The domain is $\Omega = [0, 0, 250] \times [1000, 125, 750]$. 
+
+### Error Convergence - IB Aligned with Cell Faces
+
+The plot below shows the $L_\infty$ norm of the error across all five grid resolutions for the three different drag configurations: the original limiter (`og`), temporal limiter (`temp`), and temporal implementation with time factor set to 1 (`tf1`). 
+
+![Flat Drag Comparison](figures/flat-drag-comparison-cf/error_convergence_relative.png)
+
+The `tf1` variant outperforms the other two, demonstrating that temporal implementation with unity time factor substantially improves numerical accuracy across all mesh resolutions. 
+
+From the analytical solution for the pressure gradient, we can see that 
+
+$$ U_{max} = -\frac{H^2}{8\mu} \nabla p  \cdot [ \cos\theta, 0, \sin\theta].$$
+
+Therefore, $U_{max}$ increases proportial to $H^2$. In the case where the IB is aligned with the cell faces, the effective channel height is $H_{eff} = H + h_{x,z}$. The table below shows the best case $U_{max}$ for each grid resolution
+
+| $N_x$ | $h_{x,z}$ | $H_{eff}$ | $U_{max,eff}$ |
+|---|---|---|---|
+| 32 | 31.250000 | 531.250000 | 112.890625 |
+| 64 | 15.625000 | 515.625000 | 106.347656 |
+| 128 | 7.812500 | 507.812500 | 103.149414 |
+| 256 | 3.906250 | 503.906250 | 101.568604 |
+| 512 | 1.953125 | 501.953125 | 100.782776 |
+| 1024 | 0.976562 | 500.976562 | 100.391006 |
+| 2048 | 0.488281 | 500.488281 | 100.195408 |
+ 
+
+
+### Error Convergence - All Flat Cases
+
+The plot below compares errors across drag variants for flat channels aligned to cell faces or to cell centers. The non-IB case is provided for reference. Note that the original drag implementation and temporal limiter show identical results. Therefore, the temporal drag limiter has been omited.
+
+![Alignment Comparison](figures/alignment-comparison/alignment_convergence_comparison_relative.png)
+
+## Slanted Channel
+
+The following figure shows the axial velocity, 
 
 $$u_r (x,z) = u\cos\theta + w\sin\theta,$$
 
-of the numerical simulations from the coarsest to finest grid:
+of the slanted channel simulations for four of the meshes used in the study:
 
-![Loaded Velocity](figures/loaded_velocity_visualization.png)
+![Loaded Velocity](figures/slanted-meshes.png)
 
-## Error Convergence Analysis
+### Linear Solver Observations
 
-The error is calculated globally for all $x <= x_\text{mid}$ for each grid. The downstream domain is excluded from this analysis due to numerical errors arising from the Dirichlet pressure boundary condition at the outlet, which contradicts the analytical solution where pressure has no radial variation. See the figure below for more details:
+As the number of cells increases, the number of iterations required for the MAC projection and velocity solves to converge increases. Therefore, as the number of cells increase the number of pre- and post-smoothers for the MAC projection solve increase. 
 
-![Pressure-BC](figures/pressure-error.png)
-
-
-The plot below shows both the maximum ($L_\infty$) and $L_2$ norms of the error across all four grid resolutions for all $x < x_{mid}$:
-
-![Error Convergence](figures/error_convergence.png)
+### Error Convergence Analysis
 
 
-## Error Field Visualization
+The plot below shows the relative error across all five grid resolutions for the two different drag configurations:
 
-The spatial distribution of axial velocity error across all four cases:
+![Error Convergence](figures/slanted-drag-comparison/error_convergence_relative.png)
 
-![Error Field](figures/error_field_visualization.png)
 
-The colormaps show where the largest errors occur, with careful attention to near-wall regions where boundary conditions are imposed.
+### Velocity Profile Comparison
 
-## Wall Error Analysis
+Comparison of analytical and numerical axial velocity profiles at three locations for the finest grid resolution $(N_x, N_y, N_z) = (1024, 4, 1024)$:
 
-Detailed convergence analysis of errors in overall domain vs. near-wall regions (quarter-height from boundary) for both ($L_\infty$) and $L_2$ norms:
+![Velocity Profile Comparison](figures/slanted-drag-tf1/velocity_profile_comparison.png)
 
-![Wall Error Analysis](figures/wall_error_analysis.png)
-
-## Velocity Profile Comparison
-
-Comparison of analytical and numerical axial velocity profiles at four streamwise locations (start, 1/5, 2/5, and midway) for the finest grid resolution:
-
-![Velocity Profile Comparison](figures/velocity_profile_comparison.png)
-
-Left column shows the velocity profiles with analytical solution (markers) overlaid on numerical solution (line). Right column shows the error growth along the domain.
+Left column shows the axial velocity profiles with analytical solution (markers) compared to the numerical solution (line). Right column shows the error between the analytical and numerical solutions. The error is calculated as $u_{r}^{error} = u_{r}^{sim} - u_r^{exact}$.
