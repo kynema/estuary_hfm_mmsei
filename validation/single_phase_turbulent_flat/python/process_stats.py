@@ -6,8 +6,8 @@ import glob
 from pathlib import Path
 
 # Add path to kynema-sgf tools
-#kynema_sgf_tools = Path("/Users/dmontgo2/Documents/Kynema/kynema-sgf/tools")
-kynema_sgf_tools = Path("/scratch/dmontgo2/kynema-manager/environments/env_kynema_sgf/kynema-sgf/tools")
+kynema_sgf_tools = Path("/Users/dmontgo2/Documents/Kynema/kynema-sgf/tools")
+#kynema_sgf_tools = Path("/scratch/dmontgo2/kynema-manager/environments/env_kynema_sgf/kynema-sgf/tools")
 if kynema_sgf_tools.exists():
     sys.path.insert(0, str(kynema_sgf_tools))
 
