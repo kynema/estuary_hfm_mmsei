@@ -1,41 +1,5 @@
-#!/usr/bin/env python3
 """
-Post-processor for kynema-sgf channel-flow pltAvg files.
-
-Reads pltAvg output, computes spatial and temporal statistics,
-rescales to wall units, and overlays simulation results on experimental data.
-
-Workflow
-========
-
-1. Automatically loads pltAvg files from cases/ReTau{Re}/ (or ReTau{Re}_IB/).
-2. Extract velocity components (u, v, w) and wall-normal coordinate (z).
-3. For IB cases, identify first fluid cell using terrain_blank field.
-4. Spatially average in periodic directions (x, y by default) to get
-   U_mean(z), V_mean(z), W_mean(z) plus variances.
-5. Time-average across all input pltAvg files.
-6. Compute friction velocity from pressure gradient via case_setup.
-7. Wall-units rescale and overlay on experimental data via plot_data.
-
-Examples
-========
-
-Re=180 case without IB::
-
-    python post_process.py --Re 180
-
-Re=180 case with IB::
-
-    python post_process.py --Re 180 --IB
-
-Output directories:
-    - figures/ReTau180/          (for Re=180 without IB)
-    - figures/ReTau180_IB/       (for Re=180 with IB)
-
-Outputs (profiles.csv, Uplus.png, VelRMSplus.png):
-  - profiles.csv       : tabular z_phys, y+, U+, urms+, vrms+, wrms+
-  - Uplus.png          : U+ vs y+ overlaid on experimental DNS data
-  - VelRMSplus.png     : urms+, vrms+, wrms+ vs y+ overlaid on experimental data
+Post-process pltAvg files and plot against DNS data.
 """
 
 from __future__ import annotations
@@ -50,21 +14,29 @@ import numpy as np
 
 import case_setup
 from plot_data import plot_mean_velocity_profile, plot_rms_velocity_profiles
+from data import build_case_dir_name, get_output_dir
 
 # --------------------------------------------------------------------
 # Plotfile loading
 # --------------------------------------------------------------------
 
-def find_pltavg_files(Re: int, IB: bool = False) -> list[Path]:
+def find_pltavg_files(Re: int, DNS: bool = False, LES: bool = False,
+                      IB: bool = False, drag: str = None) -> list[Path]:
     """
-    Find all pltAvg files for the given Reynolds number and IB variant.
+    Find all pltAvg files for the given Reynolds number and variant.
     
     Parameters
     ----------
     Re : int
         Stress Reynolds number
+    DNS : bool
+        If True, look for DNS variant
+    LES : bool
+        If True, look for LES variant
     IB : bool
-        If True, look for ReTau{Re}_IB/ directory
+        If True, look for immersed boundary variant
+    drag : str
+        Drag model: 'og' or 'tf1' (only used with IB)
     
     Returns
     -------
@@ -73,45 +45,17 @@ def find_pltavg_files(Re: int, IB: bool = False) -> list[Path]:
     """
     # Construct case directory path
     case_dir = Path(__file__).parent.parent / "cases"
-    
-    if IB:
-        pltavg_pattern = case_dir / f"ReTau{Re}_IB" / "pltAvg*" / "Header"
-    else:
-        pltavg_pattern = case_dir / f"ReTau{Re}" / "pltAvg*" / "Header"
+    case_name = build_case_dir_name(Re, DNS=DNS, LES=LES, IB=IB, drag=drag)
+    pltavg_pattern = case_dir / case_name / "pltAvg*" / "Header"
     
     files = sorted(glob.glob(str(pltavg_pattern)))
     
     if not files:
-        case_variant = f"ReTau{Re}_IB" if IB else f"ReTau{Re}"
         raise FileNotFoundError(
-            f"No pltAvg files found in {case_dir / case_variant}/"
+            f"No pltAvg files found in {case_dir / case_name}/"
         )
     
     return [Path(f) for f in files]
-
-
-def get_output_dir(Re: int, IB: bool = False) -> Path:
-    """
-    Get the output directory for figures.
-    
-    Parameters
-    ----------
-    Re : int
-        Stress Reynolds number
-    IB : bool
-        If True, use ReTau{Re}_IB/ directory
-    
-    Returns
-    -------
-    Path
-        Output directory path
-    """
-    figures_dir = Path(__file__).parent.parent / "figures"
-    
-    if IB:
-        return figures_dir / f"ReTau{Re}_IB"
-    else:
-        return figures_dir / f"ReTau{Re}"
 
 
 def load_pltavg_velocity(plt_path: Path, IB: bool = False):
@@ -231,24 +175,52 @@ def main() -> int:
     ap.add_argument("--Re", type=int, default=180,
                     help="Stress Reynolds number: 180, 395, or 934 "
                          "(default: 180)")
+    ap.add_argument("--DNS", action="store_true",
+                    help="Use DNS variant")
+    ap.add_argument("--LES", action="store_true",
+                    help="Use LES variant")
     ap.add_argument("--IB", action="store_true",
-                    help="Use immersed boundary variant (reads from ReTau{Re}_IB/)")
-    ap.add_argument("--utau-source", choices=("gradP", "wall_stress"),
-                    default="gradP",
-                    help="how to compute u_tau; gradP uses pressure gradient "
-                         "from case_setup (default); wall_stress uses dU/dz at wall")
+                    help="Use immersed boundary variant")
+    ap.add_argument("--drag", type=str, choices=['og', 'tf1'],
+                    help="Drag model for IB cases: 'og' or 'tf1'")
     args = ap.parse_args()
+
+    # Validate options
+    if not args.DNS and not args.LES:
+        ap.error("Either --DNS or --LES must be specified")
+    
+    if args.DNS and args.LES:
+        ap.error("Cannot specify both --DNS and --LES")
+    
+    if args.IB and not args.LES:
+        ap.error("--IB can only be used with --LES")
+    
+    if args.IB and not args.drag:
+        ap.error("--drag option required when using --IB")
+    
+    if args.drag and not args.IB:
+        ap.error("--drag can only be used with --IB")
 
     # Find pltAvg files and set output dir
     try:
-        pltavg_files = find_pltavg_files(args.Re, IB=args.IB)
+        pltavg_files = find_pltavg_files(args.Re, DNS=args.DNS, LES=args.LES,
+                                        IB=args.IB, drag=args.drag)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
     
-    outdir = get_output_dir(args.Re, IB=args.IB)
+    outdir = get_output_dir(args.Re, DNS=args.DNS, LES=args.LES,
+                           IB=args.IB, drag=args.drag)
 
-    print(f"Post-processing Re_tau = {args.Re}, IB = {args.IB}")
+    variant = ""
+    if args.DNS:
+        variant = "DNS"
+    elif args.LES:
+        variant = "LES"
+        if args.IB:
+            variant += f" + IB ({args.drag.upper()})"
+    
+    print(f"Post-processing Re_tau = {args.Re}, variant = {variant}")
     print(f"Found {len(pltavg_files)} pltAvg files")
     print(f"Output directory: {outdir}\n")
 
@@ -325,20 +297,12 @@ def main() -> int:
     V_var_filt = accum["V_var"][mask]
     W_var_filt = accum["W_var"][mask]
 
-    # Friction velocity
-    if args.utau_source == "gradP":
-        u_tau = math.sqrt(dpdx_magnitude * delta / density)
-    else:
-        # Use velocity gradient at wall: tau_w = mu * dU/dz
-        order = np.argsort(zw)
-        k0 = order[0]
-        dU_dz_wall = U_bar_filt[k0] / zw[k0]
-        tau_w = mu * abs(dU_dz_wall)
-        u_tau = math.sqrt(tau_w / density)
+    # Friction velocity (from pressure gradient)
+    u_tau = math.sqrt(dpdx_magnitude * delta / density)
     
     nu = mu / density
     print(f"Results:")
-    print(f"  u_tau = {u_tau:.5g}  (source: {args.utau_source})")
+    print(f"  u_tau = {u_tau:.5g}")
     print(f"  nu    = {nu:.5g}")
     print(f"  delta = {delta:.5g}")
     print(f"  Re_tau = {u_tau * delta / nu:.3f}\n")

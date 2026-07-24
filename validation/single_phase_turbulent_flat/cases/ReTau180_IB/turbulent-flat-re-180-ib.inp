@@ -20,6 +20,8 @@ zhi.density = 0.468793
 incflo.physics = ChannelFlow ChannelBuilder 
 ICNS.source_terms = BodyForce DragForcing
 BodyForce.magnitude = 1514.0797750819656358 0.0 0.0
+DragForcing.is_laminar = 0
+ABL.surface_roughness_z0 = 0.00001
 DragForcing.use_original_drag_limiter = true
 DragForcing.use_temporal_drag_limiter = false
 

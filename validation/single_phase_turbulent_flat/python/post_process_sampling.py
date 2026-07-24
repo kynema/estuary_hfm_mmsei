@@ -6,7 +6,10 @@ and computes wall-normal velocity profiles for comparison with DNS data.
 Does not require yt; all data is read directly from particle_stats.txt.
 
 Usage:
-    python post_process_sampling.py --Re 180 [--IB]
+    python post_process_sampling.py --Re 180 --DNS
+    python post_process_sampling.py --Re 180 --LES
+    python post_process_sampling.py --Re 180 --LES --IB --drag og
+    python post_process_sampling.py --Re 180 --LES --IB --drag tf1
 """
 
 import numpy as np
@@ -18,9 +21,11 @@ from pathlib import Path
 
 from case_setup import domain_and_flow, get_pressure_gradient
 from plot_data import plot_mean_velocity_profile, plot_rms_velocity_profiles
+from data import build_case_dir_name, get_output_dir
 
 
-def find_particle_stats_file(Re: int, IB: bool = False) -> Path:
+def find_particle_stats_file(Re: int, DNS: bool = False, LES: bool = False,
+                             IB: bool = False, drag: str = None) -> Path:
     """
     Find the particle_stats.txt file for the given Reynolds number.
     If it doesn't exist, run process_stats.py to generate it.
@@ -29,8 +34,14 @@ def find_particle_stats_file(Re: int, IB: bool = False) -> Path:
     ----------
     Re : int
         Stress Reynolds number
+    DNS : bool
+        If True, look for DNS variant
+    LES : bool
+        If True, look for LES variant
     IB : bool
-        If True, look for ReTau{Re}_IB/ directory
+        If True, look for immersed boundary variant
+    drag : str
+        Drag model: 'og' or 'tf1' (only used with IB)
     
     Returns
     -------
@@ -38,11 +49,8 @@ def find_particle_stats_file(Re: int, IB: bool = False) -> Path:
         Path to particle_stats.txt
     """
     case_dir = Path(__file__).parent.parent / "cases"
-    
-    if IB:
-        stats_file = case_dir / f"ReTau{Re}_IB" / "particle_stats.txt"
-    else:
-        stats_file = case_dir / f"ReTau{Re}" / "particle_stats.txt"
+    case_name = build_case_dir_name(Re, DNS=DNS, LES=LES, IB=IB, drag=drag)
+    stats_file = case_dir / case_name / "particle_stats.txt"
     
     # If particle_stats.txt doesn't exist, generate it
     if not stats_file.exists():
@@ -51,8 +59,14 @@ def find_particle_stats_file(Re: int, IB: bool = False) -> Path:
         # Build command to run process_stats.py
         python_dir = Path(__file__).parent
         cmd = ["python", str(python_dir / "process_stats.py"), "--Re", str(Re)]
+        if DNS:
+            cmd.append("--DNS")
+        if LES:
+            cmd.append("--LES")
         if IB:
             cmd.append("--IB")
+        if drag:
+            cmd.extend(["--drag", drag])
         
         try:
             result = subprocess.run(cmd, cwd=str(python_dir), 
@@ -68,31 +82,6 @@ def find_particle_stats_file(Re: int, IB: bool = False) -> Path:
             raise FileNotFoundError(f"Particle statistics file still not found after running process_stats.py: {stats_file}")
     
     return stats_file
-
-
-def get_output_dir(Re: int, IB: bool = False) -> Path:
-    """
-    Get the output directory for results.
-    
-    Parameters
-    ----------
-    Re : int
-        Stress Reynolds number
-    IB : bool
-        If True, use ReTau{Re}_IB/ directory
-    
-    Returns
-    -------
-    Path
-        Output directory (created if it doesn't exist)
-    """
-    if IB:
-        output_dir = Path(__file__).parent.parent / "figures" / f"ReTau{Re}_IB"
-    else:
-        output_dir = Path(__file__).parent.parent / "figures" / f"ReTau{Re}"
-    
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return output_dir
 
 
 def load_particle_stats(stats_file: Path) -> tuple:
@@ -130,7 +119,7 @@ def load_particle_stats(stats_file: Path) -> tuple:
 
 
 def rescale_to_wall_units(z_coord, u_mean, u_rms, v_sgf_rms, w_sgf_rms, 
-                         config, Re, IB=False):
+                         config, Re, DNS=False, LES=False, IB=False, drag=None):
     """
     Map z-coordinates to wall units and rescale velocities.
     
@@ -150,8 +139,14 @@ def rescale_to_wall_units(z_coord, u_mean, u_rms, v_sgf_rms, w_sgf_rms,
         Configuration dictionary from domain_and_flow()
     Re : int
         Stress Reynolds number for metadata
+    DNS : bool
+        DNS variant
+    LES : bool
+        LES variant
     IB : bool
         Immersed boundary variant
+    drag : str
+        Drag model: 'og' or 'tf1'
     
     Returns
     -------
@@ -222,17 +217,40 @@ def main():
     )
     parser.add_argument("--Re", type=int, default=180,
                         help="Stress Reynolds number (default: 180)")
+    parser.add_argument("--DNS", action="store_true",
+                        help="Use DNS variant")
+    parser.add_argument("--LES", action="store_true",
+                        help="Use LES variant")
     parser.add_argument("--IB", action="store_true",
                         help="Use immersed boundary variant")
+    parser.add_argument("--drag", type=str, choices=['og', 'tf1'],
+                        help="Drag model for IB cases: 'og' or 'tf1'")
     
     args = parser.parse_args()
+    
+    # Validate options
+    if not args.DNS and not args.LES:
+        parser.error("Either --DNS or --LES must be specified")
+    
+    if args.DNS and args.LES:
+        parser.error("Cannot specify both --DNS and --LES")
+    
+    if args.IB and not args.LES:
+        parser.error("--IB can only be used with --LES")
+    
+    if args.IB and not args.drag:
+        parser.error("--drag option required when using --IB")
+    
+    if args.drag and not args.IB:
+        parser.error("--drag can only be used with --IB")
     
     # Load configuration
     config = domain_and_flow(Re=args.Re, IB=args.IB)
     
     # Find and load particle statistics
     try:
-        stats_file = find_particle_stats_file(args.Re, IB=args.IB)
+        stats_file = find_particle_stats_file(args.Re, DNS=args.DNS, LES=args.LES, 
+                                             IB=args.IB, drag=args.drag)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
@@ -248,11 +266,12 @@ def main():
     # Rescale to wall units
     rescaled = rescale_to_wall_units(
         z_coord, u_mean, u_rms, v_sgf_rms, w_sgf_rms,
-        config, args.Re, IB=args.IB
+        config, args.Re, DNS=args.DNS, LES=args.LES, IB=args.IB, drag=args.drag
     )
     
     # Get output directory
-    output_dir = get_output_dir(args.Re, IB=args.IB)
+    output_dir = get_output_dir(args.Re, DNS=args.DNS, LES=args.LES, 
+                               IB=args.IB, drag=args.drag)
     
     # Save profiles
     save_profiles(output_dir, rescaled)
