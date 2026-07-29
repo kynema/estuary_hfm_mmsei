@@ -206,7 +206,7 @@ def save_profiles(output_dir: Path, rescaled_data: dict):
         'wrms_plus': rescaled_data['wrms_plus'],
     })
     
-    output_file = output_dir / "profiles.csv"
+    output_file = output_dir / "profiles_sampling.csv"
     df.to_csv(output_file, index=False)
     print(f"Saved profiles to {output_file}")
 

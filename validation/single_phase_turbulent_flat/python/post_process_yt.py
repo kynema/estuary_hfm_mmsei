@@ -81,6 +81,8 @@ def load_pltavg_velocity(plt_path: Path, delta: float, IB: bool = False):
         Domain bounds
     time : float
         Simulation time
+    z_coords_1d : np.ndarray or None
+        1D array of z cell center coordinates (for IB cases only, else None)
     """
 
     yt.set_log_level("error")
@@ -107,26 +109,35 @@ def load_pltavg_velocity(plt_path: Path, delta: float, IB: bool = False):
     v = np.asarray(cg["boxlib", "velocityy"])  # width (maps to z in data coords)
     w = np.asarray(cg["boxlib", "velocityz"])  # wall-normal (maps to y in data coords)
     
-    # For IB cases, mask out solid cells based on z-location
-    # The channel extends from -delta/2 to +delta/2 (centered at z=0)
-    # IB solid regions are outside these bounds
+    # For IB cases, mask out solid cells based on terrain_blank
+    # terrain_blank < 1 means fluid, >= 1 means solid (IB)
+    z_coords_1d = None  # Will store 1D array of z cell centers for IB
     if IB:
+        terrain_blank = np.asarray(cg["boxlib", "terrain_blank"])
+        mask = terrain_blank < 1  # True for fluid, False for solid
+        
+        # Use NaN-masking to preserve 3D shape for proper wall-normal averaging
+        u[~mask] = np.nan
+        v[~mask] = np.nan
+        w[~mask] = np.nan
+        
+        # Get z-coordinates and mask solid regions
         z_coords = np.asarray(cg["boxlib", "z"])
-        z_min = -delta / 2.0
-        z_max = delta / 2.0
-        mask_solid = (z_coords < z_min) | (z_coords > z_max)
-        u[mask_solid] = np.nan
-        v[mask_solid] = np.nan
-        w[mask_solid] = np.nan
-        n_masked = np.sum(mask_solid)
-        n_total = mask_solid.size
-        print(f"  Masked {n_masked}/{n_total} cells outside channel bounds [{z_min:.6f}, {z_max:.6f}]", file=sys.stderr)
+        z_coords[~mask] = np.nan
+        
+        # Extract 1D z profile (same for all x,y)
+        z_coords_1d = z_coords[0, 0, :]
+        
+        # Diagnostics
+        n_masked = np.sum(~mask)
+        n_fluid = np.sum(mask)
+        print(f"  Masked {n_masked} solid cells, {n_fluid} fluid cells remain", file=sys.stderr)
     
     prob_lo = tuple(float(x) for x in ds.domain_left_edge)
     prob_hi = tuple(float(x) for x in ds.domain_right_edge)
     time = float(ds.current_time)
     
-    return u, v, w, prob_lo, prob_hi, time
+    return u, v, w, prob_lo, prob_hi, time, z_coords_1d
 
 # --------------------------------------------------------------------
 # Statistics
@@ -248,10 +259,10 @@ def main() -> int:
     geom = None
     
     for pf in pltavg_files:
-        u, v, w, prob_lo, prob_hi, t = load_pltavg_velocity(pf, delta=delta, IB=args.IB)
+        u, v, w, prob_lo, prob_hi, t, z_coords_1d = load_pltavg_velocity(pf, delta=delta, IB=args.IB)
         
         if geom is None:
-            geom = (u.shape, prob_lo, prob_hi)
+            geom = (u.shape, prob_lo, prob_hi, z_coords_1d)
         else:
             if u.shape != geom[0]:
                 print(f"shape mismatch for {pf}: {u.shape} vs {geom[0]}",
@@ -280,20 +291,26 @@ def main() -> int:
     print(f"  time-averaged {accum_count} files\n")
 
     Nz = accum["U_bar"].size
-    shape, prob_lo, prob_hi = geom
+    shape, prob_lo, prob_hi, z_coords_1d = geom
 
     # Wall-normal physical coordinate (z)
-    # In kynema-sgf: walls at z = ±delta (prob_lo[2] and prob_hi[2])
-    # Measure distance from lower wall only (to centerline)
-    k = np.arange(Nz)
-    dz = (prob_hi[2] - prob_lo[2]) / shape[2]
-    z_cc = prob_lo[2] + (k + 0.5) * dz  # cell-center coordinates
+    # For IB cases: use actual z-coordinates from grid
+    # For non-IB cases: compute from prob_lo and domain size
+    if args.IB and z_coords_1d is not None:
+        z_cc = z_coords_1d
+    else:
+        k = np.arange(Nz)
+        dz = (prob_hi[2] - prob_lo[2]) / shape[2]
+        z_cc = prob_lo[2] + (k + 0.5) * dz  # cell-center coordinates
     
     # Wall distance: distance from lower wall
-    zw = z_cc - prob_lo[2]
+    # z_cc is in domain coordinates [-delta, +delta] where -delta is the wall
+    # Convert to distance from wall: y = z - (-delta) = z + delta
+    zw = z_cc + delta
     
-    # Keep only lower wall to centerline (zw <= delta)
-    mask = zw <= delta
+    # Keep only lower wall to centerline (0 <= zw <= delta)
+    # Also filter out z-slices that are entirely solid (all NaN)
+    mask = (zw >= 0) & (zw <= delta)
     zw = zw[mask]
     U_bar_filt = accum["U_bar"][mask]
     V_bar_filt = accum["V_bar"][mask]
@@ -301,6 +318,16 @@ def main() -> int:
     U_var_filt = accum["U_var"][mask]
     V_var_filt = accum["V_var"][mask]
     W_var_filt = accum["W_var"][mask]
+    
+    # Filter out any remaining NaN values
+    valid_mask = ~np.isnan(U_bar_filt)
+    zw = zw[valid_mask]
+    U_bar_filt = U_bar_filt[valid_mask]
+    V_bar_filt = V_bar_filt[valid_mask]
+    W_bar_filt = W_bar_filt[valid_mask]
+    U_var_filt = U_var_filt[valid_mask]
+    V_var_filt = V_var_filt[valid_mask]
+    W_var_filt = W_var_filt[valid_mask]
 
     # Friction velocity (from pressure gradient)
     u_tau = math.sqrt(dpdx_magnitude * delta / density)
@@ -331,7 +358,7 @@ def main() -> int:
     outdir.mkdir(parents=True, exist_ok=True)
 
     # CSV file with profiles
-    csv_path = outdir / "profiles.csv"
+    csv_path = outdir / "profiles_yt.csv"
     with csv_path.open("w") as fh:
         fh.write("# y_plus, U_plus, urms_plus, vrms_plus, wrms_plus\n")
         fh.write(f"# u_tau = {u_tau:.6g}  nu = {nu:.6g}  "

@@ -71,7 +71,7 @@ def load_pltavg_averaged_velocity(plt_path: Path, delta: float, IB: bool = False
     velocity_mean_averagingz (time-averaged means) and velocity_reynolds_stress_averaging
     components (time-averaged Reynolds stresses: <u'u'>, <v'v'>, <w'w'>).
     
-    For IB cases, masks solid cells outside channel bounds [-delta/2, +delta/2].
+    For IB cases, masks solid cells outside channel bounds [-delta, +delta].
     
     Parameters
     ----------
@@ -92,6 +92,8 @@ def load_pltavg_averaged_velocity(plt_path: Path, delta: float, IB: bool = False
         Domain bounds
     time : float
         Simulation time
+    z_coords_1d : np.ndarray or None
+        1D array of z cell center coordinates (for IB cases only, else None)
     """
 
     yt.set_log_level("error")
@@ -113,6 +115,9 @@ def load_pltavg_averaged_velocity(plt_path: Path, delta: float, IB: bool = False
                           left_edge=ds.domain_left_edge,
                           dims=fine_dims)
 
+    # Load z-coordinates
+    z_coords = np.asarray(cg["boxlib", "z"])
+
     # Load time-averaged velocity components
     u = np.asarray(cg["boxlib", "velocity_mean_averagingx"])
     v = np.asarray(cg["boxlib", "velocity_mean_averagingy"])
@@ -126,29 +131,52 @@ def load_pltavg_averaged_velocity(plt_path: Path, delta: float, IB: bool = False
     vv = np.asarray(cg["boxlib", "velocity_reynolds_stress_averaging3"])
     ww = np.asarray(cg["boxlib", "velocity_reynolds_stress_averaging5"])
     
-    # For IB cases, mask out solid cells based on z-location
-    # The channel extends from -delta/2 to +delta/2 (centered at z=0)
-    # IB solid regions are outside these bounds
+    # For IB cases, mask out solid cells based on terrain_blank
+    # terrain_blank < 1 means fluid, >= 1 means solid (IB)
+    z_coords_1d = None  # Will store 1D array of z cell centers for IB
+
+    print(f"DEBUG: z before masking: shape={z_coords.shape}, z range=[{np.min(z_coords):.6f}, {np.max(z_coords):.6f}]", file=sys.stderr)
     if IB:
-        z_coords = np.asarray(cg["boxlib", "z"])
-        z_min = -delta / 2.0
-        z_max = delta / 2.0
-        mask_solid = (z_coords < z_min) | (z_coords > z_max)
-        u[mask_solid] = np.nan
-        v[mask_solid] = np.nan
-        w[mask_solid] = np.nan
-        uu[mask_solid] = np.nan
-        vv[mask_solid] = np.nan
-        ww[mask_solid] = np.nan
-        n_masked = np.sum(mask_solid)
-        n_total = mask_solid.size
-        print(f"  Masked {n_masked}/{n_total} cells outside channel bounds [{z_min:.6f}, {z_max:.6f}]", file=sys.stderr)
-    
-    prob_lo = tuple(float(x) for x in ds.domain_left_edge)
-    prob_hi = tuple(float(x) for x in ds.domain_right_edge)
+        terrain_blank = np.asarray(cg["boxlib", "terrain_blank"])
+        mask = terrain_blank < 1  # True for fluid, False for solid
+        z_coords[~mask] = np.nan
+
+        # Reshape to remove nans in z-direction
+        valid_z_mask = np.any(np.isnan(z_coords) == False, axis=(0, 1))
+
+        # Get the index of the first and last valid z-slices
+        valid_z_indices = np.where(valid_z_mask)[0]
+        first_valid_z = valid_z_indices[0]
+        last_valid_z = valid_z_indices[-1]
+
+        # 3. Create a dynamic slice for the z-axis (axis 2)
+        # We add +1 to last_valid_z because Python slicing is exclusive at the stop index
+        z_slice = slice(first_valid_z, last_valid_z + 1)
+
+        # 4. Slice all of your 3D arrays to get the trimmed shape (192, 96, 70)
+        u        = u[:, :, z_slice]
+        v        = v[:, :, z_slice]
+        w        = w[:, :, z_slice]
+        uu       = uu[:, :, z_slice]
+        vv       = vv[:, :, z_slice]
+        ww       = ww[:, :, z_slice]
+        z_coords = z_coords[:, :, z_slice]
+
+        print(f"Trimmed Shape: {z_coords.shape}") 
+
+        # Diagnostics
+        n_masked = np.sum(~mask)
+        n_fluid = np.sum(mask)
+        print(f"  Masked {n_masked} solid cells, {n_fluid} fluid cells remain", file=sys.stderr)
+
+    print(f"DEBUG: z after masking: shape={z_coords.shape}, z range=[{np.min(z_coords):.6f}, {np.max(z_coords):.6f}]", file=sys.stderr)
+
+    # Extract 1D z profile (same for all x,y)
+    z_coords_1d = z_coords[0, 0, :]
+    print(f"DEBUG: z-coordinates (1D) range: {z_coords_1d}")
     time = float(ds.current_time)
     
-    return u, v, w, uu, vv, ww, prob_lo, prob_hi, time
+    return u, v, w, uu, vv, ww, time, z_coords_1d
 
 # --------------------------------------------------------------------
 # Statistics
@@ -279,37 +307,49 @@ def main() -> int:
     print(f"  |dP/dx| = {dpdx_magnitude:.2f} Pa/m\n")
 
     # Load the pre-averaged velocity file
-    u, v, w, uu, vv, ww, prob_lo, prob_hi, t = load_pltavg_averaged_velocity(pltavg_file, 
+    u, v, w, uu, vv, ww, t, zw = load_pltavg_averaged_velocity(pltavg_file, 
                                                                                 delta=delta, 
                                                                                 IB=args.IB)
-    
-    print(f"  loaded {pltavg_file.parent.name}  t={t:.4e}  shape={u.shape}")
-    
-    stats = wall_normal_stats(u, v, w, uu, vv, ww, periodic_axes=(0, 1), IB=args.IB)
-    print(f"  computed wall-normal statistics\n")
 
-    Nz = stats["U_bar"].size
-    shape = u.shape
-
-    # Wall-normal physical coordinate (z)
-    # In kynema-sgf: walls at z = ±delta (prob_lo[2] and prob_hi[2])
-    # Measure distance from lower wall only (to centerline)
-    k = np.arange(Nz)
-    dz = (prob_hi[2] - prob_lo[2]) / shape[2]
-    z_cc = prob_lo[2] + (k + 0.5) * dz  # cell-center coordinates
-    
-    # Wall distance: distance from lower wall
-    zw = z_cc - prob_lo[2]
-    
-    # Keep only lower wall to centerline (zw <= delta)
-    mask = zw <= delta
+    print("DEBUG: \nbefore masking zw: {zw}")
+    # Keep only lower wall to centerline (-delta <= zw <= 0)
+    # Also filter out z-slices that are entirely solid (all NaN)
+    mask = (zw >= -delta) & (zw <= 0)
     zw = zw[mask]
+    u = u[mask]
+    v = v[mask]
+    w = w[mask]
+    uu = uu[mask]
+    vv = vv[mask]
+    ww = ww[mask]
     U_bar_filt = stats["U_bar"][mask]
     V_bar_filt = stats["V_bar"][mask]
     W_bar_filt = stats["W_bar"][mask]
     U_rms_filt = stats["U_rms"][mask]
     V_rms_filt = stats["V_rms"][mask]
     W_rms_filt = stats["W_rms"][mask]
+    
+    # Filter out any remaining NaN values
+    valid_mask = ~np.isnan(U_bar_filt)
+    zw = zw[valid_mask]
+    U_bar_filt = U_bar_filt[valid_mask]
+    V_bar_filt = V_bar_filt[valid_mask]
+    W_bar_filt = W_bar_filt[valid_mask]
+    U_rms_filt = U_rms_filt[valid_mask]
+    V_rms_filt = V_rms_filt[valid_mask]
+    W_rms_filt = W_rms_filt[valid_mask]
+
+    print("DEBUG: \nbefore masking zw: {zw}")
+    
+    print(f"  loaded {pltavg_file.parent.name}  t={t:.4e}  shape={u.shape}")
+    print(f"  u: {np.sum(~np.isnan(u))} valid cells (out of {u.size})", file=sys.stderr)
+    print(f"  uu: {np.sum(~np.isnan(uu))} valid cells (out of {uu.size})", file=sys.stderr)
+
+    
+    stats = wall_normal_stats(u, v, w, uu, vv, ww, periodic_axes=(0, 1), IB=args.IB)
+    print(f"  computed wall-normal statistics\n")
+    print(f"  U_bar has {np.sum(~np.isnan(stats['U_bar']))} valid values out of {stats['U_bar'].size}", file=sys.stderr)
+    
 
     # Friction velocity (from pressure gradient)
     u_tau = math.sqrt(dpdx_magnitude * delta / density)

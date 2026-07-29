@@ -92,18 +92,23 @@ def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB
             print(f"Warning: First cell center off the wall at Level 2 (z1⁺ = {z1_plus_l2:.2f}) > 1.0!")
             print(f"   Consider increasing Nz (base grid) or using a higher ref_ratio.")
 
+    # For IB, domain extends beyond ±delta by ib_extra on each side.
+    # The refinement extent from the wall is the same as non-IB (z_extent_l1),
+    # but the box must also cover the extra solid cells outside ±delta.
+    ib_extra = prob_hi[2] - delta  # 0 for non-IB; positive for IB
+
     boxes = {
         'level1_bottom': {
             'origin': [prob_lo[0], prob_lo[1], prob_lo[2]],
             'xaxis': [Lx, 0.0, 0.0],
             'yaxis': [0.0, Ly, 0.0],
-            'zaxis': [0.0, 0.0, z_extent_l1],
+            'zaxis': [0.0, 0.0, z_extent_l1 + ib_extra],
         },
         'level1_top': {
-            'origin': [prob_lo[0], prob_lo[1], prob_hi[2] - z_extent_l1],
+            'origin': [prob_lo[0], prob_lo[1], delta - z_extent_l1],
             'xaxis': [Lx, 0.0, 0.0],
             'yaxis': [0.0, Ly, 0.0],
-            'zaxis': [0.0, 0.0, z_extent_l1],
+            'zaxis': [0.0, 0.0, z_extent_l1 + ib_extra],
         },
         'viscous_length_scale': l_nu,
         'dz_base': dz_base,
@@ -123,13 +128,13 @@ def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB
                 'origin': [prob_lo[0], prob_lo[1], prob_lo[2]],
                 'xaxis': [Lx, 0.0, 0.0],
                 'yaxis': [0.0, Ly, 0.0],
-                'zaxis': [0.0, 0.0, z_extent_l2],
+                'zaxis': [0.0, 0.0, z_extent_l2 + ib_extra],
             },
             'level2_top': {
-                'origin': [prob_lo[0], prob_lo[1], prob_hi[2] - z_extent_l2],
+                'origin': [prob_lo[0], prob_lo[1], delta - z_extent_l2],
                 'xaxis': [Lx, 0.0, 0.0],
                 'yaxis': [0.0, Ly, 0.0],
-                'zaxis': [0.0, 0.0, z_extent_l2],
+                'zaxis': [0.0, 0.0, z_extent_l2 + ib_extra],
             },
             'dz_l2': dz_l2,
             'dz_plus_l2': dz_plus_l2,
@@ -168,20 +173,17 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180, dn
     """
     
     # Domain dimensions from Re_tau = 180 DNS case
-    # x: 6.24δ, y: 3.12δ, z: 2.0δ (no IB) or 2.08δ (with IB)
+    # x: 6.24δ, y: 3.12δ, z: 2.0δ (no IB)
     Lx = 6.24 * delta
     Ly = 3.12 * delta
     Lz_no_ib = 2.0 * delta
-    Lz_ib = 2.08 * delta
-    
-    Lz = Lz_ib if IB else Lz_no_ib
-    
+
     # Compute grid spacing and cell counts
     dx = Lx / Nx
     
     # Compute Ny and Nz based on maintaining uniform spacing
     Ny = int(round(Ly / dx))
-    Nz = int(round(Lz / dx))
+    Nz = int(round(Lz_no_ib / dx))
     
     # Adjust to be divisible by blocking factor
     Nx = (Nx // blocking_factor) * blocking_factor
@@ -191,21 +193,19 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180, dn
     # Recalculate cell spacings after blocking factor adjustment (now slightly different)
     dx = Lx / Nx
     dy = Ly / Ny
-    dz = Lz / Nz
-
-    # Check that Lz ~= 2.0δ (no IB) or 2.08δ (with IB)
-    if IB:
-        assert np.isclose(Lz, Lz_ib, rtol=1e-3), f"Lz={Lz:.6f} m not close to expected {Lz_ib:.6f} m for IB"
-    else:
-        assert np.isclose(Lz, Lz_no_ib, rtol=1e-3), f"Lz={Lz:.6f} m not close to expected {Lz_no_ib:.6f} m for no IB"
+    dz = Lz_no_ib / Nz
     
     # Domain boundaries
     # Center domain in y (periodic), asymmetric in z (walls)
     if IB:
-        z_extent = 0.0052  # Slightly larger than delta for IB
-        prob_lo = [0.0, 0.0, -z_extent]
-        prob_hi = [Lx, Ly, z_extent]
+        # Extend domain in z-direction by 4 grid cells 
+        Nz += blocking_factor  # 1 blocking factor worth of cells
+        Lz = Lz_no_ib + blocking_factor * dz
+        bf_by_2 = (blocking_factor // 2)
+        prob_lo = [0.0, 0.0, -delta - bf_by_2*dz]
+        prob_hi = [Lx, Ly, delta + bf_by_2*dz]
     else:
+        Lz = Lz_no_ib 
         prob_lo = [0.0, 0.0, -delta]
         prob_hi = [Lx, Ly, delta]
     
@@ -406,7 +406,10 @@ def print_flow_summary(config):
     print(f"  Channel half-width (δ):     {config['delta']:.6f} m")
     print(f"  X: [{lo[0]:.6f}, {hi[0]:.6f}] m, Lx = {config['Lx']/config['delta']:.2f}δ")
     print(f"  Y: [{lo[1]:.6f}, {hi[1]:.6f}] m, Ly = {config['Ly']/config['delta']:.2f}δ")
-    print(f"  Z: [{lo[2]:.6f}, {hi[2]:.6f}] m, Lz = {config['Lz']/config['delta']:.2f}δ")
+    if config['IB']:
+        print(f"  Z: [{lo[2]:.6f}, {hi[2]:.6f}] m, Lz = {config['Lz']/config['delta']:.2f}δ (extended for IB)")
+    else:   
+        print(f"  Z: [{lo[2]:.6f}, {hi[2]:.6f}] m, Lz = {config['Lz']/config['delta']:.2f}δ")
     
     print(f"\nMesh Resolution:")
     print(f"  Blocking Factor: {config['blocking_factor']}")
@@ -451,8 +454,12 @@ def print_config(config):
     print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
           "\n#              GEOMETRY                 #" \
           "\n#.......................................#")
-    print(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.6f}")
-    print(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.6f}")
+    if config['IB']:
+        print(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.16f}")
+        print(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.16f}")
+    else:
+        print(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.6f}")
+        print(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.6f}")
 
     print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
           "\n#               PHYSICS                 #" \
