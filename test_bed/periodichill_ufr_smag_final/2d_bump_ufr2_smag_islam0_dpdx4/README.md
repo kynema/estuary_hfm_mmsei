@@ -7,10 +7,35 @@ The case as implemented uses the following parameters:
 | Parameter | Value |
 | --- | --- |
 | h | 0.028 m |
-| $Re_h$ | 10595 |
+| $Re_{Hill}$ | 10595 |
 | $dp/\rho dx$ | 0.067 |
 | $U_{bulk}$ | 0.3785 m/s |
+| $\rho$ | 1000.0 |
 
-In post-processing, $U_{bulk}$ is estimated as $0.85\bar{U}_{max}$. Though not exact, $dp/\rho dx$ was modified until an approximate $U_{bulk}$ and therefore $Re_h$ was achieved. 
+The Reynolds number comes from the hill height $h$ and the bulk velocity
+
+$$
+Re_{Hill} = \frac{U_{bulk} h}{\nu}
+$$
+
+The maximum target velocity in the experimental data in the upper channel is related to the bulk velocity: 
+
+$$
+U_{max} = 1.0593 U_{bulk} = 0.4008 m/s
+$$
+
+In Kynema-UGF, a dynamic pressure gradient was employed to reach the target max velocity at the inlet. Though not exact, in Kynema-SGF, $dp/\rho dx$ was modified until an approximate $U_{bulk}$ and therefore $Re_h$ was achieved. 
 
 One flow-through time is approximately 0.6658 seconds. Results in the output file labeled with "h_mean" are averaged both on flow-through time and the channel span direction. Results in the output file labeled with "center_slice" are only averaged on flow-through time.
+
+<br />
+
+![Mean Profiles with Horizontal Averaging](../../../tools/periodic_hill/ufr_h_mean_flow.png)
+
+<br />
+
+![Mean Profiles with Horizontal Averaging](../../../tools/periodic_hill/ufr_center_slice_flow.png)
+
+<br />
+
+![Mean Profiles with Horizontal Averaging](../../../tools/periodic_hill/probe_sampler_timeseries.png)
