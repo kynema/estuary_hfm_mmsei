@@ -9,7 +9,16 @@ time.stop_time = 0.054590 # ~30 flow-through times for statistics
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #             Statistics                #
 #.......................................#
-incflo.post_processing = sampling
+incflo.post_processing = averaging sampling 
+
+averaging.type = TimeAveraging
+averaging.averaging_start_time = 0.036394 # Start after ~20 flow-through time
+averaging.labels = means stress
+averaging.means.fields = velocity
+averaging.means.averaging_type = ReAveraging
+averaging.stress.fields = velocity
+averaging.stress.averaging_type = ReynoldsStress
+
 sampling.fields = velocity
 sampling.output_interval = 100
 sampling.output_format = native

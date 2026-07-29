@@ -4,6 +4,7 @@ import sys
 import argparse
 import glob
 from pathlib import Path
+from data import build_case_dir_name
 
 # Add path to kynema-sgf tools
 kynema_sgf_tools = Path("/Users/dmontgo2/Documents/Kynema/kynema-sgf/tools")
@@ -15,16 +16,23 @@ if kynema_sgf_tools.exists():
 from amrex_particle import AmrexParticleFile
 
 
-def find_sampling_folder(Re: int, IB: bool = False) -> Path:
+def find_sampling_folder(Re: int, DNS: bool = False, LES: bool = False,
+                         IB: bool = False, drag: str = None) -> Path:
     """
-    Find the latest sampling folder for the given Reynolds number and IB variant.
+    Find the latest sampling folder for the given Reynolds number and variant.
     
     Parameters
     ----------
     Re : int
         Stress Reynolds number
+    DNS : bool
+        If True, look for DNS variant
+    LES : bool
+        If True, look for LES variant
     IB : bool
-        If True, look for ReTau{Re}_IB/ directory
+        If True, look for immersed boundary variant
+    drag : str
+        Drag model: 'og' or 'tf1' (only used with IB)
     
     Returns
     -------
@@ -32,18 +40,14 @@ def find_sampling_folder(Re: int, IB: bool = False) -> Path:
         Path to the latest completed sampling folder (before sampling09000)
     """
     case_dir = Path(__file__).parent.parent / "cases"
-    
-    if IB:
-        sampling_pattern = case_dir / f"ReTau{Re}_IB" / "post_processing" / "sampling*"
-    else:
-        sampling_pattern = case_dir / f"ReTau{Re}" / "post_processing" / "sampling*"
+    case_name = build_case_dir_name(Re, DNS=DNS, LES=LES, IB=IB, drag=drag)
+    sampling_pattern = case_dir / case_name / "post_processing" / "sampling*"
     
     folders = sorted(glob.glob(str(sampling_pattern)))
     
     if not folders:
-        case_variant = f"ReTau{Re}_IB" if IB else f"ReTau{Re}"
         raise FileNotFoundError(
-            f"No sampling folders found in {case_dir / case_variant / 'post_processing'}/"
+            f"No sampling folders found in {case_dir / case_name / 'post_processing'}/"
         )
     
     # Filter to only actual directories
@@ -71,13 +75,36 @@ def main() -> int:
     )
     parser.add_argument("--Re", type=int, default=180,
                         help="Stress Reynolds number (default: 180)")
+    parser.add_argument("--DNS", action="store_true",
+                        help="Use DNS variant")
+    parser.add_argument("--LES", action="store_true",
+                        help="Use LES variant")
     parser.add_argument("--IB", action="store_true",
                         help="Use immersed boundary variant")
+    parser.add_argument("--drag", type=str, choices=['og', 'tf1'],
+                        help="Drag model for IB cases: 'og' or 'tf1'")
     args = parser.parse_args()
+
+    # Validate options
+    if not args.DNS and not args.LES:
+        parser.error("Either --DNS or --LES must be specified")
+    
+    if args.DNS and args.LES:
+        parser.error("Cannot specify both --DNS and --LES")
+    
+    if args.IB and not args.LES:
+        parser.error("--IB can only be used with --LES")
+    
+    if args.IB and not args.drag:
+        parser.error("--drag option required when using --IB")
+    
+    if args.drag and not args.IB:
+        parser.error("--drag can only be used with --IB")
 
     # Find the sampling folder
     try:
-        sampling_folder = find_sampling_folder(args.Re, IB=args.IB)
+        sampling_folder = find_sampling_folder(args.Re, DNS=args.DNS, LES=args.LES,
+                                              IB=args.IB, drag=args.drag)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
@@ -218,12 +245,11 @@ def main() -> int:
     ))
     header = "z_coord   u_mean   u_var   v_sgf_mean   v_sgf_var   w_sgf_mean   w_sgf_var"
     
-    # Save to the case directory (ReTau{Re}/ or ReTau{Re}_IB/)
+    # Save to the case directory
     case_dir = Path(__file__).parent.parent / "cases"
-    if args.IB:
-        output_file = case_dir / f"ReTau{args.Re}_IB" / "particle_stats.txt"
-    else:
-        output_file = case_dir / f"ReTau{args.Re}" / "particle_stats.txt"
+    case_name = build_case_dir_name(args.Re, DNS=args.DNS, LES=args.LES,
+                                    IB=args.IB, drag=args.drag)
+    output_file = case_dir / case_name / "particle_stats.txt"
     
     output_file.parent.mkdir(parents=True, exist_ok=True)
     np.savetxt(output_file, final_data, header=header)
