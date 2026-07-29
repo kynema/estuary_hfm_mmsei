@@ -1,13 +1,40 @@
 cases:
-  - name: 2d_bump_ufr2_smag_islam0_dpdx3
-    label: Smagorinsky 256 x 128 x 88
+  - name: 2d_bump_ufr_smag_final
+    label: SGF Smagorinsky
+    type: sgf
     format: netcdf
-    path: ../../test_bed/2d_bump_ufr2_smag_islam0_dpdx3
+    path: /tscratch/ndeveld/estuary/2d_periodichill_ufr2_smag_final1
     point_sample_file: psampling00000.nc
-    plane_sample_file: sampling00000.nc
+    plane_sample_file: [sampling00000.nc]
     probe_plots: true
     plane_processing: true
-    opt: [37,67,67, 90.0, 0.3785]
+    opt: [60,160,160, 90.0, 0.3785]
+  - name: ugf_iddes
+    label: UGF IDDES
+    type: ugf
+    format: netcdf
+    path: /tscratch/ndeveld/estuary/ugf_periodic_hill_final1
+    point_sample_file: na
+    #plane_sample_file: [sample_plane_0012000_0.dat,sample_plane_0012050_0.dat,sample_plane_0012100_0.dat,sample_plane_0012150_0.dat,sample_plane_0012200_0.dat,sample_plane_0012250_0.dat,sample_plane_0012300_0.dat,sample_plane_0012350_0.dat,sample_plane_0012400_0.dat,sample_plane_0012450_0.dat,sample_plane_0012500_0.dat,sample_plane_0012550_0.dat,sample_plane_0012600_0.dat,sample_plane_0012650_0.dat,sample_plane_0012700_0.dat,sample_plane_0012750_0.dat,sample_plane_0012800_0.dat,sample_plane_0012850_0.dat,sample_plane_0012900_0.dat,sample_plane_0012950_0.dat,sample_plane_0013000_0.dat]
+    plane_sample_file: [sample_plane_0006000_0.dat,sample_plane_0006050_0.dat,sample_plane_0006100_0.dat,sample_plane_0006150_0.dat,sample_plane_0006200_0.dat,sample_plane_0006250_0.dat,sample_plane_0006300_0.dat,sample_plane_0006350_0.dat,sample_plane_0006400_0.dat,sample_plane_0006450_0.dat,sample_plane_0006500_0.dat,sample_plane_0006550_0.dat,sample_plane_0006600_0.dat,sample_plane_0006650_0.dat,sample_plane_0006700_0.dat]
+    probe_plots: false
+    plane_processing: true
+    opt: [4000,4500,4500, 90.0, 0.3785]
+    plane_template: sample_plane_000{i}_0.dat
+    plane_options: [4100,6800,100]
+  - name: ugf_smag
+    label: UGF Smagorinsky
+    type: ugf
+    format: netcdf
+    path: /tscratch/ndeveld/estuary/ugf_periodic_hill_final2_smag
+    point_sample_file: na
+    #plane_sample_file: [sample_plane_0012000_0.dat,sample_plane_0012050_0.dat,sample_plane_0012100_0.dat,sample_plane_0012150_0.dat,sample_plane_0012200_0.dat,sample_plane_0012250_0.dat,sample_plane_0012300_0.dat,sample_plane_0012350_0.dat,sample_plane_0012400_0.dat,sample_plane_0012450_0.dat,sample_plane_0012500_0.dat,sample_plane_0012550_0.dat,sample_plane_0012600_0.dat,sample_plane_0012650_0.dat,sample_plane_0012700_0.dat,sample_plane_0012750_0.dat,sample_plane_0012800_0.dat,sample_plane_0012850_0.dat,sample_plane_0012900_0.dat,sample_plane_0012950_0.dat,sample_plane_0013000_0.dat]
+    plane_sample_file: [sample_plane_0006000_0.dat,sample_plane_0006050_0.dat,sample_plane_0006100_0.dat,sample_plane_0006150_0.dat,sample_plane_0006200_0.dat,sample_plane_0006250_0.dat,sample_plane_0006300_0.dat,sample_plane_0006350_0.dat,sample_plane_0006400_0.dat,sample_plane_0006450_0.dat,sample_plane_0006500_0.dat,sample_plane_0006550_0.dat,sample_plane_0006600_0.dat,sample_plane_0006650_0.dat,sample_plane_0006700_0.dat]
+    probe_plots: false
+    plane_processing: true
+    opt: [4000,4500,4500, 90.0, 0.3785]
+    plane_template: sample_plane_000{i}_0.dat
+    plane_options: [4100,6800,100]
 
 
 data:

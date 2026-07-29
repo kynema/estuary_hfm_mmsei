@@ -98,10 +98,17 @@ def main():
 
     outdf = pd.DataFrame({
         'x':xnew*hm,
+        'y':xnew*0,
         'z':znew*hm
     })
 
     outdf.to_csv('periodic_hill.csv', index=False)
+
+    # Write to .curve format
+    with open('periodic_hill.curve', 'w') as f:
+        f.write(f"{len(outdf.x)}\n")
+        for x, y, z in zip(outdf.x, outdf.y, outdf.z):
+            f.write(f"{x} {y} {z}\n")
 
     # Output kynema file
     zall = np.array([])

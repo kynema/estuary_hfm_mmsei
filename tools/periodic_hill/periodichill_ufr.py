@@ -14,10 +14,13 @@ def plot_probes(data,name):
     vel_y = data['probe1']['velocityy']
     vel_z = data['probe1']['velocityz']
     nprobes = data['probe1'].dimensions['num_points'].size
+    zcoords = data['probe1'].variables['coordinates']
 
     fig, ax = plt.subplots(3, 1, figsize=(12, 8), sharex="col")
 
     for i in range(nprobes):
+        print("Probe z=",zcoords[i][2],"Mean X Velocity:",np.mean(vel_x[:,i])) 
+
         ax[0].plot(time,vel_x[:,i], label="Point "+str(i))
         ax[0].set_title("Velocity Timeseries")
         ax[0].set_ylabel("X Velocity")
@@ -36,15 +39,31 @@ def plot_probes(data,name):
     plt.tight_layout()
     plt.savefig('probe_sampler_timeseries.png')
 
+def load_ugf_planes(sample_paths):
+    # Load UGF plane data from multiple files and combine into a single dataset
+    combined_data = []
+    for path in sample_paths:
+        data = pd.read_csv(path, sep=r'\s+', skipinitialspace=True,skiprows=1)
+        combined_data.append(data)
+
+    return combined_data
+
 def load_cases(cases):
     planedata = {}
     pointdata = {}
     
-
     for c in cases:
-        postproc_dir = os.path.join(c['path'],'post_processing')
-        planedata[c['name']] = nc.Dataset(os.path.join(postproc_dir, c['plane_sample_file']))
-        pointdata[c['name']] = nc.Dataset(os.path.join(postproc_dir, c['point_sample_file']))
+        if c['type'] == 'sgf':
+            postproc_dir = os.path.join(c['path'],'post_processing')
+            planedata[c['name']] = nc.Dataset(os.path.join(postproc_dir, c['plane_sample_file'][0]))
+            pointdata[c['name']] = nc.Dataset(os.path.join(postproc_dir, c['point_sample_file']))
+        else:
+            postproc_dir = os.path.join(c['path'])
+            popt = c['plane_options']
+            plane_i = range(popt[0],popt[1]+popt[2],popt[2])
+            sample_paths = [os.path.join(postproc_dir, c['plane_template'].replace('{i}',str(f))) for f in plane_i]
+            planedata[c['name']] = load_ugf_planes(sample_paths) # List of flat files for each time output
+            pointdata[c['name']] = []
 
     return planedata,pointdata
 
@@ -65,7 +84,7 @@ def load_exp(exp):
 
     return alldata,profile
 
-def make_means(planedata,expdata,profile,name,opt,label):
+def make_means_sgf(planedata,name,opt,label):
 
     vel_x = planedata['plane1']['velocityx']
     vel_y = planedata['plane1']['velocityy']
@@ -101,6 +120,97 @@ def make_means(planedata,expdata,profile,name,opt,label):
     for step in range(ms,me):
         v = vel_x[step,:].reshape((nwidth,nlength,noffsets),order='F')
         thismean = thismean + v/nmean
+
+    # Calculate spanwise
+    hmean = []
+    for o in range(len(offsets)):
+        hmean.append(thismean[:,:,o].reshape(nwidth,nlength).mean(axis=0))
+
+    centerslice = []
+    for o in range(len(offsets)):
+        centerslice.append(thismean[:,:,o].reshape(nwidth,nlength)[(nwidth // 2),:])
+
+    maxumid = np.max(hmean[5][:])
+
+    return {'t_mean': thismean,
+            'h_mean': hmean,
+            'center_slice':centerslice,
+            'Zmesh': Z,
+            'Ymesh': Y,
+            'zvals': zvals,
+            'ns':nsteps,
+            'nw':nwidth,
+            'nl':nlength,
+            'noffsets':noffsets,
+            'nmean':nmean,
+            'offsets':offsets,
+            'vel_x': vel_x,
+            'vel_y': vel_y,
+            'vel_z': vel_z,
+            'opt':opt,
+            'label': label,
+            'ummid': maxumid
+            }
+
+def zero_under_hill(hilldata,meandata):
+
+    # Zero out the mean data under the hill geometry
+    hill_z = hilldata['z']
+    hill_x = hilldata['x']
+
+    for i in range(len(meandata)):
+        x_val = meandata.iloc[i]['coordinates[0]']
+        z_val = meandata.iloc[i]['coordinates[2]']
+
+        # Find the corresponding hill height at this x position
+        hill_height = np.interp(x_val, hill_x, hill_z)
+
+        if z_val < hill_height:
+            meandata.at[i, 'velocity_probe[0]'] = 0.0
+            meandata.at[i, 'velocity_probe[1]'] = 0.0
+            meandata.at[i, 'velocity_probe[2]'] = 0.0
+
+    return meandata
+
+def make_means_ugf(planedata,name,opt,label):
+
+    time_mean = sum(planedata) / len(planedata)
+
+    hilldata = pd.read_csv('periodic_hill_ufr.csv')
+    time_mean = zero_under_hill(hilldata,time_mean)
+
+    # time_mean indices
+    # noffsets is slowest changing, then Index J, then Index I is fastest changing
+    # j=length, i=width, o=offsets
+
+    nsteps = len(planedata)
+    nwidth = np.unique(planedata[0]['Index_i']).size
+    nlength = np.unique(planedata[0]['Index_j']).size
+    noffsets = np.unique(planedata[0]['#Plane_Number']).size
+    ntp = nwidth*nlength
+    offsets = np.unique(planedata[0]['coordinates[0]'])
+    nmean = len(time_mean)
+
+    vel_x = []
+    vel_y = []
+    vel_z = []
+
+    for data in planedata:
+        vel_x.append(np.array(data['velocity_probe[0]']))
+        vel_y.append(np.array(data['velocity_probe[1]']))
+        vel_z.append(np.array(data['velocity_probe[2]']))
+
+    ms = opt[0]
+    me = opt[1] #nsteps
+
+    yvals = np.unique(planedata[0]['coordinates[1]'])
+    zvals = np.unique(planedata[0]['coordinates[2]'])
+    Z,Y = np.meshgrid(zvals,yvals)
+
+    # Calculate temporal mean
+    thismean = np.array(time_mean['velocity_probe[0]']).reshape(noffsets,nlength,nwidth, order='C').transpose(2,1,0) # Reshape to (noffsets,nwidth,nlength)
+
+    #print(np.array(thismean))
 
     # Calculate spanwise
     hmean = []
@@ -169,11 +279,11 @@ def plot_planes_all(m,expdata,profile):
     cp = [
         "#E69F00",  # Orange
         "#56B4E9",  # Sky Blue
+        "#CC79A7",  # Reddish Purple
         "#009E73",  # Bluish Green
         "#F0E442",  # Yellow
         "#0072B2",  # Blue
         "#D55E00",  # Vermillion
-        "#CC79A7",  # Reddish Purple
         "#999999",  # Gray
         "#E41A1C",  # Red (colorblind safe variant)
         "#377EB8",  # Blue variant
@@ -183,14 +293,15 @@ def plot_planes_all(m,expdata,profile):
     ptype = ['h_mean','center_slice']
     
     for pt in ptype:
-        fig, ax = plt.subplots(1, 1, figsize=(12, 8), sharex="col")
+        fig, ax = plt.subplots(1, 1, figsize=(14, 8), sharex="col")
         scale = 1.0
         
         for l,name in enumerate(m):
-            print('Max U:',m[name]['ummid'])
-            u_b = m[name]['ummid']*0.85
+            print(name,m[name]['ummid'])
+            u_b = m[name]['ummid']/1.0593
+            #u_b = m[name]['opt'][4]
             for o in range(m[name]['noffsets']):
-                ax.plot(m[name]['offsets'][o]/h+m[name][pt][o]/scale/u_b,m[name]['zvals']/h,label=m[name]['label'],linestyle=uls[l+1],color=cp[o])
+                ax.plot(m[name]['offsets'][o]/h+m[name][pt][o]/scale/u_b,m[name]['zvals']/h,label=m[name]['label'],linestyle=uls[l+1],color=cp[l])
 
         # Variables: y/h; u/u_b; v/u_b; u'u'/u_b^2; v'v'/u_b^2; u'v'/u_b^2
         for i,e in enumerate(expdata):
@@ -263,8 +374,17 @@ def main():
         if c['probe_plots']:
             plot_probes(pointdata[c['name']],c['name'])
         if c['plane_processing']:
-            output[c['name']] = make_means(planedata[c['name']],expdata,profile,c['name'],c['opt'],c['label'])
+
+            if c['type'] == 'sgf':
+                output[c['name']] = make_means_sgf(planedata[c['name']],c['name'],c['opt'],c['label'])
+            else:
+                output[c['name']] = make_means_ugf(planedata[c['name']],c['name'],c['opt'],c['label'])
+
             print("Plane output steps:",output[c['name']]['ns'])
+
+            if c['type'] == 'ugf':
+                force_data = pd.read_csv(c['path'] + '/forcing.dat', sep=r'\s+', skipinitialspace=True)
+                print("Mean Forcing:",force_data.iloc[100:]['Fx'].mean()/1000.0)
     
     plot_planes_all(output,expdata,profile)
 
