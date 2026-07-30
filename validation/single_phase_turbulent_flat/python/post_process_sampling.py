@@ -307,7 +307,7 @@ def main():
     
     # Plot mean velocity profile
     print("Plotting mean velocity profile...")
-    plot_file = output_dir / "Uplus_sampling.png"
+    plot_file = output_dir / f"Uplus_sampling_{args.utau_source}.png"
     plot_mean_velocity_profile(
         args.Re,
         yplus_sim=rescaled['y_plus'],
@@ -319,7 +319,8 @@ def main():
     
     # Plot RMS velocity profiles
     print("Plotting RMS velocity profiles...")
-    plot_file = output_dir / "VelRMSplus_sampling.png"
+
+    plot_file = output_dir / f"VelRMSplus_sampling_{args.utau_source}.png"
     plot_rms_velocity_profiles(
         args.Re,
         yplus_sim=rescaled['y_plus'],

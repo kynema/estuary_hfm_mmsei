@@ -393,7 +393,7 @@ def main() -> int:
         yplus_sim=yplus_o,
         Uplus_sim=Uplus_o,
         label_sim="kynema-sgf",
-        outpath=outdir / "Uplus_avg.png"
+        outpath=outdir / f"Uplus_avg_{args.utau_source}.png"
     )
     print(f"  wrote {outdir / 'Uplus_avg.png'}")
 
@@ -405,7 +405,7 @@ def main() -> int:
         vrms_sim=vrms_o,  # V_rms = sqrt(<v'v'>) from velocity_reynolds_stress_averaging3
         wrms_sim=wrms_o,  # W_rms = sqrt(<w'w'>) from velocity_reynolds_stress_averaging5
         label_sim="kynema-sgf",
-        outpath=outdir / "VelRMSplus_avg.png"
+        outpath=outdir / f"VelRMSplus_avg_{args.utau_source}.png"
     )
     print(f"  wrote {outdir / 'VelRMSplus_avg.png'}")
 
