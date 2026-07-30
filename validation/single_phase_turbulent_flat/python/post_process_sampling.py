@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 import argparse
 import sys
+import os
 import subprocess
 from pathlib import Path
 
@@ -25,7 +26,8 @@ from data import build_case_dir_name, get_output_dir
 
 
 def find_particle_stats_file(Re: int, DNS: bool = False, LES: bool = False,
-                             IB: bool = False, drag: str = None) -> Path:
+                             IB: bool = False, drag: str = None,
+                             nprocs: int = 1) -> Path:
     """
     Find the particle_stats.txt file for the given Reynolds number.
     If it doesn't exist, run process_stats.py to generate it.
@@ -42,6 +44,8 @@ def find_particle_stats_file(Re: int, DNS: bool = False, LES: bool = False,
         If True, look for immersed boundary variant
     drag : str
         Drag model: 'og' or 'tf1' (only used with IB)
+    nprocs : int
+        Number of parallel workers passed to process_stats.py
     
     Returns
     -------
@@ -67,6 +71,8 @@ def find_particle_stats_file(Re: int, DNS: bool = False, LES: bool = False,
             cmd.append("--IB")
         if drag:
             cmd.extend(["--drag", drag])
+        if nprocs > 1:
+            cmd.extend(["--nprocs", str(nprocs)])
         
         try:
             result = subprocess.run(cmd, cwd=str(python_dir), 
@@ -225,6 +231,10 @@ def main():
                         help="Use immersed boundary variant")
     parser.add_argument("--drag", type=str, choices=['og', 'tf1'],
                         help="Drag model for IB cases: 'og' or 'tf1'")
+    parser.add_argument("--nprocs", type=int,
+                        default=int(os.environ.get("SLURM_CPUS_PER_TASK", 1)),
+                        help="Number of parallel workers for reading binary data "
+                             "(default: $SLURM_CPUS_PER_TASK or 1)")
     
     args = parser.parse_args()
     
@@ -250,7 +260,8 @@ def main():
     # Find and load particle statistics
     try:
         stats_file = find_particle_stats_file(args.Re, DNS=args.DNS, LES=args.LES, 
-                                             IB=args.IB, drag=args.drag)
+                                             IB=args.IB, drag=args.drag,
+                                             nprocs=args.nprocs)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1

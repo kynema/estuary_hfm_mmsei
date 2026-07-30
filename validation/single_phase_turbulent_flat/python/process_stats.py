@@ -3,12 +3,14 @@ import pandas as pd
 import sys
 import argparse
 import glob
+import os
+import concurrent.futures
 from pathlib import Path
 from data import build_case_dir_name
 
 # Add path to kynema-sgf tools
-kynema_sgf_tools = Path("/Users/dmontgo2/Documents/Kynema/kynema-sgf/tools")
-#kynema_sgf_tools = Path("/scratch/dmontgo2/kynema-manager/environments/env_kynema_sgf/kynema-sgf/tools")
+#kynema_sgf_tools = Path("/Users/dmontgo2/Documents/Kynema/kynema-sgf/tools")
+kynema_sgf_tools = Path("/scratch/dmontgo2/kynema-manager/environments/env_kynema_sgf/kynema-sgf/tools")
 if kynema_sgf_tools.exists():
     sys.path.insert(0, str(kynema_sgf_tools))
 
@@ -69,6 +71,94 @@ def find_sampling_folder(Re: int, DNS: bool = False, LES: bool = False,
     return Path(folders[-1])
 
 
+def _read_binary_file_task(task):
+    """Read all grid chunks from a single AMReX binary data file.
+
+    Each DATA_XXXXX file is independent, so this function is designed to run
+    concurrently with other invocations on different files.
+
+    Parameters
+    ----------
+    task : tuple
+        (fname, chunks, nints_file, nreals, num_ints) where
+        chunks is a list of (npts, offset) per grid chunk in this file.
+
+    Returns
+    -------
+    list of (pidxs, int_block, real_block) — one entry per chunk
+    """
+    fname, chunks, nints_file, nreals, num_ints = task
+    results = []
+    with open(fname, 'rb') as fh:
+        for npts, offset in chunks:
+            fh.seek(offset)
+            ivals = np.fromfile(fh, dtype=np.int32, count=nints_file * npts)
+            rvals = np.fromfile(fh, dtype=float, count=nreals * npts)
+            # Reshape and extract vectorised — avoids Python-level loops
+            ivals_2d = ivals.reshape(npts, nints_file)
+            rvals_2d = rvals.reshape(npts, nreals)
+            pidxs = ivals_2d[:, 2].copy()                   # particle IDs
+            int_block = ivals_2d[:, 2:2 + num_ints].copy()  # [pidx, int_var...]
+            results.append((pidxs, int_block, rvals_2d.copy()))
+    return results
+
+
+def load_particle_data_parallel(pfile, nprocs=1):
+    """Load AMReX particle binary data in parallel across data files.
+
+    Drop-in replacement for AmrexParticleFile.load_binary_data() + pfile().
+    Every DATA_XXXXX binary file is independent, so reads are dispatched to a
+    thread pool (disk I/O releases the GIL, enabling true concurrency).
+
+    Parameters
+    ----------
+    pfile : AmrexParticleFile
+        Particle file object after parse_header() has been called.
+    nprocs : int
+        Number of parallel worker threads.
+
+    Returns
+    -------
+    pd.DataFrame
+        Same format as pfile().
+    """
+    num_ints   = pfile.num_ints
+    nints_file = num_ints + 2          # binary layout: cpu, level, pidx, int_vars...
+    nreals     = pfile.ndim + pfile.num_reals
+
+    # Group grid entries by unique binary file (each (lev, idx) → one file)
+    file_chunks: dict = {}
+    for lev, ginfo in enumerate(pfile.grid_info):
+        for idx, npts, offset in ginfo:
+            if npts < 1:
+                continue
+            fname = str(pfile.bin_file_name(lev, idx))
+            file_chunks.setdefault(fname, []).append((npts, offset))
+
+    tasks = [
+        (fname, chunks, nints_file, nreals, num_ints)
+        for fname, chunks in file_chunks.items()
+    ]
+
+    print(f"  Reading {len(tasks)} binary data file(s) with {nprocs} worker(s)...")
+
+    idata = np.empty((pfile.num_particles, num_ints), dtype=int)
+    rdata = np.empty((pfile.num_particles, nreals),   dtype=float)
+
+    # ThreadPoolExecutor: disk I/O releases the GIL → true parallel reads
+    with concurrent.futures.ThreadPoolExecutor(max_workers=nprocs) as executor:
+        for file_result in executor.map(_read_binary_file_task, tasks):
+            for pidxs, int_block, real_block in file_result:
+                idata[pidxs, :] = int_block
+                rdata[pidxs, :] = real_block
+
+    idict = {key: idata[:, i] for i, key in enumerate(pfile.int_var_names)}
+    rvar_names = ["xco", "yco", "zco"] + pfile.real_var_names
+    rdict = {key: rdata[:, i] for i, key in enumerate(rvar_names)}
+    idict.update(rdict)
+    return pd.DataFrame(idict, index=idata[:, 0])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Process Kynema particle sampling statistics"
@@ -83,6 +173,10 @@ def main() -> int:
                         help="Use immersed boundary variant")
     parser.add_argument("--drag", type=str, choices=['og', 'tf1'],
                         help="Drag model for IB cases: 'og' or 'tf1'")
+    parser.add_argument("--nprocs", type=int,
+                        default=int(os.environ.get("SLURM_CPUS_PER_TASK", 1)),
+                        help="Number of parallel workers for reading binary data "
+                             "(default: $SLURM_CPUS_PER_TASK or 1)")
     args = parser.parse_args()
 
     # Validate options
@@ -120,19 +214,14 @@ def main() -> int:
         return 1
     
     try:
-        # Initialize AmrexParticleFile with the particles directory
         pfile = AmrexParticleFile(str(particles_folder))
-        
-        # Try parsing the Header file directly
         pfile.parse_header()
-        
-        # Look for particle count
         num_particles = pfile.num_particles if hasattr(pfile, 'num_particles') else None
         if num_particles is not None:
             print(f"  Found {num_particles} particles")
-        
-        # Load all binary data
-        pfile.load_binary_data()
+        df = load_particle_data_parallel(pfile, nprocs=args.nprocs)
+        print(f"  Loaded {len(df)} particle records")
+        print(f"  Columns: {df.columns.tolist()}")
     except FileNotFoundError as e:
         print(f"Error: Could not find required files in {particles_folder}", file=sys.stderr)
         print(f"  Details: {e}", file=sys.stderr)
@@ -141,15 +230,6 @@ def main() -> int:
         print(f"Error loading particle file: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
-        return 1
-    
-    # Extract the dataframe
-    try:
-        df = pfile()
-        print(f"  Loaded {len(df)} particle records")
-        print(f"  Columns: {df.columns.tolist()}")
-    except Exception as e:
-        print(f"Error: Could not extract particle data: {e}", file=sys.stderr)
         return 1
     
     # Load sampling metadata to map particles to z-planes
@@ -190,19 +270,25 @@ def main() -> int:
     # Map particles to z-planes based on their z-coordinates
     # The zco column contains the actual z-coordinate in domain coords
     # The offsets from .inp are relative to sampling.origin, so convert to absolute
-    offsets_array = np.array(offsets)
-    absolute_offsets = offsets_array + sampling_origin_z
+    offsets_array = np.array(offsets, dtype=float)
+    absolute_offsets = offsets_array + float(sampling_origin_z)
     
     print(f"  Offsets (relative): {offsets_array.min():.6f} to {offsets_array.max():.6f}")
     print(f"  Offsets (absolute): {absolute_offsets.min():.6f} to {absolute_offsets.max():.6f}")
     print(f"  Particle zco range: {df['zco'].min():.6f} to {df['zco'].max():.6f}")
     
-    # For each particle, find the nearest offset plane (in absolute coordinates)
-    def find_nearest_plane(z_coord):
-        idx = np.argmin(np.abs(absolute_offsets - z_coord))
-        return absolute_offsets[idx]
-    
-    df['z'] = df['zco'].apply(find_nearest_plane)
+    # For each particle, find the nearest offset plane — O(N log P) via searchsorted,
+    # avoids the O(N×P) broadcast that would require ~2 TiB for large datasets.
+    zco_vals = df['zco'].to_numpy()
+    sorted_offsets = np.sort(absolute_offsets)
+    # searchsorted returns insertion index; nearest neighbour is idx-1 or idx
+    ins = np.searchsorted(sorted_offsets, zco_vals)
+    ins = np.clip(ins, 1, len(sorted_offsets) - 1)
+    left  = sorted_offsets[ins - 1]
+    right = sorted_offsets[ins]
+    nearest_idx = np.where(np.abs(zco_vals - left) <= np.abs(zco_vals - right),
+                           ins - 1, ins)
+    df['z'] = sorted_offsets[nearest_idx]
     matched_planes = df['z'].nunique()
     print(f"  Matched to {matched_planes} unique z-planes (expected {len(offsets_array)})")
     
