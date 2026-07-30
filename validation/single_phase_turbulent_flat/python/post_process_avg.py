@@ -149,11 +149,11 @@ def load_pltavg_averaged_velocity(plt_path: Path, delta: float, IB: bool = False
         first_valid_z = valid_z_indices[0]
         last_valid_z = valid_z_indices[-1]
 
-        # 3. Create a dynamic slice for the z-axis (axis 2)
+        # Create a dynamic slice for the z-axis (axis 2)
         # We add +1 to last_valid_z because Python slicing is exclusive at the stop index
         z_slice = slice(first_valid_z, last_valid_z + 1)
 
-        # 4. Slice all of your 3D arrays to get the trimmed shape (192, 96, 70)
+        # Slice all of your 3D arrays to get the trimmed shape
         u        = u[:, :, z_slice]
         v        = v[:, :, z_slice]
         w        = w[:, :, z_slice]
@@ -170,6 +170,18 @@ def load_pltavg_averaged_velocity(plt_path: Path, delta: float, IB: bool = False
         print(f"  Masked {n_masked} solid cells, {n_fluid} fluid cells remain", file=sys.stderr)
 
     print(f"DEBUG: z after masking: shape={z_coords.shape}, z range=[{np.min(z_coords):.6f}, {np.max(z_coords):.6f}]", file=sys.stderr)
+    # Now remove z not in 0 <= z <=  (lower wall to centerline)
+    # z varies only along axis 2, so build a 1D index mask and slice
+    z_1d = z_coords[0, 0, :]
+    z_idx = np.where((z_1d >= -delta) & (z_1d <= 0))[0]
+    z_coords = z_coords[:, :, z_idx]
+    u  = u[:, :, z_idx]
+    v  = v[:, :, z_idx]
+    w  = w[:, :, z_idx]
+    uu = uu[:, :, z_idx]
+    vv = vv[:, :, z_idx]
+    ww = ww[:, :, z_idx]
+    print(f"DEBUG: z after limiting z: shape={z_coords.shape}, z range=[{np.nanmin(z_coords):.6f}, {np.nanmax(z_coords):.6f}]", file=sys.stderr)
 
     # Extract 1D z profile (same for all x,y)
     z_coords_1d = z_coords[0, 0, :]
@@ -210,13 +222,13 @@ def wall_normal_stats(u, v, w, uu, vv, ww, periodic_axes=(0, 1), IB: bool = Fals
     """
     if IB:
         # Use nanmean to skip solid cells
-        U_bar = np.nanmean(u, axis=periodic_axes)
-        V_bar = np.nanmean(v, axis=periodic_axes)
-        W_bar = np.nanmean(w, axis=periodic_axes)
+        U_bar = np.mean(u, axis=periodic_axes)
+        V_bar = np.mean(v, axis=periodic_axes)
+        W_bar = np.mean(w, axis=periodic_axes)
         # RMS = sqrt(<u'u'>)
-        U_rms_prof = np.sqrt(np.nanmean(uu, axis=periodic_axes))
-        V_rms_prof = np.sqrt(np.nanmean(vv, axis=periodic_axes))
-        W_rms_prof = np.sqrt(np.nanmean(ww, axis=periodic_axes))
+        U_rms_prof = np.sqrt(np.mean(uu, axis=periodic_axes))
+        V_rms_prof = np.sqrt(np.mean(vv, axis=periodic_axes))
+        W_rms_prof = np.sqrt(np.mean(ww, axis=periodic_axes))
     else:
         U_bar = u.mean(axis=periodic_axes)
         V_bar = v.mean(axis=periodic_axes)
@@ -306,44 +318,10 @@ def main() -> int:
     print(f"  mu = {mu:.6e} Pa·s")
     print(f"  |dP/dx| = {dpdx_magnitude:.2f} Pa/m\n")
 
-    # Load the pre-averaged velocity file
-    u, v, w, uu, vv, ww, t, zw = load_pltavg_averaged_velocity(pltavg_file, 
-                                                                                delta=delta, 
-                                                                                IB=args.IB)
-
-    print("DEBUG: \nbefore masking zw: {zw}")
-    # Keep only lower wall to centerline (-delta <= zw <= 0)
-    # Also filter out z-slices that are entirely solid (all NaN)
-    mask = (zw >= -delta) & (zw <= 0)
-    zw = zw[mask]
-    u = u[mask]
-    v = v[mask]
-    w = w[mask]
-    uu = uu[mask]
-    vv = vv[mask]
-    ww = ww[mask]
-    U_bar_filt = stats["U_bar"][mask]
-    V_bar_filt = stats["V_bar"][mask]
-    W_bar_filt = stats["W_bar"][mask]
-    U_rms_filt = stats["U_rms"][mask]
-    V_rms_filt = stats["V_rms"][mask]
-    W_rms_filt = stats["W_rms"][mask]
-    
-    # Filter out any remaining NaN values
-    valid_mask = ~np.isnan(U_bar_filt)
-    zw = zw[valid_mask]
-    U_bar_filt = U_bar_filt[valid_mask]
-    V_bar_filt = V_bar_filt[valid_mask]
-    W_bar_filt = W_bar_filt[valid_mask]
-    U_rms_filt = U_rms_filt[valid_mask]
-    V_rms_filt = V_rms_filt[valid_mask]
-    W_rms_filt = W_rms_filt[valid_mask]
-
-    print("DEBUG: \nbefore masking zw: {zw}")
+    # Load the pre-averaged simulation data
+    u, v, w, uu, vv, ww, t, zw = load_pltavg_averaged_velocity(pltavg_file, delta=delta, IB=args.IB)
     
     print(f"  loaded {pltavg_file.parent.name}  t={t:.4e}  shape={u.shape}")
-    print(f"  u: {np.sum(~np.isnan(u))} valid cells (out of {u.size})", file=sys.stderr)
-    print(f"  uu: {np.sum(~np.isnan(uu))} valid cells (out of {uu.size})", file=sys.stderr)
 
     
     stats = wall_normal_stats(u, v, w, uu, vv, ww, periodic_axes=(0, 1), IB=args.IB)
@@ -363,11 +341,12 @@ def main() -> int:
 
     # Wall-units rescale
     # RMS is computed from time-averaged Reynolds stress: RMS = sqrt(<u'u'>)
-    yplus = zw * u_tau / nu  # y+ in data coordinate frame
-    Uplus = U_bar_filt / u_tau
-    urms_p = U_rms_filt / u_tau  # sqrt(<u'u'>) / u_tau
-    vrms_p = V_rms_filt / u_tau
-    wrms_p = W_rms_filt / u_tau
+    # Wall distance from lower wall: y_phys = z + delta (z runs from -delta to 0)
+    yplus = (zw + delta) * u_tau / nu
+    Uplus = stats["U_bar"] / u_tau
+    urms_p = stats["U_rms"] / u_tau  # sqrt(<u'u'>) / u_tau
+    vrms_p = stats["V_rms"] / u_tau
+    wrms_p = stats["W_rms"] / u_tau
 
     # Sort by y+ for clean plotting
     order = np.argsort(yplus)
