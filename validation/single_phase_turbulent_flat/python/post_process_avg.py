@@ -264,6 +264,9 @@ def main() -> int:
                     help="Use immersed boundary variant")
     ap.add_argument("--drag", type=str, choices=['og', 'tf1'],
                     help="Drag model for IB cases: 'og' or 'tf1'")
+    ap.add_argument("--utau-source", choices=['gradP', 'gradU'], default='gradP',
+                    help="Source for friction velocity: 'gradP' (pressure gradient, default) "
+                         "or 'gradU' (velocity gradient at wall)")
     args = ap.parse_args()
 
     # Validate options
@@ -329,10 +332,23 @@ def main() -> int:
     print(f"  U_bar has {np.sum(~np.isnan(stats['U_bar']))} valid values out of {stats['U_bar'].size}", file=sys.stderr)
     
 
-    # Friction velocity (from pressure gradient)
-    u_tau = math.sqrt(dpdx_magnitude * delta / density)
-    
     nu = mu / density
+
+    # Friction velocity
+    if args.utau_source == 'gradP':
+        u_tau = math.sqrt(dpdx_magnitude * delta / density)
+    else:
+        # Velocity gradient at wall: tau_w = mu * dU/dy, no-slip => U(0) = 0
+        yw = zw + delta
+        order = np.argsort(yw)
+        j0, j1 = order[0], order[1]
+        y0, y1 = yw[j0], yw[j1]
+        U0, U1 = stats["U_bar"][j0], stats["U_bar"][j1]
+        # Quadratic fit U(y) = a*y + b*y^2 through (0,0), (y0,U0), (y1,U1)
+        # dU/dy|_wall = a = (U0*y1^2 - U1*y0^2) / (y0*y1*(y1 - y0))
+        dU_dy_wall = (U0 * y1**2 - U1 * y0**2) / (y0 * y1 * (y1 - y0))
+        tau_w = mu * abs(dU_dy_wall)
+        u_tau = math.sqrt(tau_w / density)
     print(f"Results:")
     print(f"  u_tau = {u_tau:.5g}")
     print(f"  nu    = {nu:.5g}")

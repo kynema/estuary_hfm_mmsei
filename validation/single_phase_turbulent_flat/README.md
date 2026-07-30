@@ -23,19 +23,26 @@ The mean velocity ($\overline{u}$) and RMS velocity profiles ($u'_\text{rms}$, $
 Regardless of the method used, the velocity profiles are computed as follows:
 
 **Mean velocity (wall-normal profile):**
+
 $$\overline{u}(z) = \langle u \rangle_{x,y}$$
+
 where $\langle \cdot \rangle_{x,y}$ denotes spatial averaging over the periodic directions.
 
 **RMS velocity (wall-normal profile):**
 The RMS of velocity fluctuations $u' = u - \overline{u}$ is computed differently depending on the data source:
 
 For `post_process_avg.py` (using pre-computed Reynolds stress from kynema-sgf):
+
 $$u'_\text{rms}(z) = \sqrt{\langle u'u' \rangle_{x,y}}$$
+
 where the normal stress component $\langle u'u' \rangle$ is provided directly from `velocity_reynolds_stress_averaging0` (and similarly `velocity_reynolds_stress_averaging3` and `velocity_reynolds_stress_averaging5` for $v$ and $w$ components).
 
 For `post_process_yt.py` and `post_process_sampling.py` (computing RMS from velocities):
+
 $$\overline{u}(z) = \langle u \rangle_{x,y,t}$$
+
 $$u'_\text{rms}(z) = \sqrt{\langle (u - \overline{u})^2 \rangle_{x,y,t}}$$
+
 where time-averaging is included in the spatial averaging operation.
 
 **Wall-units scaling:**
@@ -45,8 +52,11 @@ $$u_\tau = \sqrt{\frac{|\partial p / \partial x| \cdot \delta}{\rho}}$$
 where $\delta$ is the channel half-width, $\rho$ is the density, and $|\partial p / \partial x|$ is the magnitude of the imposed pressure gradient.
 
 Normalized quantities in wall units are:
+
 $$y^+ = \frac{y \cdot u_\tau}{\nu}$$
+
 $$U^+ = \frac{\overline{u}}{u_\tau}$$
+
 $$u'^+ = \frac{u'_\text{rms}}{u_\tau}$$
 
 where $\nu = \mu / \rho$ is the kinematic viscosity.

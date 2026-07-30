@@ -235,6 +235,9 @@ def main():
                         default=int(os.environ.get("SLURM_CPUS_PER_TASK", 1)),
                         help="Number of parallel workers for reading binary data "
                              "(default: $SLURM_CPUS_PER_TASK or 1)")
+    parser.add_argument("--utau-source", choices=['gradP', 'gradU'], default='gradP',
+                        help="Source for friction velocity: 'gradP' (pressure gradient, default) "
+                             "or 'gradU' (velocity gradient at wall)")
     
     args = parser.parse_args()
     
@@ -274,6 +277,21 @@ def main():
         print(f"Error loading particle statistics: {e}", file=sys.stderr)
         return 1
     
+    # Calculate u_tau from velocity gradient at wall
+    if args.utau_source == 'gradU':
+        mu = config['mu']
+        density = config['density']
+        yw = z_coord + config['delta']
+        order = np.argsort(yw)
+        j0, j1 = order[0], order[1]
+        y0, y1 = yw[j0], yw[j1]
+        U0, U1 = u_mean[j0], u_mean[j1]
+        # Quadratic fit U(y) = a*y + b*y^2 through (0,0), (y0,U0), (y1,U1)
+        # dU/dy|_wall = a = (U0*y1^2 - U1*y0^2) / (y0*y1*(y1 - y0))
+        dU_dy_wall = (U0 * y1**2 - U1 * y0**2) / (y0 * y1 * (y1 - y0))
+        tau_w = mu * abs(dU_dy_wall)
+        config['u_tau'] = np.sqrt(tau_w / density)
+
     # Rescale to wall units
     rescaled = rescale_to_wall_units(
         z_coord, u_mean, u_rms, v_sgf_rms, w_sgf_rms,
