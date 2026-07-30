@@ -235,9 +235,10 @@ def main():
                         default=int(os.environ.get("SLURM_CPUS_PER_TASK", 1)),
                         help="Number of parallel workers for reading binary data "
                              "(default: $SLURM_CPUS_PER_TASK or 1)")
-    parser.add_argument("--utau-source", choices=['gradP', 'gradU'], default='gradP',
-                        help="Source for friction velocity: 'gradP' (pressure gradient, default) "
-                             "or 'gradU' (velocity gradient at wall)")
+    parser.add_argument("--utau-source", choices=['gradP', 'gradU', 'loglaw'], default=None,
+                        help="Source for friction velocity: 'gradU' (quadratic wall gradient, default for non-IB), "
+                             "'loglaw' (log-law from wall model using cell k+1, default for IB), "
+                             "or 'gradP' (pressure gradient)")
     
     args = parser.parse_args()
     
@@ -277,20 +278,41 @@ def main():
         print(f"Error loading particle statistics: {e}", file=sys.stderr)
         return 1
     
-    # Calculate u_tau from velocity gradient at wall
-    if args.utau_source == 'gradU':
+    # Default utau_source based on case type:
+    #   DNS:  gradU (quadratic fit, valid for resolved no-slip wall)
+    #   LES:  loglaw (Monin-Obukhov log-law, consistent with wall model)
+    if args.utau_source is not None:
+        utau_source = args.utau_source
+    elif args.DNS:
+        utau_source = 'gradU'
+    else:  # LES (with or without IB)
+        utau_source = 'loglaw'
+
+    # Calculate u_tau
+    if utau_source == 'gradP':
+        pass  # config['u_tau'] already set from pressure gradient
+    else:
         mu = config['mu']
         density = config['density']
         yw = z_coord + config['delta']
         order = np.argsort(yw)
-        j0, j1 = order[0], order[1]
-        y0, y1 = yw[j0], yw[j1]
-        U0, U1 = u_mean[j0], u_mean[j1]
-        # Quadratic fit U(y) = a*y + b*y^2 through (0,0), (y0,U0), (y1,U1)
-        # dU/dy|_wall = a = (U0*y1^2 - U1*y0^2) / (y0*y1*(y1 - y0))
-        dU_dy_wall = (U0 * y1**2 - U1 * y0**2) / (y0 * y1 * (y1 - y0))
-        tau_w = mu * abs(dU_dy_wall)
-        config['u_tau'] = np.sqrt(tau_w / density)
+        j0, j1, j2 = order[0], order[1], order[2]
+        if utau_source == 'loglaw':
+            # Log-law consistent with IB og wall model (PDF section 3, eq. 22):
+            # u* = M_{k+1} * kappa / ln(y_{k+1}/z0)
+            # j0,j1 are the two fine-grid sub-cells of the base-mesh drag cell;
+            # j2 is the first fine-grid cell of k+1 (first cell above drag cell).
+            kappa = 0.41
+            z0 = 1e-5  # ABL.surface_roughness_z0
+            config['u_tau'] = abs(u_mean[j2]) * kappa / np.log(yw[j2] / z0)
+        else:  # gradU
+            y0, y1 = yw[j0], yw[j1]
+            U0, U1 = u_mean[j0], u_mean[j1]
+            # Quadratic fit U(y) = a*y + b*y^2 through (0,0), (y0,U0), (y1,U1)
+            # dU/dy|_wall = a = (U0*y1^2 - U1*y0^2) / (y0*y1*(y1 - y0))
+            dU_dy_wall = (U0 * y1**2 - U1 * y0**2) / (y0 * y1 * (y1 - y0))
+            tau_w = mu * abs(dU_dy_wall)
+            config['u_tau'] = np.sqrt(tau_w / density)
 
     # Rescale to wall units
     rescaled = rescale_to_wall_units(
