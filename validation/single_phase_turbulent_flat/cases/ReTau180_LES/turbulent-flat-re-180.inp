@@ -9,9 +9,9 @@ geometry.prob_hi = 0.031200 0.015600 0.005000
 geometry.is_periodic = 1 1 0 
 
 # Boundary conditions
-zlo.type =   "wall_model"
+zlo.type =   "no_slip_wall"
 zlo.density = 0.468793
-zhi.type =   "wall_model"
+zhi.type =   "no_slip_wall"
 zhi.density = 0.468793
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
@@ -20,10 +20,6 @@ zhi.density = 0.468793
 incflo.physics = ChannelFlow
 ICNS.source_terms = BodyForce
 BodyForce.magnitude = 1514.0797750819656358 0.0 0.0
-# Non-ABL smooth-wall log law (u+ = (1/kappa)*ln(z+) + B, viscous scaling)
-# ABL.surface_roughness_z0 is not applicable here; smoothness is set by transport.viscosity
-WallFunction.wall_shear_stress_type = log_law
-WallFunction.log_law_ref_index = 0  # cell index used as matching height for log law
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #       CHANNEL FLOW PARAMETERS         #
