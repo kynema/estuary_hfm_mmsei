@@ -24,7 +24,7 @@ $$
 U_{max} = 1.0593 U_{bulk} = 0.4008 m/s
 $$
 
-In Kynema-UGF, a dynamic pressure gradient was employed to reach the target max velocity at the inlet. Though not exact, in Kynema-SGF, $dp/\rho dx$ was modified until an approximate $U_{bulk}$ and therefore $Re_h$ was achieved. The mean approximate $dp/\rho dx$ from the UGF case was then applied back to the SGF case for parity. The final values for this are shown in the table below.
+In Kynema-UGF, a dynamic pressure gradient was employed to reach the target max velocity at the inlet plane. The mean approximate $dp/\rho dx$ from the UGF case was then applied back to the SGF case for parity. The final values for this are shown in the table below, but those for SGF could be tuned further.
 
 | Case | $dp/\rho dx$ |
 | --- | --- |
