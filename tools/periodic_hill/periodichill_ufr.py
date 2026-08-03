@@ -332,7 +332,7 @@ def plot_planes_all(m,expdata,profile):
         if pt == "center_slice":
             plt.title("Scaled Time-Averaged Velocity")
 
-        plt.xlabel("x/h with Mean Velocity (U/U_b)/100")
+        plt.xlabel("x/h with Mean Velocity (U/U_b)")
         plt.ylabel("z/h")
         plt.savefig('ufr_' + pt + '_flow.png')
 
