@@ -35,7 +35,7 @@ In Kynema-UGF, a dynamic pressure gradient was employed to reach the target max 
 
 <br />
 
-One flow-through time is approximately 0.6658 seconds. Results in the output file labeled with "h_mean" are averaged both on flow-through time and the channel span direction. Results in the output file labeled with "center_slice" are only averaged on flow-through time.
+One flow-through time is approximately 0.6658 seconds. Results in the output file labeled with "h_mean" are averaged both on flow-through time and the channel span direction. Results in the output file labeled with "center_slice" are only averaged on flow-through time. For each case, 80 flow-through times are averaged, with the SGF averaging period starting at approximately 90s simulation time, and the UGF averaging period starting at 20s simulation time. 
 
 <br />
 
