@@ -30,8 +30,21 @@ In Kynema-UGF, a dynamic pressure gradient was employed to reach the target max 
 | --- | --- |
 | 2d_periodichill_ufr2_smag_last_islam0 | 0.059 |
 | 2d_periodichill_ufr2_smag_last_islam1 | 0.059 |
+| 2d_periodichill_ufr2_smag_last_orig | 0.059 |
 | ugf_periodic_hill_final_cub1 | 0.0577 |
 | ugf_periodic_hill_final_smag_cub1 | 0.0596 |
+
+<br />
+
+The difference in DragForcing input flags between the SGF cases is documented in the following table:
+
+<br />
+
+| Case | DragForcing.use_original_drag_limiter | DragForcing.use_temporal_drag_limiter | DragForcing.is_laminar |
+| --- | --- | --- | --- |
+| 2d_periodichill_ufr2_smag_last_islam0 | False| True | False |
+| 2d_periodichill_ufr2_smag_last_islam1 | False | True | True |
+| 2d_periodichill_ufr2_smag_last_orig | True | False| False |
 
 <br />
 
@@ -59,7 +72,7 @@ The plots above show inaccuracy in the vicinity of the leeward (left side of plo
 
 <br />
 
-Both the profiles and error plots show that the SGF Case with IB wall handling (Lam=False) has lower error than the Lam=True case, with the the MAE being approximately equal between UGF and SGF, and a max absolute error worse in the SGF case.
+Both the profiles and error plots show that the SGF Case with IB wall handling (Lam=False) has lower error than the Lam=True case. MAE using Smagorinsky is approximately equal between UGF and SGF. Maximum absolute error in all cases is worse in the SGF case.
 
 ### Post-processing
 

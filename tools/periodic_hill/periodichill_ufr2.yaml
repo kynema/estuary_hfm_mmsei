@@ -8,7 +8,7 @@ cases:
     plane_sample_file: [sampling00000.nc]
     probe_plots: true
     plane_processing: true
-    opt: [135,215,215, 100.0, 0.3785]
+    opt: [215,295,295, 100.0, 0.3785]
   - name: 2d_bump_ufr_smag_final_islam0
     label: SGF IB Smagorinsky Lam False
     type: sgf
@@ -18,7 +18,17 @@ cases:
     plane_sample_file: [sampling00000.nc]
     probe_plots: false
     plane_processing: true
-    opt: [135,215,215, 100.0, 0.3785]
+    opt: [215,295,295, 100.0, 0.3785]
+  - name: 2d_bump_ufr_smag_final_islam0_orig
+    label: SGF IB Smagorinsky Lam False Orig
+    type: sgf
+    format: netcdf
+    path: /tscratch/ndeveld/estuary/2d_periodichill_ufr2_smag_last_orig
+    point_sample_file: psampling00000.nc
+    plane_sample_file: [sampling00000.nc]
+    probe_plots: false
+    plane_processing: true
+    opt: [215,295,295, 100.0, 0.3785]
   - name: ugf_iddes
     label: UGF IDDES
     type: ugf
@@ -28,7 +38,7 @@ cases:
     plane_processing: true
     opt: [4000,4500,4500, 100.0, 0.3785]
     plane_template: sample_plane_{i}_0.dat
-    plane_options: [4100,12000,100]
+    plane_options: [4300,12200,100]
   - name: ugf_smag
     label: UGF Smagorinsky
     type: ugf
@@ -38,7 +48,7 @@ cases:
     plane_processing: true
     opt: [4000,4500,4500, 100.0, 0.3785]
     plane_template: sample_plane_{i}_0.dat
-    plane_options: [4100,12000,100]
+    plane_options: [4300,12200,100]
 
     # UGF: Need 12000 steps for approx 100 flow-throughs
     # SGF: Need 100 plane output steps for 100 flow-throughs

@@ -274,16 +274,16 @@ def plot_planes_all(m,expdata,profile):
 
     h = 0.028
 
-    uls = ['-',':','--','-.',(0, (5, 5))]
+    uls = ['--','-.',':','-','-']
 
     cp = [
         "#D55E00",  # Vermillion
-        "#56B4E9",  # Sky Blue
+        "#E69F00",  # Orange
         "#CC79A7",  # Reddish Purple
         "#009E73",  # Bluish Green
+        "#56B4E9",  # Sky Blue
         "#F0E442",  # Yellow
         "#0072B2",  # Blue
-        "#E69F00",  # Orange
         "#999999",  # Gray
         "#E41A1C",  # Red (colorblind safe variant)
         "#377EB8",  # Blue variant
@@ -309,21 +309,17 @@ def plot_planes_all(m,expdata,profile):
             U_m = expdata[e][1]/scale
             ax.plot(U_m+float(e)/h,z_h,label="Exp",color="black",linestyle='', linewidth=0, marker='o', fillstyle='none', mew=0.5)
 
-        ax.plot(profile['x']/h,profile['z']/h,label="Hill Geometry",color="#222222")
+        ax.plot(profile['x']/h,profile['z']/h,color="#222222")
         ax.fill_between(profile['x']/h,profile['z']/h, color="#222222", alpha=0.8)
         
+        # 1. Extract all handles and labels from the current axis
         handles, labels = ax.get_legend_handles_labels()
 
-        grouped_handles = {}
-        grouped_labels = {}
+        # 2. Use a dict comprehension to retain only unique labels
+        unique_legend = dict(zip(labels, handles))
 
-        for handle, label in zip(handles, labels):
-            ls = handle.get_linestyle()
-            if (ls not in grouped_handles):
-                grouped_handles[ls] = handle
-                grouped_labels[ls] = label # Keeps the first label encountered for this style
-
-        ax.legend(handles=grouped_handles.values(), labels=grouped_labels.values())
+        # 3. Pass unique elements back into the legend
+        ax.legend(unique_legend.values(), unique_legend.keys())
 
         plt.axis('equal')
         
