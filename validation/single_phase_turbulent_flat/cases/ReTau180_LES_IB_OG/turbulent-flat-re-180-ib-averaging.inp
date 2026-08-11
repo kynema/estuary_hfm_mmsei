@@ -8,7 +8,7 @@ time.stop_time = 0.054590 # ~30 flow-through times for statistics
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #             Statistics                #
 #.......................................#
-incflo.post_processing = averaging sampling 
+incflo.post_processing = sampling #averaging 
 
 averaging.type = TimeAveraging
 averaging.averaging_start_time = 0.036394 # Start after ~20 flow-through time
