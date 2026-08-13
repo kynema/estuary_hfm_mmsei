@@ -35,7 +35,7 @@ ChannelFlow.re_tau = 180.0
 # Immersed Boundary Channel Parameters
 ChannelBuilder.initialize_velocity = false
 ChannelBuilder.zero_velocity_where_blanked = true
-ChannelBuilder.initialize_drag_cells = true
+ChannelBuilder.initialize_drag_cells = false
 ChannelBuilder.segment_labels = s1
 ChannelBuilder.s1.type = Trapezoid
 ChannelBuilder.s1.segment_start_point = 0.0000 0.007800 0.000000
