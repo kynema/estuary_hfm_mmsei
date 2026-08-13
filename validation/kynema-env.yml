@@ -210,4 +210,3 @@ dependencies:
       - urllib3==2.6.3
       - webencodings==0.5.1
       - yt==4.4.2
-prefix: /Users/dmontgo2/anaconda3/envs/kynema-env
