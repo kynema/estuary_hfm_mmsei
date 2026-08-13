@@ -54,11 +54,11 @@ One flow-through time is approximately 0.6658 seconds. Results in the output fil
 
 ### Results
 
-![Mean Profiles with Horizontal Averaging](../../tools/periodic_hill/ufr_h_mean_flow.png)
+![Mean Profiles with Horizontal Averaging](../../../tools/periodic_hill/ufr_h_mean_flow.png)
 
 <br />
 
-![Mean Profiles with Horizontal Averaging](../../tools/periodic_hill/ufr_center_slice_flow.png)
+![Mean Profiles with Horizontal Averaging](../../../tools/periodic_hill/ufr_center_slice_flow.png)
 
 <br />
 
@@ -66,9 +66,9 @@ The plots above show inaccuracy in the vicinity of the leeward (left side of plo
 
 <br />
 
-![Mean MAE Error](../../tools/periodic_hill/error_bar_plot_mae.png)
+![Mean MAE Error](../../../tools/periodic_hill/error_bar_plot_mae.png)
 
-![Max Absolute Error](../../tools/periodic_hill/error_bar_plot_max_abs.png)
+![Max Absolute Error](../../../tools/periodic_hill/error_bar_plot_max_abs.png)
 
 <br />
 
