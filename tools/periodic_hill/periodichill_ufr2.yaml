@@ -6,7 +6,7 @@ cases:
     path: ../../../2d_periodichill_ufr2_smag_last_islam1
     point_sample_file: psampling00000.nc
     plane_sample_file: [sampling00000.nc]
-    probe_plots: true
+    probe_plots: false
     plane_processing: true
     opt: [215,295,295, 100.0, 0.3785]
   - name: 2d_bump_ufr_smag_final_islam0
