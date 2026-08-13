@@ -19,7 +19,7 @@ def plot_probes(data,name):
     fig, ax = plt.subplots(3, 1, figsize=(12, 8), sharex="col")
 
     for i in range(nprobes):
-        print("Probe z=",zcoords[i][2],"Mean X Velocity:",np.mean(vel_x[:,i])) 
+        #print("Probe z=",zcoords[i][2],"Mean X Velocity:",np.mean(vel_x[:,i])) 
 
         ax[0].plot(time,vel_x[:,i], label="Point "+str(i))
         ax[0].set_title("Velocity Timeseries")
@@ -91,7 +91,7 @@ def make_means_sgf(planedata,name,opt,label):
     vel_z = planedata['plane1']['velocityz']
 
     #print(planedata['plane1'])
-    print("Len of vel_x:",len(vel_x))
+    print("Total flowthroughs in vel_x:",len(vel_x))
 
     nsteps = planedata['time'].shape[0]
     nwidth = planedata['plane1'].ijk_dims[0]
@@ -100,14 +100,8 @@ def make_means_sgf(planedata,name,opt,label):
     ntp = nwidth*nlength
     offsets = planedata['plane1'].offsets
 
-    #print(name,"nsteps",nsteps)
-
     ms = opt[0]
     me = opt[1] #nsteps
-
-    #print(planedata['plane1'].axis1[1])
-    #print(planedata['plane1'].axis2[2])
-
 
     yvals = np.linspace(0,planedata['plane1'].axis1[1], num=nwidth, endpoint=True)
     zvals = np.linspace(0,planedata['plane1'].axis2[2], num=nlength, endpoint=True)
@@ -297,9 +291,8 @@ def plot_planes_all(m,expdata,profile):
         scale = 1.0
         
         for l,name in enumerate(m):
-            print(name,m[name]['ummid'])
             u_b = m[name]['ummid']/1.0593
-            #u_b = m[name]['opt'][4]
+            print("U_bulk for",name,"=",u_b)
             for o in range(m[name]['noffsets']):
                 ax.plot(m[name]['offsets'][o]/h+m[name][pt][o]/scale/u_b,m[name]['zvals']/h,label=m[name]['label'],linestyle=uls[l],color=cp[l],lw=1.5)
 
@@ -338,11 +331,6 @@ def calc_error(output, expdata):
     Compare the model spanwise-mean velocity profiles in ``output[name]['h_mean']``
     to the experimental profiles in ``expdata``.
 
-    The model result is scaled the same way as in ``plot_planes_all``:
-        u_model = h_mean / (u_b * scale)
-    while the experimental data are read as:
-        u_exp = U / scale
-
     A nearest-offset match is used to pair each experimental x/h station with the
     closest model offset in physical space.
     """
@@ -351,8 +339,6 @@ def calc_error(output, expdata):
 
     for name, m in output.items():
         case_errors = []
-        scale = m['opt'][3]
-        #u_b = m['opt'][4]
         u_b = m['ummid']/1.0593
 
         for o in range(m['noffsets']):

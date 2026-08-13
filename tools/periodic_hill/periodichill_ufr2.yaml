@@ -3,7 +3,7 @@ cases:
     label: SGF IB Smagorinsky Lam True
     type: sgf
     format: netcdf
-    path: /tscratch/ndeveld/estuary/2d_periodichill_ufr2_smag_last_islam1
+    path: ../../../2d_periodichill_ufr2_smag_last_islam1
     point_sample_file: psampling00000.nc
     plane_sample_file: [sampling00000.nc]
     probe_plots: true
@@ -13,7 +13,7 @@ cases:
     label: SGF IB Smagorinsky Lam False
     type: sgf
     format: netcdf
-    path: /tscratch/ndeveld/estuary/2d_periodichill_ufr2_smag_last_islam0
+    path: ../../../2d_periodichill_ufr2_smag_last_islam0
     point_sample_file: psampling00000.nc
     plane_sample_file: [sampling00000.nc]
     probe_plots: false
@@ -23,7 +23,7 @@ cases:
     label: SGF IB Smagorinsky Lam False Orig
     type: sgf
     format: netcdf
-    path: /tscratch/ndeveld/estuary/2d_periodichill_ufr2_smag_last_orig
+    path: ../../../2d_periodichill_ufr2_smag_last_orig
     point_sample_file: psampling00000.nc
     plane_sample_file: [sampling00000.nc]
     probe_plots: false
@@ -33,7 +33,7 @@ cases:
     label: UGF IDDES
     type: ugf
     format: netcdf
-    path: /tscratch/ndeveld/estuary/ugf_periodic_hill_final_cub1
+    path: ../../../ugf_periodic_hill_final_cub1
     probe_plots: false
     plane_processing: true
     opt: [4000,4500,4500, 100.0, 0.3785]
@@ -43,7 +43,7 @@ cases:
     label: UGF Smagorinsky
     type: ugf
     format: netcdf
-    path: /tscratch/ndeveld/estuary/ugf_periodic_hill_final_smag_cub1
+    path: ../../../ugf_periodic_hill_final_smag_cub1
     probe_plots: false
     plane_processing: true
     opt: [4000,4500,4500, 100.0, 0.3785]
