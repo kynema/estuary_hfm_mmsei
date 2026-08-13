@@ -166,6 +166,7 @@ def rescale_to_wall_units(z_coord, u_mean, u_rms, v_sgf_rms, w_sgf_rms,
     # z_coord is in domain coordinates [-delta, +delta]
     # Convert to wall-normal distance from bottom wall: y = z + delta
     y_phys = z_coord + delta
+    print(f"y_phys (wall-normal distance from bottom wall): {y_phys}")
     
     # Convert to wall units: y+ = y / l_nu
     y_plus = y_phys / l_nu
@@ -285,8 +286,13 @@ def main():
         utau_source = args.utau_source
     elif args.DNS:
         utau_source = 'gradU'
-    else:  # LES (with or without IB)
+        args.utau_source = utau_source
+    elif args.Re < 190.0:  # LES (with or without IB)
+        utau_source = 'gradU'
+        args.utau_source = utau_source
+    else:
         utau_source = 'loglaw'
+        args.utau_source = utau_source
 
     # Calculate u_tau
     if utau_source == 'gradP':
@@ -306,13 +312,17 @@ def main():
             z0 = 1e-5  # ABL.surface_roughness_z0
             config['u_tau'] = abs(u_mean[j2]) * kappa / np.log(yw[j2] / z0)
         else:  # gradU
+            print("\nCalculating u_tau from quadratic fit to wall gradient...")
             y0, y1 = yw[j0], yw[j1]
             U0, U1 = u_mean[j0], u_mean[j1]
+            print(f"   u_tau from gradP: {config['u_tau']:.6e}")
+            print(f"   Using points: (y0={y0:.6e}, U0={U0:.6e}), (y1={y1:.6e}, U1={U1:.6e})")
             # Quadratic fit U(y) = a*y + b*y^2 through (0,0), (y0,U0), (y1,U1)
             # dU/dy|_wall = a = (U0*y1^2 - U1*y0^2) / (y0*y1*(y1 - y0))
             dU_dy_wall = (U0 * y1**2 - U1 * y0**2) / (y0 * y1 * (y1 - y0))
             tau_w = mu * abs(dU_dy_wall)
             config['u_tau'] = np.sqrt(tau_w / density)
+            print(f"   u_tau from gradU: {config['u_tau']:.6e}")
 
     # Rescale to wall units
     rescaled = rescale_to_wall_units(
