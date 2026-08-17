@@ -320,24 +320,74 @@ def print_averaging_config(config, dns=False):
     Ly = config['Ly']
     t_star = config['t_star']
     
-    # Determine max refinement level and finest grid resolution
+    # Determine max refinement level
     max_level = 2 if dns else 1
+    
+    # Extract mesh parameters and extents from refinement boxes
+    boxes = config['refinement_boxes']
+    dz_base = boxes['dz_base']
+    dz_l1 = boxes['dz_l1']
+    l_nu = boxes['viscous_length_scale']
+    l1_box_extent_plus = boxes['l1_box_extent_plus']
+    z_extent_l1 = l1_box_extent_plus * l_nu
+    
+    # Generate z-offsets aligned with actual mesh refinement levels
+    z_centers = []
+    
+    # L2 bottom (finest mesh, if dns)
+    if dns and 'l2_box_extent_plus' in boxes:
+        dz_l2 = boxes['dz_l2']
+        l2_box_extent_plus = boxes['l2_box_extent_plus']
+        z_extent_l2 = l2_box_extent_plus * l_nu
+        
+        nz_l2_bottom = int(np.ceil(z_extent_l2 / dz_l2))
+        for i in range(nz_l2_bottom):
+            z = -delta + (i + 0.5) * dz_l2
+            if z < -delta + z_extent_l2 + 1e-10:
+                z_centers.append(z)
+    else:
+        z_extent_l2 = 0.0
+    
+    # L1 bottom (second-finest mesh, above L2)
+    nz_l1_bottom = int(np.ceil((z_extent_l1 - z_extent_l2) / dz_l1))
+    for i in range(nz_l1_bottom):
+        z = -delta + z_extent_l2 + (i + 0.5) * dz_l1
+        if z < -delta + z_extent_l1 + 1e-10:
+            z_centers.append(z)
+    
+    # L0 middle (coarsest mesh)
+    nz_l0_middle = int(np.ceil((2*delta - 2*z_extent_l1) / dz_base))
+    for i in range(nz_l0_middle):
+        z = -delta + z_extent_l1 + (i + 0.5) * dz_base
+        if z < delta - z_extent_l1 + 1e-10:
+            z_centers.append(z)
+    
+    # L1 top (second-finest mesh, below top L2)
+    nz_l1_top = int(np.ceil((z_extent_l1 - z_extent_l2) / dz_l1))
+    for i in range(nz_l1_top):
+        z = delta - z_extent_l1 + (i + 0.5) * dz_l1
+        if z < delta - z_extent_l2 + 1e-10:
+            z_centers.append(z)
+    
+    # L2 top (finest mesh, if dns)
+    if dns and 'l2_box_extent_plus' in boxes:
+        dz_l2 = boxes['dz_l2']
+        nz_l2_top = int(np.ceil(z_extent_l2 / dz_l2))
+        for i in range(nz_l2_top):
+            z = delta - z_extent_l2 + (i + 0.5) * dz_l2
+            if z < delta + 1e-10:
+                z_centers.append(z)
+    
+    # Convert absolute z-coordinates to offsets relative to sampling.origin (z=-delta)
+    offsets = np.array(z_centers) + delta
+    num_planes = len(offsets)
+    
+    # Compute finest grid resolution for x,y sampling (independent of z-refinement)
     refinement_factor = 2 ** max_level
-    
-    # Calculate sampling planes based on finest grid level
-    Nz_finest = config['Nz'] * refinement_factor
-    num_planes = Nz_finest
-    
-    # Generate z-offsets spanning the full domain uniformly (cell-centered)
-    # These are relative to sampling.origin (which is at z=-delta)
-    # so offset ranges from delta/num_planes to 2*delta - delta/num_planes
-    offsets = np.linspace(delta/num_planes, 2*delta - delta/num_planes, num_planes)
-    
-    # Compute finest grid resolution for x,y sampling
     Nx_finest = config['Nx'] * refinement_factor
     Ny_finest = config['Ny'] * refinement_factor
     
-    # PlaneSampler parameters - sample at finest resolution
+    # PlaneSampler parameters - sample at finest resolution in x,y
     num_points_x = Nx_finest  # Sample at finest mesh resolution in x
     num_points_y = Ny_finest  # Sample at finest mesh resolution in y
     
@@ -572,9 +622,18 @@ Examples:
     
     args = parser.parse_args()
     
+    # Check if --Nx was explicitly provided by the user
+    import sys
+    user_provided_Nx = '--Nx' in sys.argv or any(arg.startswith('--Nx=') for arg in sys.argv)
+    
+    # For LES, use coarser base grid (half resolution) only if Nx wasn't explicitly provided
+    Nx = args.Nx
+    if not args.DNS and not user_provided_Nx:
+        Nx = Nx // 2
+    
     params = domain_and_flow(
         delta=args.delta,
-        Nx=args.Nx,
+        Nx=Nx,
         IB=args.IB,
         blocking_factor=args.blocking_factor,
         Re=args.Re,

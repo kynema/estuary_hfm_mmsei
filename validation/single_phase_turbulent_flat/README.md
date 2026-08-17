@@ -51,10 +51,10 @@ All profiles are converted to wall units using the friction velocity $u_\tau$, w
 | `--utau-source` | Default for | Formula |
 |---|---|---|
 | `gradP` | — | $u_\tau = \sqrt{\|\partial p / \partial x\| \cdot \delta / \rho}$ |
-| `gradU` | DNS | Quadratic fit through no-slip wall (see below) |
-| `loglaw` | LES (all, with or without IB) | Monin-Obukhov log-law at cell $k+1$ (see below) |
+| `gradU` | DNS & LES | Quadratic fit through no-slip wall (see below) |
+| `loglaw` | Wall Modeled LES | Monin-Obukhov log-law at cell $k+1$ (see below) |
 
-**`gradU` — quadratic wall-gradient method (default for DNS):**
+**`gradU` — quadratic wall-gradient method (default):**
 
 Fit $U(z) = az + bz^2$ through the no-slip origin and the two nearest-wall cell centers $(z_0, U_0)$ and $(z_1, U_1)$, where $z$ is the wall-normal distance from the lower wall ($z = z_\text{sgf} + \delta$). The wall gradient is:
 
@@ -103,28 +103,33 @@ The characteristics of the flows are reported below:
 | ---------------- | -------- | -------- | ------- | --------------------- |
 | 180              | 2.7478   | 3.5395   | -709.79 | 1.8197e-03            |
 
-Mesh refinement is targeted at the walls in order to sufficiently resolve the boundary layers. We carry out DNS simulations with two levels of refinement and wall-modeled LES simulations with a single level of refinement. The base grid and levels of refinement is described in the table below:
-
-
-|           | $x$   | $y$   | $z$                | $z^+$ |
-|---------- | ----- | ----- | ------------------ | ----- |
-|Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.0 $\delta$ or 2.13 $\delta$ (IB) | - |
-| Level 0   | 384   | 192   | 120 or 128 (IB) | > 42 |
-| Level 1   | 768   | 384   | 240 or 256 (IB) | $\leq$ 42 |
-| Level 2   | 1536  | 768   | 480 or 512 (IB) | $\leq$ 6 |
-
 
 Simulations are carried out for 20 eddy turn over time $t^*$ to reach statistically steady conditions.  Data are then temporally and spatially averaged in the periodic directions and averaged in time over 10 $t^*$ to get the velocity statistics in the direction normal to the wall.
 
 ### DNS Results
-The mesh characteristics are summarized in the table below. The $z^+$ value is that of the cell center of the first fluid cell.
 
-**Mesh characteristics (without IB)**
+Mesh refinement is targeted at the walls in order to sufficiently resolve the boundary layers. We carry out DNS simulations with 183.4 million cells, utilizing two levels of refinement. The base grid and levels of refinement is described in the table below. 
 
-| $\text{Re}_\tau$ | $\Delta z^+$ (L0) | $\Delta z^+$ (L2) | $z^+$ | Cells count |
-| ---- | ---- | ---- | ---- | ---- |
-| 180.0 | 3.0 | 0.75 | 0.37 |  M |
+
+|           | $x$   | $y$   | $z$                | $z^+$ | $\Delta z^+$ |
+|---------- | ----- | ----- | ------------------ | ----- | ------------ |
+|Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.0 $\delta$ | - | - |
+| Level 0   | 384   | 192   | 120 | > 42 | 3.0 |
+| Level 1   | 768   | 384   | 240 | $\leq$ 42 | 1.5 |
+| Level 2   | 1536  | 768   | 480 | $\leq$ 6 | 0.75 |
+
 
 The DNS simulations were run on Kestrel with 2 GPU nodes with a total of 8 GPUs. The results are compared to the Kim et al. DNS data in the figures below. The mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above. The mean velocity ($u^+$) shows good agreement with the Kim et al. data, but the RMS velocity profiles are noticibly off for $y^+ > 10$, and become worse after the second coarse-fine interface at $y^+ \approx 40$. 
 ![Coordinate System](figures/ReTau180_DNS/Uplus_sampling_gradU.png)
 ![Coordinate System](figures/ReTau180_DNS/VelRMSplus_sampling_gradU.png)
+
+### LES Results
+
+The LES simulations are carried out on a mesh where the base grid is coarser than the DNS grid by a factor of 2, with a single level of refinement at the walls. The upper and lower walls are defined either with or without immersed boundaries (IB). The IB cases extend the domain by ~$\pm 0.15\delta$ in the z-direction so the IB is at $\pm \delta$. The mesh is described in the table below:
+
+
+|           | $x$   | $y$   | $z$                | $z^+$ | $\Delta z^+$ |
+|---------- | ----- | ----- | ------------------ | ----- | ------------ |
+|Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.00 $\delta$ or 2.29 $\delta$ (IB) | - | - |
+| Level 0   | 192   | 96   | 56 or 64 (IB) | > 45 | 6.43 |
+| Level 1   | 384   | 192   | 112 or 128 (IB) | $\leq$ 45 | 3.21 |
