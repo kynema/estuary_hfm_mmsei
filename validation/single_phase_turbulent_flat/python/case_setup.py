@@ -34,7 +34,7 @@ def get_pressure_gradient(Re):
     return Re_to_dpdx[Re]
 
 
-def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=False, dns=False, ref_ratio=2):
+def get_refinement_boxes(Re, delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=False, dns=False, ref_ratio=2):
     """
     Define AMR refinement boxes aligned with the base grid cells and verify cell spacing.
     
@@ -70,7 +70,12 @@ def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB
     z1_plus_l2 = 0.5 * dz_plus_l2
 
     # Level 1 refinement always targets y+ ~ 40 (buffer layer)
-    yplus_target_l1 = 40.0
+    if Re == 180:
+        yplus_target_l1 = 40.0
+    elif Re == 395:
+        yplus_target_l1 = 100.0
+    elif Re == 934:
+        yplus_target_l1 = 250.0
     z_extent_l1 = yplus_target_l1 * l_nu
     cells_l1 = max(1, int(np.ceil(z_extent_l1 / dz_base)))
     z_extent_l1 = cells_l1 * dz_base
@@ -81,7 +86,10 @@ def get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB
     l2_box_extent_plus = None
     z_extent_l2 = None
     if dns:
-        yplus_target_l2 = 5.0
+        if Re == 180:
+            yplus_target_l2 = 5.0
+        elif Re == 934:
+            yplus_target_l2 = 100.0
         z_extent_l2 = yplus_target_l2 * l_nu
         cells_l2 = max(1, int(np.ceil(z_extent_l2 / dz_base)))
         z_extent_l2 = cells_l2 * dz_base
@@ -229,7 +237,7 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180, dn
     body_force = -dpdx / density
     
     # Get refinement boxes (using computed physical parameters)
-    refinement_boxes = get_refinement_boxes(delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=IB, dns=dns)
+    refinement_boxes = get_refinement_boxes(Re, delta, prob_lo, prob_hi, n_cell, density, mu, u_tau, IB=IB, dns=dns)
     
     return {
         'delta': delta,
@@ -605,15 +613,15 @@ Examples:
         """
     )
     
-    parser.add_argument('--delta', type=float, default=0.005,
-                        help='Channel half width in meters (default: 0.005)')
+    parser.add_argument('--delta', type=float, default=None,
+                        help='Channel half width in meters (default: 0.005 if Re=180, 0.01 otherwise)')
     parser.add_argument('--Nx', type=int, default=384,
                         help='Number of cells in x-direction (default: 384)')
     parser.add_argument('--IB', action='store_true',
                         help='Use immersed boundary (extends domain in z)')
     parser.add_argument('--blocking-factor', type=int, default=8,
                         help='AMR blocking factor (default: 8)')
-    parser.add_argument('--Re', type=int, default=180,
+    parser.add_argument('--Re', type=int, default=180, choices=[180, 395, 934],
                         help='Stress Reynolds number (Re_tau) - options: 180, 395, 934 (default: 180)')
     parser.add_argument('--avg', action='store_true',
                         help='Print averaging/statistics parameters instead of full configuration')
@@ -630,9 +638,24 @@ Examples:
     Nx = args.Nx
     if not args.DNS and not user_provided_Nx:
         Nx = Nx // 2
+
+    # Channel half width in meters
+    if args.delta is None:
+        if args.Re > 180:
+            delta = 0.01 # m
+        else: 
+            delta = 0.005 # m
+
+    # Check if DNS and Re > 180
+    if args.DNS and args.Re > 180:
+        raise ValueError("DNS simulations are not supported for Reynolds numbers above 180.")
+
+    # If Re is 934, we want 2 levels of refinement so set dns = true
+    if args.Re == 934:
+        args.DNS = True 
     
     params = domain_and_flow(
-        delta=args.delta,
+        delta=delta,
         Nx=Nx,
         IB=args.IB,
         blocking_factor=args.blocking_factor,

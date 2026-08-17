@@ -101,7 +101,7 @@ The characteristics of the flows are reported below:
 
 | $\text{Re}_\tau$ | $u_\tau$ | $\tau_w$ | $dp/dx$ | $t^* = \delta/u_\tau$ |
 | ---------------- | -------- | -------- | ------- | --------------------- |
-| 180              | 2.7478   | 3.5395   | -709.79 | 1.8197e-03            |
+| 180              | 2.7478   | 3.5490   | -709.79 | 1.8197e-03            |
 
 
 Simulations are carried out for 20 eddy turn over time $t^*$ to reach statistically steady conditions.  Data are then temporally and spatially averaged in the periodic directions and averaged in time over 10 $t^*$ to get the velocity statistics in the direction normal to the wall.
@@ -111,7 +111,7 @@ Simulations are carried out for 20 eddy turn over time $t^*$ to reach statistica
 Mesh refinement is targeted at the walls in order to sufficiently resolve the boundary layers. We carry out DNS simulations with 183.4 million cells, utilizing two levels of refinement. The base grid and levels of refinement is described in the table below. 
 
 
-|           | $x$   | $y$   | $z$                | $z^+$ | $\Delta z^+$ |
+|           | $x$   | $y$   | $z$                | $z^+$ range | $\Delta z^+$ |
 |---------- | ----- | ----- | ------------------ | ----- | ------------ |
 |Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.0 $\delta$ | - | - |
 | Level 0   | 384   | 192   | 120 | > 42 | 3.0 |
@@ -133,3 +133,36 @@ The LES simulations are carried out on a mesh where the base grid is coarser tha
 |Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.00 $\delta$ or 2.29 $\delta$ (IB) | - | - |
 | Level 0   | 192   | 96   | 56 or 64 (IB) | > 45 | 6.43 |
 | Level 1   | 384   | 192   | 112 or 128 (IB) | $\leq$ 45 | 3.21 |
+
+
+## Re = 395 (LES)
+The channel half width is set to $\delta = 0.01$ m. For simulations without IB, the upper and lower walls in the $z$ direction are set at $\pm \delta$, respectively. For simulations with IB, the fluid domain is also bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. 
+
+The characteristics of the flows are reported below:
+
+| $\text{Re}_\tau$ | $u_\tau$ | $\tau_w$ | $dp/dx$ | $t^* = \delta/u_\tau$ |
+| ---------------- | -------- | -------- | ------- | --------------------- |
+| 395              | 3.0149   | 4.2612   | -426.12 | 3.3168e-03            |
+
+|           | $x$   | $y$   | $z$                | $z^+$ range | $\Delta z^+$ |
+|---------- | ----- | ----- | ------------------ | ----- | ------------ |
+|Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.00 $\delta$ or 2.29 $\delta$ (IB) | - | - |
+| Level 0   | 192   | 96   | 56 or 64 (IB) | > 112 | 14.11 |
+| Level 1   | 384   | 192   | 112 or 128 (IB) | $\leq$ 112 | 7.05 |
+
+## Re = 934 (LES)
+
+The channel half width is set to $\delta = 0.01$ m. For simulations without IB, the upper and lower walls in the $z$ direction are set at $\pm \delta$, respectively. For simulations with IB, the fluid domain is also bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. 
+
+The characteristics of the flows are reported below:
+
+| $\text{Re}_\tau$ | $u_\tau$ | $\tau_w$ | $dp/dx$ | $t^* = \delta/u_\tau$ |
+| ---------------- | -------- | -------- | ------- | --------------------- |
+| 934              | 7.1289   | 23.8250   | -2382.50 | 1.4027e-03            |
+
+|           | $x$   | $y$   | $z$                | $z^+$ range | $\Delta z^+$ |
+|---------- | ----- | ----- | ------------------ | ----- | ------------ |
+|Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.00 $\delta$ or 2.29 $\delta$ (IB) | - | - |
+| Level 0   | 192   | 96   | 56 or 64 (IB) | > 267 | 33.36 |
+| Level 1   | 384   | 192   | 112 or 128 (IB) | $\leq$ 267 | 16.68 |
+| Level 2   | 768   | 384   | 224 or 256 (IB) | $\leq$ 100 | 8.34 |
