@@ -43,7 +43,7 @@ def find_particle_stats_file(Re: int, DNS: bool = False, LES: bool = False,
     IB : bool
         If True, look for immersed boundary variant
     drag : str
-        Drag model: 'og' or 'tf1' (only used with IB)
+        Drag model: 'og' or 'tf1' (only used with IB, default tf1)
     nprocs : int
         Number of parallel workers passed to process_stats.py
     
@@ -231,7 +231,7 @@ def main():
     parser.add_argument("--IB", action="store_true",
                         help="Use immersed boundary variant")
     parser.add_argument("--drag", type=str, choices=['og', 'tf1'],
-                        help="Drag model for IB cases: 'og' or 'tf1'")
+                        help="Drag model for IB cases: 'og' or 'tf1' (default: 'tf1' when --IB is set)")
     parser.add_argument("--nprocs", type=int,
                         default=int(os.environ.get("SLURM_CPUS_PER_TASK", 1)),
                         help="Number of parallel workers for reading binary data "
@@ -254,8 +254,7 @@ def main():
         parser.error("--IB can only be used with --LES")
     
     if args.IB and not args.drag:
-        parser.error("--drag option required when using --IB")
-    
+        args.drag = 'tf1'
     if args.drag and not args.IB:
         parser.error("--drag can only be used with --IB")
     

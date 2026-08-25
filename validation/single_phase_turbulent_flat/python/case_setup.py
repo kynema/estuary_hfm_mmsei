@@ -12,6 +12,8 @@ This script calculates:
 
 import argparse
 import numpy as np
+import os
+from pathlib import Path
 
 
 def get_pressure_gradient(Re):
@@ -155,7 +157,7 @@ def get_refinement_boxes(Re, delta, prob_lo, prob_hi, n_cell, density, mu, u_tau
 
 
 
-def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180, dns=False):
+def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180, dns=False, drag=None):
     """
     Compute domain boundaries and grid parameters for turbulent channel case.
     
@@ -173,6 +175,9 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180, dn
         Stress Reynolds number Re_tau (default 180)
     dns : bool
         If True, use DNS-level refinement (2 levels); if False, use LES (1 level)
+    drag : str or None
+        Drag model for IB cases: 'og' (original limiter) or 'tf1' (temporal limiter).
+        Ignored when IB is False.
     
     Returns
     -------
@@ -263,6 +268,7 @@ def domain_and_flow(delta=0.005, Nx=384, IB=False, blocking_factor=4, Re=180, dn
         't_star': t_star,
         'body_force': body_force,
         'refinement_boxes': refinement_boxes,
+        'drag': drag if IB else None,
     }
 
 
@@ -313,8 +319,8 @@ def get_channel_builder_params(config):
 
 
 
-def print_averaging_config(config, dns=False):
-    """Print statistics/averaging configuration parameters as a standalone file.
+def generate_averaging_config_content(config, dns=False):
+    """Generate averaging/statistics configuration content as a string.
     
     Parameters
     ----------
@@ -322,6 +328,11 @@ def print_averaging_config(config, dns=False):
         Configuration dictionary from domain_and_flow()
     dns : bool
         If True, use 2 levels of refinement (DNS-level); otherwise use 1 level
+    
+    Returns
+    -------
+    str
+        The full averaging configuration content
     """
     delta = config['delta']
     Lx = config['Lx']
@@ -399,43 +410,45 @@ def print_averaging_config(config, dns=False):
     num_points_x = Nx_finest  # Sample at finest mesh resolution in x
     num_points_y = Ny_finest  # Sample at finest mesh resolution in y
     
-    print("\n" + "="*70)
-    fname = f"turbulent-flat-re-{int(config['Re'])}"
-    if config['IB']:
-        fname += "-ib"
-    print(f"Parameters for {fname}-averaging.inp file:")
-    print("="*70)
+    lines = []
+    lines.append(f"FILE = turbulent-flat-re-{int(config['Re'])}{'-ib' if config['IB'] else ''}.inp")
+    lines.append(f"io.plot_file = \"pltAvg\"")
+    lines.append(f"io.check_file = \"chkAvg\"")
+    lines.append("")
+    lines.append(f"time.stop_time = {30*t_star:.6f} # ~30 flow-through times for statistics")
+    lines.append("")
     
-    print(f"\ntime.stop_time = {30*t_star:.6f}  # ~30 flow-through times for statistics")
-    print(f"#time.stop_time = {40*t_star:.6f}  # ~40 flow-through times for statistics")
+    lines.append("#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#")
+    lines.append("#             Statistics                #")
+    lines.append("#.......................................#")
+    lines.append(f"incflo.post_processing = sampling")
+    lines.append(f"sampling.fields = velocity")
+    lines.append(f"sampling.output_interval = 100")
+    lines.append(f"sampling.output_format = native")
+    lines.append("")
     
-    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#")
-    print("#             Statistics                #")
-    print("#.......................................#")
+    lines.append(f"sampling.labels = channel_stats")
+    lines.append(f"sampling.channel_stats.type = PlaneSampler")
+    lines.append(f"sampling.channel_stats.fields = velocity")
+    lines.append("")
     
-    print(f"incflo.post_processing = sampling")
-    print(f"sampling.fields = velocity")
-    print(f"sampling.output_interval = 100")
-    print(f"sampling.output_format = native")
+    lines.append(f"sampling.channel_stats.num_points = {num_points_x} {num_points_y}")
+    lines.append(f"sampling.channel_stats.origin = {0.0:.1f} {0.0:.1f} {-delta:.6f}")
+    lines.append(f"sampling.channel_stats.axis1 = {Lx:.6f} {0.0:.1f} {0.0:.1f}")
+    lines.append(f"sampling.channel_stats.axis2 = {0.0:.1f} {Ly:.6f} {0.0:.1f}")
+    lines.append("")
     
-    print(f"\nsampling.labels = channel_stats")
-    print(f"sampling.channel_stats.type = PlaneSampler")
-    print(f"sampling.channel_stats.fields = velocity")
+    lines.append(f"sampling.channel_stats.axis_normal = 2")
+    lines.append(f"sampling.channel_stats.start = {-delta:.6f}  # Bottom wall Z coordinate")
+    lines.append(f"sampling.channel_stats.end = {delta:.6f}  # Top wall Z coordinate")
+    lines.append("")
     
-    print(f"\nsampling.channel_stats.num_points = {num_points_x} {num_points_y}")
-    print(f"sampling.channel_stats.origin = {0.0:.1f} {0.0:.1f} {-delta:.6f}")
-    print(f"sampling.channel_stats.axis1 = {Lx:.6f} {0.0:.1f} {0.0:.1f}")
-    print(f"sampling.channel_stats.axis2 = {0.0:.1f} {Ly:.6f} {0.0:.1f}")
+    lines.append(f"# Define the stack of Z-offsets ({num_planes} planes from bottom to top wall)")
+    lines.append(f"# Finest grid level: L{max_level} with {num_planes} z-planes")
+    lines.append(f"sampling.channel_stats.offset_vector = 0.0 0.0 1.0")
+    lines.append(f"sampling.channel_stats.offsets = " + " ".join([f"{o:.6f}" for o in offsets]))
     
-    print(f"\nsampling.channel_stats.axis_normal = 2")
-    print(f"sampling.channel_stats.start = {-delta:.6f}  # Bottom wall Z coordinate")
-    print(f"sampling.channel_stats.end = {delta:.6f}  # Top wall Z coordinate")
-    
-    print(f"\n# Define the stack of Z-offsets ({num_planes} planes from bottom to top wall)")
-    print(f"# Finest grid level: L{max_level} with {num_planes} z-planes")
-    print(f"sampling.channel_stats.offset_vector = 0.0 0.0 1.0")
-    print(f"sampling.channel_stats.offsets = " + " ".join([f"{o:.6f}" for o in offsets]))
-    print()
+    return "\n".join(lines)
 
 
 
@@ -491,110 +504,173 @@ def print_flow_summary(config):
               f"  z1+ = {boxes['z1_plus_l2']:.2f}")
 
 
-def print_config(config):
-    """Print full configuration including input file parameters."""
-    print_flow_summary(config)
-    
+def generate_config_content(config):
+    """Generate full configuration content as a string (not printed to stdout)."""
     lo = config['prob_lo']
     hi = config['prob_hi']
     boxes = config['refinement_boxes']
-    
-    print("\n" + "="*70)
-    fname = f"turbulent-flat-re-{int(config['Re'])}"
-    if config['IB']:
-        fname += "-IB"
-    print(f"Parameters for {fname}.inp file:")
-    print("="*70)
-    print(f"\ntime.stop_time = {20*config['t_star']:.6f}  # ~20 flow-through time")
-    print(f"#time.stop_time = {30*config['t_star']:.6f}  # ~30 flow-through time for statistics")
-    print(f"#time.stop_time = {40*config['t_star']:.6f}  # ~40 flow-through time for statistics")
-
-    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
-          "\n#              GEOMETRY                 #" \
-          "\n#.......................................#")
-    if config['IB']:
-        print(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.16f}")
-        print(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.16f}")
-    else:
-        print(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.6f}")
-        print(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.6f}")
-
-    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
-          "\n#               PHYSICS                 #" \
-          "\n#.......................................#")
-    print(f"BodyForce.magnitude = {config['body_force']:.16f} 0.0 0.0 # Force acceleration in m/s^2")
-
-    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
-          "\n#       CHANNEL FLOW PARAMETERS         #" \
-          "\n#.......................................#")
-    print(f"ChannelFlow.re_tau = {config['Re']}")
-
-    if config['IB']:
-        cb_params = get_channel_builder_params(config)
-        print("\n# Immersed Boundary Channel Parameters")
-        print(f"ChannelBuilder.initialize_velocity = false")
-        print(f"ChannelBuilder.zero_velocity_where_blanked = true")
-        print(f"ChannelBuilder.initialize_drag_cells = true")
-        print(f"ChannelBuilder.segment_labels = s1")
-        print(f"ChannelBuilder.s1.type = Trapezoid")
-        print(f"ChannelBuilder.s1.segment_start_point = {cb_params['segment_start_point'][0]:.4f} {cb_params['segment_start_point'][1]:.6f} {cb_params['segment_start_point'][2]:.6f}")
-        print(f"ChannelBuilder.s1.segment_end_point = {cb_params['segment_end_point'][0]:.6f} {cb_params['segment_end_point'][1]:.6f} {cb_params['segment_end_point'][2]:.6f}")
-        print(f"ChannelBuilder.s1.top_width = {cb_params['top_width']:.6f}")
-        print(f"ChannelBuilder.s1.bottom_width = {cb_params['bottom_width']:.6f}")
-        print(f"ChannelBuilder.s1.height = {cb_params['height']:.6f}")
-
-    print("\n#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#" \
-          "\n#        ADAPTIVE MESH REFINEMENT       #" \
-          "\n#.......................................#")
-    
     is_dns = boxes.get('dns', False)
-    l1_box_extent_plus = boxes['l1_box_extent_plus']
     
-    print(f"amr.n_cell = {config['Nx']} {config['Ny']} {config['Nz']}")
-    print(f"amr.blocking_factor = {config['blocking_factor']}")
+    lines = []
+    
+    # FILE directive and stop time
+    lines.append(f"FILE = ../base-turbulent-flat.inp")
+    lines.append(f"time.stop_time = {20*config['t_star']:.6f} # ~20 flow-through time")
+    lines.append("")
+    
+    # GEOMETRY section
+    lines.append("#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#")
+    lines.append("#              GEOMETRY                 #")
+    lines.append("#.......................................#")
+    if config['IB']:
+        lines.append(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.16f}")
+        lines.append(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.16f}")
+    else:
+        lines.append(f"geometry.prob_lo = {lo[0]:.1f} {lo[1]:.6f} {lo[2]:.6f}")
+        lines.append(f"geometry.prob_hi = {hi[0]:.6f} {hi[1]:.6f} {hi[2]:.6f}")
+    lines.append("geometry.is_periodic = 1 1 0")
+    lines.append("")
+    lines.append("# Boundary conditions")
+    lines.append("zlo.type =   \"no_slip_wall\"")
+    lines.append("zlo.density = 0.468793")
+    lines.append("zhi.type =   \"no_slip_wall\"")
+    lines.append("zhi.density = 0.468793")
+    lines.append("")
+    
+    # PHYSICS section
+    lines.append("#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#")
+    lines.append("#               PHYSICS                 #")
+    lines.append("#.......................................#")
+    
+    if config['IB']:
+        lines.append(f"incflo.physics = ChannelFlow ChannelBuilder")
+        lines.append(f"ICNS.source_terms = BodyForce DragForcing")
+    
+    lines.append(f"BodyForce.magnitude = {config['body_force']:.16f} 0.0 0.0 # Force acceleration in m/s^2")
     
     if is_dns:
-        print(f"amr.max_level = 2")
-        print(f"\ntagging.labels = l1 l2")
+        lines.append(f"turbulence.model = Laminar # DNS")
+    
+    if config['IB']:
+        lines.append(f"DragForcing.is_laminar = 0")
+        lines.append(f"ABL.surface_roughness_z0 = 0.00001")
+        use_original = config['drag'] == 'og'
+        lines.append(f"DragForcing.terrain_use_original_limiter = {'true' if use_original else 'false'}")
+    
+    lines.append("")
+    
+    # CHANNEL FLOW PARAMETERS section
+    lines.append("#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#")
+    lines.append("#       CHANNEL FLOW PARAMETERS         #")
+    lines.append("#.......................................#")
+    lines.append(f"ChannelFlow.re_tau = 180.0 # For initialization only, same for all cases")
+    
+    if config['IB']:
+        lines.append("")
+        lines.append("# Immersed Boundary Channel Parameters")
+        cb_params = get_channel_builder_params(config)
+        lines.append(f"ChannelBuilder.initialize_velocity = false")
+        lines.append(f"ChannelBuilder.zero_velocity_where_blanked = true")
+        use_wall_model = config['Re'] > 180
+        lines.append(f"ChannelBuilder.initialize_drag_cells = {'true' if use_wall_model else 'false'}")
+        lines.append(f"ChannelBuilder.segment_labels = s1")
+        lines.append(f"ChannelBuilder.s1.type = Trapezoid")
+        lines.append(f"ChannelBuilder.s1.segment_start_point = {cb_params['segment_start_point'][0]:.4f} {cb_params['segment_start_point'][1]:.6f} {cb_params['segment_start_point'][2]:.6f}")
+        lines.append(f"ChannelBuilder.s1.segment_end_point = {cb_params['segment_end_point'][0]:.6f} {cb_params['segment_end_point'][1]:.6f} {cb_params['segment_end_point'][2]:.6f}")
+        lines.append(f"ChannelBuilder.s1.top_width = {cb_params['top_width']:.6f}")
+        lines.append(f"ChannelBuilder.s1.bottom_width = {cb_params['bottom_width']:.6f}")
+        lines.append(f"ChannelBuilder.s1.height = {cb_params['height']:.6f}")
+    
+    lines.append("")
+    
+    # AMR REFINEMENT section
+    lines.append("#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#")
+    lines.append("#        ADAPTIVE MESH REFINEMENT       #")
+    lines.append("#.......................................#")
+    lines.append(f"amr.n_cell = {config['Nx']} {config['Ny']} {config['Nz']}")
+    lines.append(f"amr.blocking_factor = {config['blocking_factor']}")
+    
+    if is_dns:
+        lines.append(f"amr.max_level = 2")
+        lines.append(f"")
+        lines.append(f"tagging.labels = l1 l2")
     else:
-        print(f"amr.max_level = 1")
-        print(f"\ntagging.labels = l1")
+        lines.append(f"amr.max_level = 1")
+        lines.append(f"")
+        lines.append(f"tagging.labels = l1")
     
     # Level 1 Refinement (buffer layer, always present)
-    print(f"\n# Level 1 Refinement (buffer layer, z⁺ ~ {l1_box_extent_plus:.1f})")
-    print(f"tagging.l1.type = GeometryRefinement")
-    print(f"tagging.l1.shapes = bottom top")
-    print(f"tagging.l1.max_level = 1")
-    print(f"\ntagging.l1.bottom.type = box")
-    print(f"tagging.l1.bottom.origin = {boxes['level1_bottom']['origin'][0]:.6f} {boxes['level1_bottom']['origin'][1]:.6f} {boxes['level1_bottom']['origin'][2]:.6f}")
-    print(f"tagging.l1.bottom.xaxis = {boxes['level1_bottom']['xaxis'][0]:.6f} {boxes['level1_bottom']['xaxis'][1]:.6f} {boxes['level1_bottom']['xaxis'][2]:.6f}")
-    print(f"tagging.l1.bottom.yaxis = {boxes['level1_bottom']['yaxis'][0]:.6f} {boxes['level1_bottom']['yaxis'][1]:.6f} {boxes['level1_bottom']['yaxis'][2]:.6f}")
-    print(f"tagging.l1.bottom.zaxis = {boxes['level1_bottom']['zaxis'][0]:.6f} {boxes['level1_bottom']['zaxis'][1]:.6f} {boxes['level1_bottom']['zaxis'][2]:.6f}")
-    
-    print(f"\ntagging.l1.top.type = box")
-    print(f"tagging.l1.top.origin = {boxes['level1_top']['origin'][0]:.6f} {boxes['level1_top']['origin'][1]:.6f} {boxes['level1_top']['origin'][2]:.6f}")
-    print(f"tagging.l1.top.xaxis = {boxes['level1_top']['xaxis'][0]:.6f} {boxes['level1_top']['xaxis'][1]:.6f} {boxes['level1_top']['xaxis'][2]:.6f}")
-    print(f"tagging.l1.top.yaxis = {boxes['level1_top']['yaxis'][0]:.6f} {boxes['level1_top']['yaxis'][1]:.6f} {boxes['level1_top']['yaxis'][2]:.6f}")
-    print(f"tagging.l1.top.zaxis = {boxes['level1_top']['zaxis'][0]:.6f} {boxes['level1_top']['zaxis'][1]:.6f} {boxes['level1_top']['zaxis'][2]:.6f}")
+    l1_box_extent_plus = boxes['l1_box_extent_plus']
+    lines.append(f"")
+    lines.append(f"# Level 1 Refinement (buffer layer, z⁺ ~ {l1_box_extent_plus:.1f})")
+    lines.append(f"tagging.l1.type = GeometryRefinement")
+    lines.append(f"tagging.l1.shapes = bottom top")
+    lines.append(f"tagging.l1.max_level = 1")
+    lines.append(f"")
+    lines.append(f"tagging.l1.bottom.type = box")
+    lines.append(f"tagging.l1.bottom.origin = {boxes['level1_bottom']['origin'][0]:.6f} {boxes['level1_bottom']['origin'][1]:.6f} {boxes['level1_bottom']['origin'][2]:.6f}")
+    lines.append(f"tagging.l1.bottom.xaxis = {boxes['level1_bottom']['xaxis'][0]:.6f} {boxes['level1_bottom']['xaxis'][1]:.6f} {boxes['level1_bottom']['xaxis'][2]:.6f}")
+    lines.append(f"tagging.l1.bottom.yaxis = {boxes['level1_bottom']['yaxis'][0]:.6f} {boxes['level1_bottom']['yaxis'][1]:.6f} {boxes['level1_bottom']['yaxis'][2]:.6f}")
+    lines.append(f"tagging.l1.bottom.zaxis = {boxes['level1_bottom']['zaxis'][0]:.6f} {boxes['level1_bottom']['zaxis'][1]:.6f} {boxes['level1_bottom']['zaxis'][2]:.6f}")
+    lines.append(f"")
+    lines.append(f"tagging.l1.top.type = box")
+    lines.append(f"tagging.l1.top.origin = {boxes['level1_top']['origin'][0]:.6f} {boxes['level1_top']['origin'][1]:.6f} {boxes['level1_top']['origin'][2]:.6f}")
+    lines.append(f"tagging.l1.top.xaxis = {boxes['level1_top']['xaxis'][0]:.6f} {boxes['level1_top']['xaxis'][1]:.6f} {boxes['level1_top']['xaxis'][2]:.6f}")
+    lines.append(f"tagging.l1.top.yaxis = {boxes['level1_top']['yaxis'][0]:.6f} {boxes['level1_top']['yaxis'][1]:.6f} {boxes['level1_top']['yaxis'][2]:.6f}")
+    lines.append(f"tagging.l1.top.zaxis = {boxes['level1_top']['zaxis'][0]:.6f} {boxes['level1_top']['zaxis'][1]:.6f} {boxes['level1_top']['zaxis'][2]:.6f}")
     
     # Level 2 Refinement (viscous sublayer, only for DNS)
     if is_dns:
         l2_box_extent_plus = boxes['l2_box_extent_plus']
-        print(f"\n# Level 2 Refinement (viscous sublayer, z⁺ ~ {l2_box_extent_plus:.1f})")
-        print(f"tagging.l2.type = GeometryRefinement")
-        print(f"tagging.l2.shapes = bottom top")
-        print(f"tagging.l2.max_level = 2")
-        print(f"\ntagging.l2.bottom.type = box")
-        print(f"tagging.l2.bottom.origin = {boxes['level2_bottom']['origin'][0]:.6f} {boxes['level2_bottom']['origin'][1]:.6f} {boxes['level2_bottom']['origin'][2]:.6f}")
-        print(f"tagging.l2.bottom.xaxis = {boxes['level2_bottom']['xaxis'][0]:.6f} {boxes['level2_bottom']['xaxis'][1]:.6f} {boxes['level2_bottom']['xaxis'][2]:.6f}")
-        print(f"tagging.l2.bottom.yaxis = {boxes['level2_bottom']['yaxis'][0]:.6f} {boxes['level2_bottom']['yaxis'][1]:.6f} {boxes['level2_bottom']['yaxis'][2]:.6f}")
-        print(f"tagging.l2.bottom.zaxis = {boxes['level2_bottom']['zaxis'][0]:.6f} {boxes['level2_bottom']['zaxis'][1]:.6f} {boxes['level2_bottom']['zaxis'][2]:.6f}")
-        
-        print(f"\ntagging.l2.top.type = box")
-        print(f"tagging.l2.top.origin = {boxes['level2_top']['origin'][0]:.6f} {boxes['level2_top']['origin'][1]:.6f} {boxes['level2_top']['origin'][2]:.6f}")
-        print(f"tagging.l2.top.xaxis = {boxes['level2_top']['xaxis'][0]:.6f} {boxes['level2_top']['xaxis'][1]:.6f} {boxes['level2_top']['xaxis'][2]:.6f}")
-        print(f"tagging.l2.top.yaxis = {boxes['level2_top']['yaxis'][0]:.6f} {boxes['level2_top']['yaxis'][1]:.6f} {boxes['level2_top']['yaxis'][2]:.6f}")
-        print(f"tagging.l2.top.zaxis = {boxes['level2_top']['zaxis'][0]:.6f} {boxes['level2_top']['zaxis'][1]:.6f} {boxes['level2_top']['zaxis'][2]:.6f}")
+        lines.append(f"")
+        lines.append(f"# Level 2 Refinement (viscous sublayer, z⁺ ~ {l2_box_extent_plus:.1f})")
+        lines.append(f"tagging.l2.type = GeometryRefinement")
+        lines.append(f"tagging.l2.shapes = bottom top")
+        lines.append(f"tagging.l2.max_level = 2")
+        lines.append(f"")
+        lines.append(f"tagging.l2.bottom.type = box")
+        lines.append(f"tagging.l2.bottom.origin = {boxes['level2_bottom']['origin'][0]:.6f} {boxes['level2_bottom']['origin'][1]:.6f} {boxes['level2_bottom']['origin'][2]:.6f}")
+        lines.append(f"tagging.l2.bottom.xaxis = {boxes['level2_bottom']['xaxis'][0]:.6f} {boxes['level2_bottom']['xaxis'][1]:.6f} {boxes['level2_bottom']['xaxis'][2]:.6f}")
+        lines.append(f"tagging.l2.bottom.yaxis = {boxes['level2_bottom']['yaxis'][0]:.6f} {boxes['level2_bottom']['yaxis'][1]:.6f} {boxes['level2_bottom']['yaxis'][2]:.6f}")
+        lines.append(f"tagging.l2.bottom.zaxis = {boxes['level2_bottom']['zaxis'][0]:.6f} {boxes['level2_bottom']['zaxis'][1]:.6f} {boxes['level2_bottom']['zaxis'][2]:.6f}")
+        lines.append(f"")
+        lines.append(f"tagging.l2.top.type = box")
+        lines.append(f"tagging.l2.top.origin = {boxes['level2_top']['origin'][0]:.6f} {boxes['level2_top']['origin'][1]:.6f} {boxes['level2_top']['origin'][2]:.6f}")
+        lines.append(f"tagging.l2.top.xaxis = {boxes['level2_top']['xaxis'][0]:.6f} {boxes['level2_top']['xaxis'][1]:.6f} {boxes['level2_top']['xaxis'][2]:.6f}")
+        lines.append(f"tagging.l2.top.yaxis = {boxes['level2_top']['yaxis'][0]:.6f} {boxes['level2_top']['yaxis'][1]:.6f} {boxes['level2_top']['yaxis'][2]:.6f}")
+        lines.append(f"tagging.l2.top.zaxis = {boxes['level2_top']['zaxis'][0]:.6f} {boxes['level2_top']['zaxis'][1]:.6f} {boxes['level2_top']['zaxis'][2]:.6f}")
+    
+    return "\n".join(lines)
+
+
+def get_output_path(Re, is_dns, is_ib, drag=None, averaging=False):
+    """Determine the full output path for the .inp file based on configuration parameters."""
+    script_dir = Path(__file__).parent
+    cases_dir = script_dir.parent / "cases"
+    
+    dir_name = f"ReTau{Re}_{'DNS' if is_dns else 'LES'}"
+    if is_ib:
+        dir_name += f"_IB_{drag.upper()}"
+    
+    suffix = "-ib" if is_ib else ""
+    stem = f"turbulent-flat-re-{Re}{suffix}"
+    filename = f"{stem}-averaging.inp" if averaging else f"{stem}.inp"
+    
+    return cases_dir / dir_name / filename
+
+
+def write_output(content, output_path, dry_run=False):
+    """Print the content (always showing the target path), and write it to file unless dry_run is True."""
+    print("\n" + "="*70)
+    print(f"{'[DRY RUN] Would write' if dry_run else 'Writing'} to: {output_path}")
+    print("="*70)
+    print(content)
+    
+    if not dry_run:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, 'w') as f:
+            f.write(content)
+        print(f"\nConfiguration written to: {output_path}")
 
 
 def main():
@@ -603,13 +679,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python case_setup.py
-  python case_setup.py --Nx 512 --IB
+  python case_setup.py                                 # Write config to case directory
+  python case_setup.py --dry-run                       # Print config without writing
+  python case_setup.py --dry-run --Nx 512 --IB
   python case_setup.py --delta 0.005 --Nx 256
   python case_setup.py --blocking-factor 8 --Nx 512
   python case_setup.py --avg                          # Print averaging parameters (1 refinement level)
   python case_setup.py --avg --DNS                    # DNS-level averaging (2 refinement levels)
   python case_setup.py --avg --Re 395                 # Averaging parameters for Re=395
+  python case_setup.py --avg --Re 395 --dry-run       # Print averaging for Re=395 without writing
         """
     )
     
@@ -619,6 +697,9 @@ Examples:
                         help='Number of cells in x-direction (default: 384)')
     parser.add_argument('--IB', action='store_true',
                         help='Use immersed boundary (extends domain in z)')
+    parser.add_argument('--drag', type=str, choices=['og', 'tf1'], default=None,
+                        help="Drag model for IB cases: 'og' (original limiter) or 'tf1' (temporal limiter). "
+                             "Only valid with --IB (default: 'tf1' when --IB is set)")
     parser.add_argument('--blocking-factor', type=int, default=8,
                         help='AMR blocking factor (default: 8)')
     parser.add_argument('--Re', type=int, default=180, choices=[180, 395, 934],
@@ -627,8 +708,15 @@ Examples:
                         help='Print averaging/statistics parameters instead of full configuration')
     parser.add_argument('--DNS', action='store_true',
                         help='Use DNS-level refinement (2 levels) for averaging; default is 1 level')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Print configuration without writing to file')
     
     args = parser.parse_args()
+    
+    if args.drag and not args.IB:
+        parser.error("--drag can only be used with --IB")
+    if args.IB and not args.drag:
+        args.drag = 'tf1'
     
     # Check if --Nx was explicitly provided by the user
     import sys
@@ -660,14 +748,21 @@ Examples:
         IB=args.IB,
         blocking_factor=args.blocking_factor,
         Re=args.Re,
-        dns=args.DNS
+        dns=args.DNS,
+        drag=args.drag
     )
     
+    print_flow_summary(params)
+    
+    Re = int(params['Re'])
     if args.avg:
-        print_flow_summary(params)
-        print_averaging_config(params, dns=args.DNS)
+        content = generate_averaging_config_content(params, dns=args.DNS)
+        output_path = get_output_path(Re, args.DNS, args.IB, drag=args.drag, averaging=True)
     else:
-        print_config(params)
+        content = generate_config_content(params)
+        output_path = get_output_path(Re, args.DNS, args.IB, drag=args.drag, averaging=False)
+    
+    write_output(content, output_path, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

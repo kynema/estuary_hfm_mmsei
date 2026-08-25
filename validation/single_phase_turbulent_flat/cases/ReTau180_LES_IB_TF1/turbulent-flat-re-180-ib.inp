@@ -6,7 +6,7 @@ time.stop_time = 0.036393 # ~20 flow-through time
 #.......................................#
 geometry.prob_lo = 0.0 0.000000 -0.0057142857142857
 geometry.prob_hi = 0.031200 0.015600 0.0057142857142857
-geometry.is_periodic = 1 1 0 
+geometry.is_periodic = 1 1 0
 
 # Boundary conditions
 zlo.type =   "no_slip_wall"
@@ -17,9 +17,9 @@ zhi.density = 0.468793
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #               PHYSICS                 #
 #.......................................#
-incflo.physics = ChannelFlow ChannelBuilder 
+incflo.physics = ChannelFlow ChannelBuilder
 ICNS.source_terms = BodyForce DragForcing
-BodyForce.magnitude = 1514.0797750819656358 0.0 0.0
+BodyForce.magnitude = 1514.0797750819656358 0.0 0.0 # Force acceleration in m/s^2
 DragForcing.is_laminar = 0
 ABL.surface_roughness_z0 = 0.00001
 DragForcing.terrain_use_original_limiter = false
@@ -27,7 +27,7 @@ DragForcing.terrain_use_original_limiter = false
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #       CHANNEL FLOW PARAMETERS         #
 #.......................................#
-ChannelFlow.re_tau = 180.0
+ChannelFlow.re_tau = 180.0 # For initialization only, same for all cases
 
 # Immersed Boundary Channel Parameters
 ChannelBuilder.initialize_velocity = false

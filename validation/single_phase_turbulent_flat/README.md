@@ -14,13 +14,7 @@ Simulations are initialized using `incflo.physics = ChannelFlow`, which provides
 
 ## Post-Processing Statistics
 
-The mean velocity ($\overline{u}$) and RMS velocity profiles ($u'_\text{rms}$, $v'_\text{rms}$, $w'_\text{rms}$ ) are computed in a few ways using plt files and spatial sampling with these three python scripts:
-
-- `post_process_avg.py`: Calculates velocity profiles from kynema-SGF's time-averaged post-processing fields `velocity_mean_averaging` and `velocity_reynolds_stress_averaging`
-- `post_process_yt.py`: Calculates velocity profiles directly from the velocities written to plt files. The velocities are time-averaged, then spatially averaged in the periodic $x$ and $y$ directions.
-- `post_process_sampling.py`: Calculates velocity profiles from sampling data written to `post_processing/sampling#####/particles`. 
-
-Regardless of the method used, the velocity profiles are computed as follows:
+The mean velocity ($\overline{u}$) and RMS velocity profiles ($u'_\text{rms}$, $v'_\text{rms}$, $w'_\text{rms}$ ) are computed from spatial sampling data written to `post_processing/sampling#####/particles` via the `post_process_sampling.py` python script.
 
 **Mean velocity (wall-normal profile):**
 
@@ -29,15 +23,7 @@ $$\overline{u}(z) = \langle u \rangle_{x,y}$$
 where $\langle \cdot \rangle_{x,y}$ denotes spatial averaging over the periodic directions.
 
 **RMS velocity (wall-normal profile):**
-The RMS of velocity fluctuations $u' = u - \overline{u}$ is computed differently depending on the data source:
-
-For `post_process_avg.py` (using pre-computed Reynolds stress from kynema-sgf):
-
-$$u'_\text{rms}(z) = \sqrt{\langle u'u' \rangle_{x,y}}$$
-
-where the normal stress component $\langle u'u' \rangle$ is provided directly from `velocity_reynolds_stress_averaging0` (and similarly `velocity_reynolds_stress_averaging3` and `velocity_reynolds_stress_averaging5` for $v$ and $w$ components).
-
-For `post_process_yt.py` and `post_process_sampling.py` (computing RMS from velocities):
+The RMS of velocity fluctuations $u' = u - \overline{u}$ is computed from velocities
 
 $$\overline{u}(z) = \langle u \rangle_{x,y,t}$$
 
@@ -64,7 +50,7 @@ Only $a$ enters the wall shear stress; $b$ captures near-wall profile curvature 
 
 Then $\tau_w = \mu \left|\frac{dU}{dz}\right|_0$ and $u_\tau = \sqrt{\tau_w / \rho}$.
 
-**`loglaw` — Monin-Obukhov log-law (default for all LES):**
+**`loglaw` — Monin-Obukhov log-law (default for wall-modeled LES):**
 
 The LES wall model applies Monin-Obukhov similarity theory at cell $k+1$ (the first cell above the drag cell). Consistent with the wall model implementation:
 
@@ -90,6 +76,8 @@ where $\nu = \mu / \rho$ is the kinematic viscosity and $z = z_\text{sgf} + \del
 
 Note that results are compared to the original sources using the original coordinate system, which requires mapping SGF solutions from $v_\text{sgf} \rightarrow w_\text{data}$ and $w_\text{sgf} \rightarrow v_\text{sol}$, with $z_\text{sgf}^+ \rightarrow y_\text{data}^+$.
 
+# Cases and Results
+
 ## Re = 180
 The channel half width is set to $\delta = 0.005$ m. For simulations without IB, the upper and lower walls in the $z$ direction are set at $\pm \delta$, respectively. For simulations with IB, the computational domain is also bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. The fluid in the simulation is air at ambient pressure and a temperature of 750 K. The physical properties used in the simulation are provided in the table below:
 
@@ -106,7 +94,7 @@ The characteristics of the flows are reported below:
 
 Simulations are carried out for 20 eddy turn over time $t^*$ to reach statistically steady conditions.  Data are then temporally and spatially averaged in the periodic directions and averaged in time over 10 $t^*$ to get the velocity statistics in the direction normal to the wall.
 
-### DNS Results
+### DNS Case Setup and Results
 
 Mesh refinement is targeted at the walls in order to sufficiently resolve the boundary layers. We carry out DNS simulations with 183.4 million cells, utilizing two levels of refinement. The base grid and levels of refinement is described in the table below. 
 
@@ -118,6 +106,19 @@ Mesh refinement is targeted at the walls in order to sufficiently resolve the bo
 | Level 1   | 768   | 384   | 240 | $\leq$ 42 | 1.5 |
 | Level 2   | 1536  | 768   | 480 | $\leq$ 6 | 0.75 |
 
+#### Generating the input files
+
+To generate the input files for this case run the following commands from the `estuary_hfm_mmsei/validation/single_phase_turbulent_flat/python` directory:
+
+~~~
+python case_setup.py --Re 180 --DNS
+python case_setup.py --Re 180 --DNS --avg
+~~~
+
+This will create two input files in the `estuary_hfm_mmsei/validation/single_phase_turbulent_flat/cases/ReTau180_DNS` directory:
+
+* `turbulent-flat-re-180.inp` - for the DNS simulation up to 20 flow through times
+* `turbulent-flat-re-180-averaging.inp` - for the DNS simulation with sampling for averaging from 20-30 flow through times
 
 The DNS simulations were run on Kestrel with 2 GPU nodes with a total of 8 GPUs. The results are compared to the Kim et al. DNS data in the figures below. The mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above. The mean velocity ($u^+$) shows good agreement with the Kim et al. data, but the RMS velocity profiles are noticibly off for $y^+ > 10$, and become worse after the second coarse-fine interface at $y^+ \approx 40$. 
 ![Coordinate System](figures/ReTau180_DNS/Uplus_sampling_gradU.png)
@@ -133,6 +134,21 @@ The LES simulations are carried out on a mesh where the base grid is coarser tha
 |Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.00 $\delta$ or 2.29 $\delta$ (IB) | - | - |
 | Level 0   | 192   | 96   | 56 or 64 (IB) | > 45 | 6.43 |
 | Level 1   | 384   | 192   | 112 or 128 (IB) | $\leq$ 45 | 3.21 |
+
+
+#### Generating the input files
+
+To generate the input files for this case run the following commands from the `estuary_hfm_mmsei/validation/single_phase_turbulent_flat/python` directory:
+
+~~~
+python case_setup.py --Re 180
+python case_setup.py --Re 180 --avg
+~~~
+
+This will create two input files in the `estuary_hfm_mmsei/validation/single_phase_turbulent_flat/cases/ReTau180_LES` directory:
+
+* `turbulent-flat-re-180.inp` - for the LES simulation up to 20 flow through times
+* `turbulent-flat-re-180-averaging.inp` - for the LES simulation with sampling for averaging from 20-30 flow through times
 
 
 ## Re = 395 (LES)
