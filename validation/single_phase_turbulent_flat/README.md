@@ -94,7 +94,7 @@ The characteristics of the flows are reported below:
 
 Simulations are carried out for 20 eddy turn over time $t^*$ to reach statistically steady conditions.  Data are then temporally and spatially averaged in the periodic directions and averaged in time over 10 $t^*$ to get the velocity statistics in the direction normal to the wall.
 
-### DNS Case Setup and Results
+### DNS Simulations (Re = 180)
 
 Mesh refinement is targeted at the walls in order to sufficiently resolve the boundary layers. We carry out DNS simulations with 183.4 million cells, utilizing two levels of refinement. The base grid and levels of refinement is described in the table below. 
 
@@ -120,11 +120,12 @@ This will create two input files in the `estuary_hfm_mmsei/validation/single_pha
 * `turbulent-flat-re-180.inp` - for the DNS simulation up to 20 flow through times
 * `turbulent-flat-re-180-averaging.inp` - for the DNS simulation with sampling for averaging from 20-30 flow through times
 
+### DNS Results (Re = 180)
 The DNS simulations were run on Kestrel with 2 GPU nodes with a total of 8 GPUs. The results are compared to the Kim et al. DNS data in the figures below. The mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above. The mean velocity ($u^+$) shows good agreement with the Kim et al. data, but the RMS velocity profiles are noticibly off for $y^+ > 10$, and become worse after the second coarse-fine interface at $y^+ \approx 40$. 
-![Coordinate System](figures/ReTau180_DNS/Uplus_sampling_gradU.png)
-![Coordinate System](figures/ReTau180_DNS/VelRMSplus_sampling_gradU.png)
+![DNS: Mean Velocity](figures/ReTau180_DNS/Uplus_sampling_gradU.png)
+![DNS: RMS Velocity](figures/ReTau180_DNS/VelRMSplus_sampling_gradU.png)
 
-### LES Results
+### LES Simulations (Re = 180)
 
 The LES simulations are carried out on a mesh where the base grid is coarser than the DNS grid by a factor of 2, with a single level of refinement at the walls. The upper and lower walls are defined either with or without immersed boundaries (IB). The IB cases extend the domain by ~$\pm 0.15\delta$ in the z-direction so the IB is at $\pm \delta$. The mesh is described in the table below:
 
@@ -149,6 +150,10 @@ This will create two input files in the `estuary_hfm_mmsei/validation/single_pha
 
 * `turbulent-flat-re-180.inp` - for the LES simulation up to 20 flow through times
 * `turbulent-flat-re-180-averaging.inp` - for the LES simulation with sampling for averaging from 20-30 flow through times
+
+The LES simulations were run on Kestrel with 2 CPU nodes with 50 ranks per node for a total of 100 CPUs. For the non-IB simulation, mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above. For the simulations with IB, the friction velocity estimated using the `gradU` method.  The mean velocity ($u^+$) shows good agreement with the Kim et al. data, but the RMS velocity profiles are noticibly off for $y^+ > 10$, and become worse after the second coarse-fine interface at $y^+ \approx 40$. 
+![LES: Mean Velocity](figures/ReTau180_DNS/Uplus_sampling_gradU.png)
+![LES: RMS Velocity](figures/ReTau180_DNS/VelRMSplus_sampling_gradU.png)
 
 
 ## Re = 395 (LES)
