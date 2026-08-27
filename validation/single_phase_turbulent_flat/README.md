@@ -152,8 +152,8 @@ This will create two input files in the `estuary_hfm_mmsei/validation/single_pha
 * `turbulent-flat-re-180-averaging.inp` - for the LES simulation with sampling for averaging from 20-30 flow through times
 
 The LES simulations were run on Kestrel with 2 CPU nodes with 50 ranks per node for a total of 100 CPUs. For the non-IB simulation, mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above. For the simulations with IB, the friction velocity estimated using the `gradU` method.  The mean velocity ($u^+$) shows good agreement with the Kim et al. data, but the RMS velocity profiles are noticibly off for $y^+ > 10$, and become worse after the second coarse-fine interface at $y^+ \approx 40$. 
-![LES: Mean Velocity](figures/ReTau180_DNS/Uplus_sampling_gradU.png)
-![LES: RMS Velocity](figures/ReTau180_DNS/VelRMSplus_sampling_gradU.png)
+![LES: Mean Velocity](figures/ReTau180_LES_ALL/Uplus_sampling_all.png)
+![LES: RMS Velocity](figures/ReTau180_LES_ALL/VelRMSplus_sampling_all.png)
 
 
 ## Re = 395 (LES)
