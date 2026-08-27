@@ -171,6 +171,9 @@ The LES simulations were run on Kestrel with 2 CPU nodes with 50 ranks per node 
 
 
 ## Re = 395 (LES)
+
+_Note: The Re = 395 case has been set up, but has not yet been run. Additionally, kynema-sgf does not currently support non-IB simulations with wall-modeled LES on the upper z boundary, therefore this case can only be run with IB._
+
 The channel half width is set to $\delta = 0.01$ m. For simulations without IB, the upper and lower walls in the $z$ direction are set at $\pm \delta$, respectively. For simulations with IB, the fluid domain is also bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. 
 
 The characteristics of the flows are reported below:
@@ -186,6 +189,8 @@ The characteristics of the flows are reported below:
 | Level 1   | 384   | 192   | 112 or 128 (IB) | $\leq$ 112 | 7.05 |
 
 ## Re = 934 (LES)
+
+_Note: The Re = 934 case has been set up, but has not yet been run. Additionally, kynema-sgf does not currently support non-IB simulations with wall-modeled LES on the upper z boundary, therefore this case can only be run with IB._
 
 The channel half width is set to $\delta = 0.01$ m. For simulations without IB, the upper and lower walls in the $z$ direction are set at $\pm \delta$, respectively. For simulations with IB, the fluid domain is also bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. 
 
