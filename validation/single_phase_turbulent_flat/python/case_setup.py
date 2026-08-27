@@ -556,6 +556,8 @@ def generate_config_content(config):
         lines.append(f"ABL.surface_roughness_z0 = 0.00001")
         use_original = config['drag'] == 'og'
         lines.append(f"DragForcing.terrain_use_original_limiter = {'true' if use_original else 'false'}")
+        if config['drag'] == 'tf1':
+            lines.append(f"DragForcing.bc_forcing_time_factor = 1")
     
     lines.append("")
     
