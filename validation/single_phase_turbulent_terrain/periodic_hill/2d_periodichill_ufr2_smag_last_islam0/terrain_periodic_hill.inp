@@ -1,0 +1,115 @@
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            SIMULATION STOP            #
+#.......................................#
+time.stop_time               =   -100.0     # Max (simulated) time to evolve
+time.max_step                =   400000        # Max number of time steps
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#         TIME STEP COMPUTATION         #
+#.......................................#
+time.inital_dt         =   1.0e-5       # Use this constant dt if > 0
+time.cfl              =   0.8         # CFL factor
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            INPUT AND OUTPUT           #
+#.......................................#
+time.plot_interval            =  1000       # Steps between plot files
+time.checkpoint_interval      =  -1       # Steps between checkpoint files
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#               PHYSICS                 #
+#.......................................#
+ConstValue.density.value = 1000.0
+ConstValue.velocity.value = 0.7 0.0 0.0
+ConstValue.tke.value = 0.006
+ConstValue.sdr.value = 622.3
+ConstValue.temperature.value = 300.0
+
+incflo.use_godunov = 1
+incflo.godunov_type = "weno_z"
+incflo.diffusion_type = 2
+incflo.do_initial_proj = 0
+incflo.initial_iterations = 0
+incflo.density = 1000.0
+
+incflo.physics = TerrainDrag FreeStream #IBTesting
+ICNS.source_terms = DragForcing BodyForce # BoussinesqBuoyancy
+#Temperature.source_terms = DragTempForcing
+
+
+transport.model                             = ConstTransport
+transport.viscosity                         = 1.0e-3
+transport.laminar_prandtl                   = 0.7
+transport.turbulent_prandtl                 = 0.333
+transport.reference_temperature                   = 300.
+turbulence.model = Smagorinsky #Laminar #KOmegaSSTIDDES #Kosovic
+io.int_outputs = terrain_blank terrain_drag
+
+DragForcing.use_original_drag_limiter = false
+DragForcing.use_temporal_drag_limiter = true
+DragForcing.is_laminar = false
+
+TerrainDrag.terrain_file = "terrain.txt"
+TerrainDrag.roughness_file = "roughness.txt"
+
+ABL.surface_roughness_z0 = 0.00001
+ABL.monin_obukhov_length = 0.00001
+
+
+amr.n_cell              = 256 128 88   # Grid cells at coarsest AMRlevel
+geometry.prob_lo        =   0  0  0
+geometry.prob_hi        =   0.252 0.126 0.085
+geometry.is_periodic    =   1   1   0   # Periodicity x y z (0/1)
+
+amr.max_level = 0
+tagging.labels = sr
+tagging.sr.type = CartBoxRefinement
+tagging.sr.static_refinement_def = static_box.refine
+
+
+BodyForce.magnitude = 0.059 0 0 #Aiming for Re=10600 or U_b=0.38757 m/s (U_max at 0.4008 m/s)
+
+# Boundary conditions
+zlo.type =   "slip_wall"
+zlo.density = 1000.0
+zlo.temperature_type                        = "fixed_gradient"
+zlo.temperature                             =  0.000001
+
+zhi.type =   "no_slip_wall"
+zhi.density = 1000.0
+zhi.temperature_type                        = "fixed_gradient"
+zhi.temperature                             =  0.000001
+
+incflo.verbose          =   0          # incflo_level
+
+incflo.post_processing = sampling psampling
+
+sampling.labels = plane1 plane2
+sampling.output_time_interval = 0.6658
+sampling.enforce_output_time_dt = true 
+
+psampling.labels = probe1
+psampling.output_interval = 5
+
+sampling.fields = velocity mu_turb 
+sampling.int_fields = terrain_blank terrain_drag
+
+sampling.plane2.type        = PlaneSampler
+sampling.plane2.axis1        = 0.252 0.0 0.0
+sampling.plane2.axis2      = 0.0 0.0 0.085
+sampling.plane2.origin      = 0.0 0.063 0.0
+sampling.plane2.num_points  = 256 88
+sampling.plane2.offset_vector     = 0.0 1.0 0.0
+sampling.plane2.offsets      = 0.0
+
+sampling.plane1.type        = PlaneSampler
+sampling.plane1.axis1        = 0.0 0.126 0.0
+sampling.plane1.axis2      = 0.0 0.0 0.085
+sampling.plane1.origin      = 0.0 0.0 0.0
+sampling.plane1.num_points  = 128 88
+sampling.plane1.offset_vector     = 1.0 0.0 0.0
+sampling.plane1.offsets      = 0.0014 0.014 0.028 0.056 0.084 0.112 0.14 0.168 0.196 0.224
+
+psampling.fields = velocity
+psampling.probe1.type = ProbeSampler
+psampling.probe1.probe_location_file = "probe_locations.txt"

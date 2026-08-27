@@ -1,0 +1,1 @@
+To prepare this case, use the FVCOM-dataExtraction jupyter notebook in tools/. Make sure to point the notebook to the location of the input file so that the domain information can be read.

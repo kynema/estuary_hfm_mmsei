@@ -1,0 +1,84 @@
+cases:
+  - name: 2d_bump_ufr_smag_final_islam1
+    label: SGF IB Smagorinsky Lam True
+    type: sgf
+    format: netcdf
+    path: ../../../2d_periodichill_ufr2_smag_last_islam1
+    point_sample_file: psampling00000.nc
+    plane_sample_file: [sampling00000.nc]
+    probe_plots: false
+    plane_processing: true
+    opt: [215,295,295, 100.0, 0.3785]
+  - name: 2d_bump_ufr_smag_final_islam0
+    label: SGF IB Smagorinsky Lam False
+    type: sgf
+    format: netcdf
+    path: ../../../2d_periodichill_ufr2_smag_last_islam0
+    point_sample_file: psampling00000.nc
+    plane_sample_file: [sampling00000.nc]
+    probe_plots: false
+    plane_processing: true
+    opt: [215,295,295, 100.0, 0.3785]
+  - name: 2d_bump_ufr_smag_final_islam0_orig
+    label: SGF IB Smagorinsky Lam False Orig
+    type: sgf
+    format: netcdf
+    path: ../../../2d_periodichill_ufr2_smag_last_orig
+    point_sample_file: psampling00000.nc
+    plane_sample_file: [sampling00000.nc]
+    probe_plots: false
+    plane_processing: true
+    opt: [215,295,295, 100.0, 0.3785]
+  - name: ugf_iddes
+    label: UGF IDDES
+    type: ugf
+    format: netcdf
+    path: ../../../ugf_periodic_hill_final_cub1
+    probe_plots: false
+    plane_processing: true
+    opt: [4000,4500,4500, 100.0, 0.3785]
+    plane_template: sample_plane_{i}_0.dat
+    plane_options: [4300,12200,100]
+  - name: ugf_smag
+    label: UGF Smagorinsky
+    type: ugf
+    format: netcdf
+    path: ../../../ugf_periodic_hill_final_smag_cub1
+    probe_plots: false
+    plane_processing: true
+    opt: [4000,4500,4500, 100.0, 0.3785]
+    plane_template: sample_plane_{i}_0.dat
+    plane_options: [4300,12200,100]
+
+    # UGF: Need 12000 steps for approx 100 flow-throughs
+    # SGF: Need 100 plane output steps for 100 flow-throughs
+
+
+
+data:
+  parent_dir: ../../external_data/ufrdata
+  variables: ['U','V','uu','vv','uv']
+  profile: periodic_hill_ufr.csv
+  sources:
+  - xval: 0.0014
+    files: ['UFR3-30_X_10600_data_CR-001.dat']
+  - xval: 0.014
+    files: ['UFR3-30_X_10600_data_CR-002.dat']
+  - xval: 0.028
+    files: ['UFR3-30_X_10600_data_CR-003.dat']
+  - xval: 0.056
+    files: ['UFR3-30_X_10600_data_CR-004.dat']
+  - xval: 0.084
+    files: ['UFR3-30_X_10600_data_CR-005.dat']
+  - xval: 0.112
+    files: ['UFR3-30_X_10600_data_CR-006.dat']
+  - xval: 0.14
+    files: ['UFR3-30_X_10600_data_CR-007.dat']
+  - xval: 0.168 
+    files: ['UFR3-30_X_10600_data_CR-008.dat']
+  - xval: 0.196
+    files: ['UFR3-30_X_10600_data_CR-009.dat']
+  - xval: 0.224
+    files: ['UFR3-30_X_10600_data_CR-010.dat']
+
+        
