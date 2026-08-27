@@ -139,17 +139,31 @@ The LES simulations are carried out on a mesh where the base grid is coarser tha
 
 #### Generating the input files
 
-To generate the input files for this case run the following commands from the `estuary_hfm_mmsei/validation/single_phase_turbulent_flat/python` directory:
+To generate the input files for these three cases run the following commands from the `estuary_hfm_mmsei/validation/single_phase_turbulent_flat/python` directory:
 
 ~~~
 python case_setup.py --Re 180
 python case_setup.py --Re 180 --avg
+python case_setup.py --Re 180 --IB --drag og
+python case_setup.py --Re 180 --IB --drag og --avg
+python case_setup.py --Re 180 --IB --drag tf1
+python case_setup.py --Re 180 --IB --drag tf1 --avg
 ~~~
 
-This will create two input files in the `estuary_hfm_mmsei/validation/single_phase_turbulent_flat/cases/ReTau180_LES` directory:
+This will create six input files in three different directories:
 
-* `turbulent-flat-re-180.inp` - for the LES simulation up to 20 flow through times
-* `turbulent-flat-re-180-averaging.inp` - for the LES simulation with sampling for averaging from 20-30 flow through times
+~~~
+cases/
+├── ReTau180_LES/
+│   ├── turbulent-flat-re-180.inp             # non-IB LES, 20 flow through times
+│   └── turbulent-flat-re-180-averaging.inp   # non-IB LES, sampling for averaging, 20-30 flow through times
+├── ReTau180_LES_IB_OG/
+│   ├── turbulent-flat-re-180.inp             # IB LES (og drag model), 20 flow through times
+│   └── turbulent-flat-re-180-averaging.inp   # IB LES (og drag model), sampling for averaging, 20-30 flow through times
+└── ReTau180_LES_IB_TF1/
+    ├── turbulent-flat-re-180.inp             # IB LES (tf1 drag model), 20 flow through times
+    └── turbulent-flat-re-180-averaging.inp   # IB LES (tf1 drag model), sampling for averaging, 20-30 flow through times
+~~~
 
 The LES simulations were run on Kestrel with 2 CPU nodes with 50 ranks per node for a total of 100 CPUs. For the non-IB simulation, mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above. For the simulations with IB, the friction velocity estimated using the `gradU` method.  The mean velocity ($u^+$) shows good agreement with the Kim et al. data, but the RMS velocity profiles are noticibly off for $y^+ > 10$, and become worse after the second coarse-fine interface at $y^+ \approx 40$. 
 ![LES: Mean Velocity](figures/ReTau180_LES_ALL/Uplus_sampling_all.png)
