@@ -52,13 +52,12 @@ def generate_inp_content(config, template_path, drag_variant='temp', mode_name='
     # Add drag forcing settings based on variant (skip for no_ib cases)
     if not no_ib:
         if drag_variant == 'og':
-            output += "DragForcing.use_original_drag_limiter = true\n"
-            output += "DragForcing.use_temporal_drag_limiter = false\n"
+            output += "DragForcing.terrain_use_original_limiter = true\n"
         elif drag_variant == 'temp':
-            output += "DragForcing.use_original_drag_limiter = false\n"
-            output += "DragForcing.use_temporal_drag_limiter = true\n"
+            output += "DragForcing.terrain_use_original_limiter = false\n"
+            output += "DragForcing.terrain_use_temporal_limiter = true\n"
         elif drag_variant == 'tf1':
-            output += "DragForcing.use_temporal_drag_implementation = true\n"
+            output += "DragForcing.terrain_use_original_limiter = false\n"
             output += "DragForcing.bc_forcing_time_factor = 1.\n"
     
     # For flat cases with cell-center alignment, override ChannelBuilder parameters
