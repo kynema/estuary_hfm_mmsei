@@ -254,9 +254,17 @@ def main() -> int:
         offsets = sampler.get('offsets', [])
         
         # Get the sampling origin for coordinate mapping
-        # Offsets are relative to origin, need to convert to absolute coordinates
-        sampling_origin = sampler.get('origin', [0.0, 0.0, -0.005])
-        sampling_origin_z = sampling_origin[2] if isinstance(sampling_origin, (list, tuple)) else -0.005
+        # Offsets are relative to origin, need to convert to absolute coordinates.
+        # NOTE: sampling_info.yaml written by the solver does NOT include an
+        # 'origin' key, so this always falls back to the default below. The
+        # channel half-width (and therefore sampling.channel_stats.origin,
+        # which is always z=-delta) must match the convention in
+        # case_setup.py's main() (delta=0.01 m for Re>180, 0.005 m for
+        # Re=180) or higher-Re cases silently get plane-matched against the
+        # wrong z-origin, corrupting particle_stats.txt.
+        delta = 0.01 if args.Re > 180 else 0.005
+        sampling_origin = sampler.get('origin', [0.0, 0.0, -delta])
+        sampling_origin_z = sampling_origin[2] if isinstance(sampling_origin, (list, tuple)) else -delta
         
     except yaml.YAMLError as e:
         print(f"Error parsing {sampling_info_file}: {e}", file=sys.stderr)

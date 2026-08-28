@@ -224,7 +224,13 @@ def process_case(Re: int, DNS: bool, LES: bool, IB: bool, drag: str,
         (config, rescaled) where config is the domain_and_flow() dict (with
         u_tau updated) and rescaled is the dict returned by rescale_to_wall_units()
     """
-    config = domain_and_flow(Re=Re, IB=IB)
+    # Channel half-width must match the value used to generate the case in
+    # case_setup.py's main() (delta=0.01 m for Re>180, 0.005 m for Re=180).
+    # domain_and_flow() itself defaults to 0.005 m regardless of Re, so this
+    # must be passed explicitly or higher-Re cases silently get the wrong
+    # delta (and therefore wrong u_tau, l_nu, y_plus, etc.).
+    delta = 0.01 if Re > 180 else 0.005
+    config = domain_and_flow(Re=Re, IB=IB, delta=delta)
     
     stats_file = find_particle_stats_file(Re, DNS=DNS, LES=LES, IB=IB, drag=drag,
                                           nprocs=nprocs)
