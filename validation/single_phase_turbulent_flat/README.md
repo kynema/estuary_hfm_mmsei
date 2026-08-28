@@ -174,7 +174,7 @@ The LES simulations were run on Kestrel with 2 CPU nodes with 50 ranks per node 
 
 _Note: The Re = 395 case has been set up, but has not yet been run. Additionally, kynema-sgf does not currently support non-IB simulations with wall-modeled LES on the upper z boundary, therefore this case can only be run with IB._
 
-The channel half width is set to $\delta = 0.01$ m. For simulations without IB, the upper and lower walls in the $z$ direction are set at $\pm \delta$, respectively. For simulations with IB, the fluid domain is also bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. 
+The channel half width is set to $\delta = 0.01$ m. For simulations with IB, the fluid domain bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. Flow is initialized using `incflo.physics = ChannelFlow`, which provides perturbation parameters that seed turbulence growth with `ChannelFlow.re_tau = 180` (not 395 due to nans), then run for 30 flow-through times to reach statistically steady conditions.  Data is then collected for 10 flow-through times to get the velocity statistics in the direction normal to the wall.
 
 The characteristics of the flows are reported below:
 
@@ -185,14 +185,14 @@ The characteristics of the flows are reported below:
 |           | $x$   | $y$   | $z$                | $z^+$ range | $\Delta z^+$ |
 |---------- | ----- | ----- | ------------------ | ----- | ------------ |
 |Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.00 $\delta$ or 2.29 $\delta$ (IB) | - | - |
-| Level 0   | 192   | 96   | 56 or 64 (IB) | > 112 | 14.11 |
-| Level 1   | 384   | 192   | 112 or 128 (IB) | $\leq$ 112 | 7.05 |
+| Level 0   | 200   | 96   |  72 (IB) | > 111 | 12.34 |
+| Level 1   | 384   | 192   | 144 (IB) | $\leq$ 111 | 6.17 |
 
 ## Re = 934 (LES)
 
 _Note: The Re = 934 case has been set up, but has not yet been run. Additionally, kynema-sgf does not currently support non-IB simulations with wall-modeled LES on the upper z boundary, therefore this case can only be run with IB._
 
-The channel half width is set to $\delta = 0.01$ m. For simulations without IB, the upper and lower walls in the $z$ direction are set at $\pm \delta$, respectively. For simulations with IB, the fluid domain is also bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. 
+The channel half width is set to $\delta = 0.01$ m. For simulations with IB, the fluid domain bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. Flow is initialized using `incflo.physics = ChannelFlow`, which provides perturbation parameters that seed turbulence growth with `ChannelFlow.re_tau = 180` (not 934 due to nans), then run for 30 flow-through times to reach statistically steady conditions.  Data is then collected for 10 flow-through times to get the velocity statistics in the direction normal to the wall.
 
 The characteristics of the flows are reported below:
 
@@ -203,6 +203,6 @@ The characteristics of the flows are reported below:
 |           | $x$   | $y$   | $z$                | $z^+$ range | $\Delta z^+$ |
 |---------- | ----- | ----- | ------------------ | ----- | ------------ |
 |Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.00 $\delta$ or 2.29 $\delta$ (IB) | - | - |
-| Level 0   | 192   | 96   | 56 or 64 (IB) | > 267 | 33.36 |
-| Level 1   | 384   | 192   | 112 or 128 (IB) | $\leq$ 267 | 16.68 |
-| Level 2   | 768   | 384   | 224 or 256 (IB) | $\leq$ 100 | 8.34 |
+| Level 0   | 200   | 96    | 72 (IB) | > 263 | 29.19 |
+| Level 1   | 400   | 192   | 144 (IB) | $\leq$ 263 | 14.59 |
+| Level 2   | 800   | 384   | 288 (IB) | $\leq$ 116 | 7.30 |

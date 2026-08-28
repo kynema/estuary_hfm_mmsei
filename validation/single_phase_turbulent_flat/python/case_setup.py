@@ -415,7 +415,10 @@ def generate_averaging_config_content(config, dns=False):
     lines.append(f"io.plot_file = \"pltAvg\"")
     lines.append(f"io.check_file = \"chkAvg\"")
     lines.append("")
-    lines.append(f"time.stop_time = {30*t_star:.6f} # ~30 flow-through times for statistics")
+    if config['Re'] <= 180:
+        lines.append(f"time.stop_time = {30*t_star:.6f} # ~30 flow-through times for statistics")
+    else: 
+        lines.append(f"time.stop_time = {40*t_star:.6f} # ~40 flow-through times for statistics")
     lines.append("")
     
     lines.append("#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#")
@@ -515,7 +518,10 @@ def generate_config_content(config):
     
     # FILE directive and stop time
     lines.append(f"FILE = ../base-turbulent-flat.inp")
-    lines.append(f"time.stop_time = {20*config['t_star']:.6f} # ~20 flow-through time")
+    if config['Re'] <= 180:
+        lines.append(f"time.stop_time = {20*config['t_star']:.6f} # ~20 flow-through time")
+    else:
+        lines.append(f"time.stop_time = {30*config['t_star']:.6f} # ~30 flow-through time")
     lines.append("")
     
     # GEOMETRY section
@@ -727,7 +733,10 @@ Examples:
     # For LES, use coarser base grid (half resolution) only if Nx wasn't explicitly provided
     Nx = args.Nx
     if not args.DNS and not user_provided_Nx:
-        Nx = Nx // 2
+        if args.Re > 180:
+            Nx = 200
+        else: 
+            Nx = Nx // 2
 
     # Channel half width in meters
     if args.delta is None:
