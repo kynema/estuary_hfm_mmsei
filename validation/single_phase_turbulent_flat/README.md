@@ -165,14 +165,19 @@ cases/
     └── turbulent-flat-re-180-averaging.inp   # IB LES (tf1 drag model), sampling for averaging, 20-30 flow through times
 ~~~
 
-The LES simulations were run on Kestrel with 2 CPU nodes with 50 ranks per node for a total of 100 CPUs. For the non-IB simulation, mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above. For the simulations with IB, the friction velocity estimated using the `gradU` method.  The mean velocity ($u^+$) shows good agreement with the Kim et al. data, but the RMS velocity profiles are noticibly off for $y^+ > 10$, and become worse after the second coarse-fine interface at $y^+ \approx 40$. 
+### LES Results (Re = 180)
+The LES simulations were run on Kestrel with 2 CPU nodes with 50 ranks per node for a total of 100 CPUs. For the non-IB simulation, mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above. For the simulations with IB, the friction velocity estimated using the `gradP` method:  
+~~~
+python post_process_sampling.py --Re 180 --LES --all --drag none,tf1,og --utau-source gradU,gradP,gradP
+~~~
+
 ![LES: Mean Velocity](figures/ReTau180_LES_ALL/Uplus_sampling_all.png)
 ![LES: RMS Velocity](figures/ReTau180_LES_ALL/VelRMSplus_sampling_all.png)
 
 
 ## Re = 395 (LES)
 
-_Note: The Re = 395 case has been set up, but has not yet been run. Additionally, kynema-sgf does not currently support non-IB simulations with wall-modeled LES on the upper z boundary, therefore this case can only be run with IB._
+_Note: kynema-sgf does not currently support non-IB simulations with wall-modeled LES on the upper z boundary, therefore this case can only be run with IB._
 
 The channel half width is set to $\delta = 0.01$ m. For simulations with IB, the fluid domain bounded by $\pm \delta$ in $z$, with the IB walls coinciding exactly with the coarse-mesh cell faces. The IB mesh adds additional cells in $z$ based on the blocking factor relative to the non-IB mesh (ensuring the same $\Delta z$ spacing) to accommodate the drag and adjacent fluid cells near each wall. A background pressure gradient is imposed in the $x$ direction to compensate for wall friction. Flow is initialized using `incflo.physics = ChannelFlow`, which provides perturbation parameters that seed turbulence growth with `ChannelFlow.re_tau = 180` (not 395 due to nans), then run for 30 flow-through times to reach statistically steady conditions.  Data is then collected for 10 flow-through times to get the velocity statistics in the direction normal to the wall.
 
@@ -187,6 +192,30 @@ The characteristics of the flows are reported below:
 |Domain Size| 6.24 $\delta$ | 3.12 $\delta$ | 2.00 $\delta$ or 2.29 $\delta$ (IB) | - | - |
 | Level 0   | 200   | 96   |  72 (IB) | > 111 | 12.34 |
 | Level 1   | 384   | 192   | 144 (IB) | $\leq$ 111 | 6.17 |
+
+#### Generating the input files
+
+To generate the input files for this case run the following commands from the `estuary_hfm_mmsei/validation/single_phase_turbulent_flat/python` directory:
+
+~~~
+python case_setup.py --Re 395 --IB --drag tf1
+python case_setup.py --Re 395 --IB --drag tf1 --avg
+~~~
+
+This will create two input files in the `estuary_hfm_mmsei/validation/single_phase_turbulent_flat/cases/ReTau395_LES_IB_TF1` directory:
+
+* `turbulent-flat-re-395-ib.inp` - for the LES simulation up to 30 flow through times
+* `turbulent-flat-re-395-ib-averaging.inp` - for the LES simulation with sampling for averaging from 30-40 flow through times
+
+### LES Results (Re = 395)
+The LES simulations were run on Kestrel with 2 CPU nodes with 50 ranks per node for a total of 100 CPUs. The friction velocity was estimated using the `gradP` method:  
+~~~
+python post_process_sampling.py --Re 395 --LES --IB --drag tf1 --utau-source gradP
+~~~
+
+![LES: Mean Velocity](figures/ReTau395_LES_IB_TF1/Uplus_sampling_gradP.png)
+![LES: RMS Velocity](figures/ReTau395_LES_IB_TF1/VelRMSplus_sampling_gradP.png)
+
 
 ## Re = 934 (LES)
 
