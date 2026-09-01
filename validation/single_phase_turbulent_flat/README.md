@@ -12,6 +12,9 @@ $$a_x = -\frac{1}{\rho}\frac{\partial p}{\partial x}.$$
 
 Simulations are initialized using `incflo.physics = ChannelFlow`, which provides perturbation parameters that seed turbulence growth.
 
+## Kynema-SGF Configuration
+All cases were run using [PR #1994](https://github.com/kynema/kynema-sgf/pull/1994) commit  [#c082821](https://github.com/kynema/kynema-sgf/pull/1994/changes/c08282104c1abdc85f25ab517f420cdf6acaf577)
+
 ## Post-Processing Statistics
 
 The mean velocity ($\overline{u}$) and RMS velocity profiles ($u'_\text{rms}$, $v'_\text{rms}$, $w'_\text{rms}$ ) are computed from spatial sampling data written to `post_processing/sampling#####/particles` via the `post_process_sampling.py` python script.
@@ -121,7 +124,12 @@ This will create two input files in the `estuary_hfm_mmsei/validation/single_pha
 * `turbulent-flat-re-180-averaging.inp` - for the DNS simulation with sampling for averaging from 20-30 flow through times
 
 ### DNS Results (Re = 180)
-The DNS simulations were run on Kestrel with 2 GPU nodes with a total of 8 GPUs. The results are compared to the Kim et al. DNS data in the figures below. The mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above. The mean velocity ($u^+$) shows good agreement with the Kim et al. data, but the RMS velocity profiles are noticibly off for $y^+ > 10$, and become worse after the second coarse-fine interface at $y^+ \approx 40$. 
+The DNS simulations were run on Kestrel with 2 GPU nodes with a total of 8 GPUs. The results are compared to the Kim et al. DNS data in the figures below. The mean velocity and RMS velocity profiles are plotted in wall units with the friction velocity estimated using the `gradU` method discussed in the post processing section above:
+~~~
+python post_process_sampling.py --Re 180 --DNS --utau-source gradU
+~~~
+
+The mean velocity ($u^+$) shows good agreement with the Kim et al. data, but the RMS velocity profiles are noticibly off for $y^+ > 10$, and become worse after the second coarse-fine interface at $y^+ \approx 40$. 
 ![DNS: Mean Velocity](figures/ReTau180_DNS/Uplus_sampling_gradU.png)
 ![DNS: RMS Velocity](figures/ReTau180_DNS/VelRMSplus_sampling_gradU.png)
 
