@@ -19,6 +19,8 @@ class InterpolatedEstuaryVelocity:
         assert xg.shape == yg.shape
         assert xg.shape == zg.shape
 
+        dz = zg[0,0,1] - zg[0,0,0]
+
         # Interpolate the field variable, the surface elevation, and water level to the boundary points
         # using the scipy interpolator passed here.
         field = self.interpolatorField(xg,yg,zg)
@@ -35,7 +37,7 @@ class InterpolatedEstuaryVelocity:
         waterLev_ = waterLev.flat
         
         for i in range(len(field_)):
-            if (zg_[i] > waterLev_[i]):
+            if (zg_[i]-0.5*dz> waterLev_[i]):
                 field_[i] = self.airVal
             elif (zg_[i] < surfElev_[i]):
                 field_[i]= self.subTerrainVal
