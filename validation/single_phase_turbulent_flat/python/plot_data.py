@@ -26,7 +26,7 @@ DNS_LABELS = {
 
 
 def plot_mean_velocity_profile(re_number, yplus_sim=None, Uplus_sim=None, 
-                                label_sim="kynema-sgf", outpath=None):
+                                label_sim="kynema-sgf", sim_list=None, outpath=None):
     """
     Plot mean velocity profile with optional simulation data overlay.
     
@@ -35,11 +35,14 @@ def plot_mean_velocity_profile(re_number, yplus_sim=None, Uplus_sim=None,
     re_number : int
         Reynolds number for experimental data (180, 395, 934)
     yplus_sim : np.ndarray, optional
-        Simulation y+ values to overlay
+        Simulation y+ values to overlay (single-curve mode)
     Uplus_sim : np.ndarray, optional
-        Simulation U+ values to overlay
+        Simulation U+ values to overlay (single-curve mode)
     label_sim : str
-        Label for simulation data (default "kynema-sgf")
+        Label for simulation data (single-curve mode, default "kynema-sgf")
+    sim_list : list of dict, optional
+        Multiple simulation curves to overlay for comparison, each a dict with
+        keys 'yplus', 'Uplus', 'label'. Takes precedence over yplus_sim/Uplus_sim.
     outpath : Path or str, optional
         Path to save figure. If None, returns figure without saving.
     
@@ -62,7 +65,10 @@ def plot_mean_velocity_profile(re_number, yplus_sim=None, Uplus_sim=None,
                 fillstyle='none', markeredgewidth=1)
     
     # Plot simulation data if provided
-    if yplus_sim is not None and Uplus_sim is not None:
+    if sim_list:
+        for entry in sim_list:
+            ax.semilogx(entry['yplus'], entry['Uplus'], "-", label=entry['label'], linewidth=2)
+    elif yplus_sim is not None and Uplus_sim is not None:
         ax.semilogx(yplus_sim, Uplus_sim, "-", label=label_sim, linewidth=2)
     
     # Add reference lines with appropriate ranges
@@ -87,7 +93,7 @@ def plot_mean_velocity_profile(re_number, yplus_sim=None, Uplus_sim=None,
         ax.set_ylim(0, 25)
     ax.set_xlim(1, max(200.0, y_all.max()))
     
-    ax.legend(fontsize=12, loc='lower right')
+    ax.legend(fontsize=12, loc='upper left')
     ax.grid(True, which="both", alpha=0.3)
     fig.tight_layout()
     
@@ -99,7 +105,7 @@ def plot_mean_velocity_profile(re_number, yplus_sim=None, Uplus_sim=None,
 
 def plot_rms_velocity_profiles(re_number, yplus_sim=None, urms_sim=None, 
                                 vrms_sim=None, wrms_sim=None, 
-                                label_sim="kynema-sgf", outpath=None):
+                                label_sim="kynema-sgf", sim_list=None, outpath=None):
     """
     Plot RMS velocity profiles with optional simulation data overlay.
     
@@ -108,15 +114,19 @@ def plot_rms_velocity_profiles(re_number, yplus_sim=None, urms_sim=None,
     re_number : int
         Reynolds number for experimental data (180, 395, 934)
     yplus_sim : np.ndarray, optional
-        Simulation y+ values to overlay
+        Simulation y+ values to overlay (single-curve mode)
     urms_sim : np.ndarray, optional
-        Simulation u_rms+ values to overlay
+        Simulation u_rms+ values to overlay (single-curve mode)
     vrms_sim : np.ndarray, optional
-        Simulation v_rms+ values to overlay
+        Simulation v_rms+ values to overlay (single-curve mode)
     wrms_sim : np.ndarray, optional
-        Simulation w_rms+ values to overlay
+        Simulation w_rms+ values to overlay (single-curve mode)
     label_sim : str
-        Label for simulation data (default "kynema-sgf")
+        Label for simulation data (single-curve mode, default "kynema-sgf")
+    sim_list : list of dict, optional
+        Multiple simulation curves to overlay for comparison, each a dict with
+        keys 'yplus', 'urms', 'vrms', 'wrms', 'label'. Takes precedence over
+        yplus_sim/urms_sim/vrms_sim/wrms_sim.
     outpath : Path or str, optional
         Path to save figure. If None, returns figure without saving.
     
@@ -142,8 +152,22 @@ def plot_rms_velocity_profiles(re_number, yplus_sim=None, urms_sim=None,
                        markeredgewidth=1, fillstyle='none', label=f'{dns_label_comp} - ${component}$')
         colors[component] = line[0].get_color()
     
-    # Plot simulation data if provided, using same colors
-    if yplus_sim is not None:
+    # Plot simulation data if provided, using same colors.
+    # Each case gets a single legend entry (black line) rather than one per component.
+    if sim_list:
+        linestyles = ['-', '--', ':', '-.']
+        for i, entry in enumerate(sim_list):
+            ls = linestyles[i % len(linestyles)]
+            entry_yplus = entry['yplus']
+            entry_label = entry['label']
+            if entry.get('urms') is not None:
+                ax.plot(entry_yplus, entry['urms'], ls, color=colors['U'], label='_nolegend_')
+            if entry.get('vrms') is not None:
+                ax.plot(entry_yplus, entry['vrms'], ls, color=colors['V'], label='_nolegend_')
+            if entry.get('wrms') is not None:
+                ax.plot(entry_yplus, entry['wrms'], ls, color=colors['W'], label='_nolegend_')
+            ax.plot([], [], ls, color='k', label=entry_label)
+    elif yplus_sim is not None:
         if urms_sim is not None:
             ax.plot(yplus_sim, urms_sim, "-", color=colors['U'], label=f'{label_sim} - $u$')
         if vrms_sim is not None:

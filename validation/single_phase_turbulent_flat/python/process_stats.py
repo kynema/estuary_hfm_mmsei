@@ -3,7 +3,10 @@ import pandas as pd
 import sys
 import argparse
 import glob
+import os
+import concurrent.futures
 from pathlib import Path
+from data import build_case_dir_name
 
 # Add path to kynema-sgf tools
 #kynema_sgf_tools = Path("/Users/dmontgo2/Documents/Kynema/kynema-sgf/tools")
@@ -15,16 +18,23 @@ if kynema_sgf_tools.exists():
 from amrex_particle import AmrexParticleFile
 
 
-def find_sampling_folder(Re: int, IB: bool = False) -> Path:
+def find_sampling_folder(Re: int, DNS: bool = False, LES: bool = False,
+                         IB: bool = False, drag: str = None) -> Path:
     """
-    Find the latest sampling folder for the given Reynolds number and IB variant.
+    Find the latest sampling folder for the given Reynolds number and variant.
     
     Parameters
     ----------
     Re : int
         Stress Reynolds number
+    DNS : bool
+        If True, look for DNS variant
+    LES : bool
+        If True, look for LES variant
     IB : bool
-        If True, look for ReTau{Re}_IB/ directory
+        If True, look for immersed boundary variant
+    drag : str
+        Drag model: 'og' or 'tf1' (only used with IB)
     
     Returns
     -------
@@ -32,18 +42,14 @@ def find_sampling_folder(Re: int, IB: bool = False) -> Path:
         Path to the latest completed sampling folder (before sampling09000)
     """
     case_dir = Path(__file__).parent.parent / "cases"
-    
-    if IB:
-        sampling_pattern = case_dir / f"ReTau{Re}_IB" / "post_processing" / "sampling*"
-    else:
-        sampling_pattern = case_dir / f"ReTau{Re}" / "post_processing" / "sampling*"
+    case_name = build_case_dir_name(Re, DNS=DNS, LES=LES, IB=IB, drag=drag)
+    sampling_pattern = case_dir / case_name / "post_processing" / "sampling*"
     
     folders = sorted(glob.glob(str(sampling_pattern)))
     
     if not folders:
-        case_variant = f"ReTau{Re}_IB" if IB else f"ReTau{Re}"
         raise FileNotFoundError(
-            f"No sampling folders found in {case_dir / case_variant / 'post_processing'}/"
+            f"No sampling folders found in {case_dir / case_name / 'post_processing'}/"
         )
     
     # Filter to only actual directories
@@ -65,19 +71,134 @@ def find_sampling_folder(Re: int, IB: bool = False) -> Path:
     return Path(folders[-1])
 
 
+def _read_binary_file_task(task):
+    """Read all grid chunks from a single AMReX binary data file.
+
+    Each DATA_XXXXX file is independent, so this function is designed to run
+    concurrently with other invocations on different files.
+
+    Parameters
+    ----------
+    task : tuple
+        (fname, chunks, nints_file, nreals, num_ints) where
+        chunks is a list of (npts, offset) per grid chunk in this file.
+
+    Returns
+    -------
+    list of (pidxs, int_block, real_block) — one entry per chunk
+    """
+    fname, chunks, nints_file, nreals, num_ints = task
+    results = []
+    with open(fname, 'rb') as fh:
+        for npts, offset in chunks:
+            fh.seek(offset)
+            ivals = np.fromfile(fh, dtype=np.int32, count=nints_file * npts)
+            rvals = np.fromfile(fh, dtype=float, count=nreals * npts)
+            # Reshape and extract vectorised — avoids Python-level loops
+            ivals_2d = ivals.reshape(npts, nints_file)
+            rvals_2d = rvals.reshape(npts, nreals)
+            pidxs = ivals_2d[:, 2].copy()                   # particle IDs
+            int_block = ivals_2d[:, 2:2 + num_ints].copy()  # [pidx, int_var...]
+            results.append((pidxs, int_block, rvals_2d.copy()))
+    return results
+
+
+def load_particle_data_parallel(pfile, nprocs=1):
+    """Load AMReX particle binary data in parallel across data files.
+
+    Drop-in replacement for AmrexParticleFile.load_binary_data() + pfile().
+    Every DATA_XXXXX binary file is independent, so reads are dispatched to a
+    thread pool (disk I/O releases the GIL, enabling true concurrency).
+
+    Parameters
+    ----------
+    pfile : AmrexParticleFile
+        Particle file object after parse_header() has been called.
+    nprocs : int
+        Number of parallel worker threads.
+
+    Returns
+    -------
+    pd.DataFrame
+        Same format as pfile().
+    """
+    num_ints   = pfile.num_ints
+    nints_file = num_ints + 2          # binary layout: cpu, level, pidx, int_vars...
+    nreals     = pfile.ndim + pfile.num_reals
+
+    # Group grid entries by unique binary file (each (lev, idx) → one file)
+    file_chunks: dict = {}
+    for lev, ginfo in enumerate(pfile.grid_info):
+        for idx, npts, offset in ginfo:
+            if npts < 1:
+                continue
+            fname = str(pfile.bin_file_name(lev, idx))
+            file_chunks.setdefault(fname, []).append((npts, offset))
+
+    tasks = [
+        (fname, chunks, nints_file, nreals, num_ints)
+        for fname, chunks in file_chunks.items()
+    ]
+
+    print(f"  Reading {len(tasks)} binary data file(s) with {nprocs} worker(s)...")
+
+    idata = np.empty((pfile.num_particles, num_ints), dtype=int)
+    rdata = np.empty((pfile.num_particles, nreals),   dtype=float)
+
+    # ThreadPoolExecutor: disk I/O releases the GIL → true parallel reads
+    with concurrent.futures.ThreadPoolExecutor(max_workers=nprocs) as executor:
+        for file_result in executor.map(_read_binary_file_task, tasks):
+            for pidxs, int_block, real_block in file_result:
+                idata[pidxs, :] = int_block
+                rdata[pidxs, :] = real_block
+
+    idict = {key: idata[:, i] for i, key in enumerate(pfile.int_var_names)}
+    rvar_names = ["xco", "yco", "zco"] + pfile.real_var_names
+    rdict = {key: rdata[:, i] for i, key in enumerate(rvar_names)}
+    idict.update(rdict)
+    return pd.DataFrame(idict, index=idata[:, 0])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Process Kynema particle sampling statistics"
     )
     parser.add_argument("--Re", type=int, default=180,
                         help="Stress Reynolds number (default: 180)")
+    parser.add_argument("--DNS", action="store_true",
+                        help="Use DNS variant")
+    parser.add_argument("--LES", action="store_true",
+                        help="Use LES variant")
     parser.add_argument("--IB", action="store_true",
                         help="Use immersed boundary variant")
+    parser.add_argument("--drag", type=str, choices=['og', 'tf1'],
+                        help="Drag model for IB cases: 'og' or 'tf1'")
+    parser.add_argument("--nprocs", type=int,
+                        default=int(os.environ.get("SLURM_CPUS_PER_TASK", 1)),
+                        help="Number of parallel workers for reading binary data "
+                             "(default: $SLURM_CPUS_PER_TASK or 1)")
     args = parser.parse_args()
+
+    # Validate options
+    if not args.DNS and not args.LES:
+        parser.error("Either --DNS or --LES must be specified")
+    
+    if args.DNS and args.LES:
+        parser.error("Cannot specify both --DNS and --LES")
+    
+    if args.IB and not args.LES:
+        parser.error("--IB can only be used with --LES")
+    
+    if args.IB and not args.drag:
+        parser.error("--drag option required when using --IB")
+    
+    if args.drag and not args.IB:
+        parser.error("--drag can only be used with --IB")
 
     # Find the sampling folder
     try:
-        sampling_folder = find_sampling_folder(args.Re, IB=args.IB)
+        sampling_folder = find_sampling_folder(args.Re, DNS=args.DNS, LES=args.LES,
+                                              IB=args.IB, drag=args.drag)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
@@ -93,19 +214,14 @@ def main() -> int:
         return 1
     
     try:
-        # Initialize AmrexParticleFile with the particles directory
         pfile = AmrexParticleFile(str(particles_folder))
-        
-        # Try parsing the Header file directly
         pfile.parse_header()
-        
-        # Look for particle count
         num_particles = pfile.num_particles if hasattr(pfile, 'num_particles') else None
         if num_particles is not None:
             print(f"  Found {num_particles} particles")
-        
-        # Load all binary data
-        pfile.load_binary_data()
+        df = load_particle_data_parallel(pfile, nprocs=args.nprocs)
+        print(f"  Loaded {len(df)} particle records")
+        print(f"  Columns: {df.columns.tolist()}")
     except FileNotFoundError as e:
         print(f"Error: Could not find required files in {particles_folder}", file=sys.stderr)
         print(f"  Details: {e}", file=sys.stderr)
@@ -114,15 +230,6 @@ def main() -> int:
         print(f"Error loading particle file: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
-        return 1
-    
-    # Extract the dataframe
-    try:
-        df = pfile()
-        print(f"  Loaded {len(df)} particle records")
-        print(f"  Columns: {df.columns.tolist()}")
-    except Exception as e:
-        print(f"Error: Could not extract particle data: {e}", file=sys.stderr)
         return 1
     
     # Load sampling metadata to map particles to z-planes
@@ -147,9 +254,17 @@ def main() -> int:
         offsets = sampler.get('offsets', [])
         
         # Get the sampling origin for coordinate mapping
-        # Offsets are relative to origin, need to convert to absolute coordinates
-        sampling_origin = sampler.get('origin', [0.0, 0.0, -0.005])
-        sampling_origin_z = sampling_origin[2] if isinstance(sampling_origin, (list, tuple)) else -0.005
+        # Offsets are relative to origin, need to convert to absolute coordinates.
+        # NOTE: sampling_info.yaml written by the solver does NOT include an
+        # 'origin' key, so this always falls back to the default below. The
+        # channel half-width (and therefore sampling.channel_stats.origin,
+        # which is always z=-delta) must match the convention in
+        # case_setup.py's main() (delta=0.01 m for Re>180, 0.005 m for
+        # Re=180) or higher-Re cases silently get plane-matched against the
+        # wrong z-origin, corrupting particle_stats.txt.
+        delta = 0.01 if args.Re > 180 else 0.005
+        sampling_origin = sampler.get('origin', [0.0, 0.0, -delta])
+        sampling_origin_z = sampling_origin[2] if isinstance(sampling_origin, (list, tuple)) else -delta
         
     except yaml.YAMLError as e:
         print(f"Error parsing {sampling_info_file}: {e}", file=sys.stderr)
@@ -163,19 +278,25 @@ def main() -> int:
     # Map particles to z-planes based on their z-coordinates
     # The zco column contains the actual z-coordinate in domain coords
     # The offsets from .inp are relative to sampling.origin, so convert to absolute
-    offsets_array = np.array(offsets)
-    absolute_offsets = offsets_array + sampling_origin_z
+    offsets_array = np.array(offsets, dtype=float)
+    absolute_offsets = offsets_array + float(sampling_origin_z)
     
     print(f"  Offsets (relative): {offsets_array.min():.6f} to {offsets_array.max():.6f}")
     print(f"  Offsets (absolute): {absolute_offsets.min():.6f} to {absolute_offsets.max():.6f}")
     print(f"  Particle zco range: {df['zco'].min():.6f} to {df['zco'].max():.6f}")
     
-    # For each particle, find the nearest offset plane (in absolute coordinates)
-    def find_nearest_plane(z_coord):
-        idx = np.argmin(np.abs(absolute_offsets - z_coord))
-        return absolute_offsets[idx]
-    
-    df['z'] = df['zco'].apply(find_nearest_plane)
+    # For each particle, find the nearest offset plane — O(N log P) via searchsorted,
+    # avoids the O(N×P) broadcast that would require ~2 TiB for large datasets.
+    zco_vals = df['zco'].to_numpy()
+    sorted_offsets = np.sort(absolute_offsets)
+    # searchsorted returns insertion index; nearest neighbour is idx-1 or idx
+    ins = np.searchsorted(sorted_offsets, zco_vals)
+    ins = np.clip(ins, 1, len(sorted_offsets) - 1)
+    left  = sorted_offsets[ins - 1]
+    right = sorted_offsets[ins]
+    nearest_idx = np.where(np.abs(zco_vals - left) <= np.abs(zco_vals - right),
+                           ins - 1, ins)
+    df['z'] = sorted_offsets[nearest_idx]
     matched_planes = df['z'].nunique()
     print(f"  Matched to {matched_planes} unique z-planes (expected {len(offsets_array)})")
     
@@ -218,12 +339,11 @@ def main() -> int:
     ))
     header = "z_coord   u_mean   u_var   v_sgf_mean   v_sgf_var   w_sgf_mean   w_sgf_var"
     
-    # Save to the case directory (ReTau{Re}/ or ReTau{Re}_IB/)
+    # Save to the case directory
     case_dir = Path(__file__).parent.parent / "cases"
-    if args.IB:
-        output_file = case_dir / f"ReTau{args.Re}_IB" / "particle_stats.txt"
-    else:
-        output_file = case_dir / f"ReTau{args.Re}" / "particle_stats.txt"
+    case_name = build_case_dir_name(args.Re, DNS=args.DNS, LES=args.LES,
+                                    IB=args.IB, drag=args.drag)
+    output_file = case_dir / case_name / "particle_stats.txt"
     
     output_file.parent.mkdir(parents=True, exist_ok=True)
     np.savetxt(output_file, final_data, header=header)

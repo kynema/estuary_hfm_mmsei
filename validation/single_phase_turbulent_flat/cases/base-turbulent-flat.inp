@@ -7,19 +7,18 @@ time.max_step  =  -1.0    # Max number of time steps
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
 #.......................................#
-#time.fixed_dt  =  0.005            # Use this constant dt if > 0
 time.cfl       =  0.95             # CFL factor
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
-time.plot_interval            =  500     # Steps between plot files
-time.checkpoint_interval      =  2000    # Steps between checkpoint files
+time.plot_time_interval       =  1.0e-3  # Time between plot files
+time.checkpoint_time_interval =  1.0e-2  # Time between checkpoint files
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #               PHYSICS                 #
 #.......................................#
-incflo.gravity = 0.0 0.0 0.0 
+incflo.gravity = 0.0 0.0 0.0
 incflo.density = 0.468793 # Reference density (air at 750K)
 incflo.constant_density = true
 incflo.use_godunov    = 1
@@ -45,8 +44,6 @@ ChannelFlow.normal_direction = 2 # z is wall-normal
 ChannelFlow.flow_direction = 0
 ChannelFlow.perturb_velocity = true
 ChannelFlow.perturb_factor = 5.0
-#ChannelFlow.perturb_y_period = 4.0
-#ChannelFlow.perturb_z_period = 4.0
 ChannelFlow.error_log_file = "" 
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#

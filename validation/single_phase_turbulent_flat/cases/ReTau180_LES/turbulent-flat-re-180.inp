@@ -6,7 +6,7 @@ time.stop_time = 0.036393 # ~20 flow-through time
 #.......................................#
 geometry.prob_lo = 0.0 0.000000 -0.005000
 geometry.prob_hi = 0.031200 0.015600 0.005000
-geometry.is_periodic = 1 1 0 
+geometry.is_periodic = 1 1 0
 
 # Boundary conditions
 zlo.type =   "no_slip_wall"
@@ -17,27 +17,23 @@ zhi.density = 0.468793
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #               PHYSICS                 #
 #.......................................#
-BodyForce.magnitude = 1514.0797750819656358 0.0 0.0
-turbulence.model = Laminar # DNS
+BodyForce.magnitude = 1514.0797750819656358 0.0 0.0 # Force acceleration in m/s^2
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #       CHANNEL FLOW PARAMETERS         #
 #.......................................#
-ChannelFlow.re_tau = 180.0
+ChannelFlow.re_tau = 180.0 # For initialization only, same for all cases
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
-#amr.n_cell = 192 96 60 # Grid cells at coarsest AMR level
-#amr.blocking_factor = 4
-#amr.max_level = 1
-amr.n_cell = 384 192 120
+amr.n_cell = 192 96 56
 amr.blocking_factor = 8
-amr.max_level = 2
+amr.max_level = 1
 
-tagging.labels = l1 l2
+tagging.labels = l1
 
-# Level 1 Refinement (buffer layer, z⁺ ~ 42.0)
+# Level 1 Refinement (buffer layer, z⁺ ~ 45.0)
 tagging.l1.type = GeometryRefinement
 tagging.l1.shapes = bottom top
 tagging.l1.max_level = 1
@@ -46,27 +42,10 @@ tagging.l1.bottom.type = box
 tagging.l1.bottom.origin = 0.000000 0.000000 -0.005000
 tagging.l1.bottom.xaxis = 0.031200 0.000000 0.000000
 tagging.l1.bottom.yaxis = 0.000000 0.015600 0.000000
-tagging.l1.bottom.zaxis = 0.000000 0.000000 0.001167
+tagging.l1.bottom.zaxis = 0.000000 0.000000 0.001250
 
 tagging.l1.top.type = box
-tagging.l1.top.origin = 0.000000 0.000000 0.003833
+tagging.l1.top.origin = 0.000000 0.000000 0.003750
 tagging.l1.top.xaxis = 0.031200 0.000000 0.000000
 tagging.l1.top.yaxis = 0.000000 0.015600 0.000000
-tagging.l1.top.zaxis = 0.000000 0.000000 0.001167
-
-# Level 2 Refinement (viscous sublayer, z⁺ ~ 6.0)
-tagging.l2.type = GeometryRefinement
-tagging.l2.shapes = bottom top
-tagging.l2.max_level = 2
-
-tagging.l2.bottom.type = box
-tagging.l2.bottom.origin = 0.000000 0.000000 -0.005000
-tagging.l2.bottom.xaxis = 0.031200 0.000000 0.000000
-tagging.l2.bottom.yaxis = 0.000000 0.015600 0.000000
-tagging.l2.bottom.zaxis = 0.000000 0.000000 0.000167
-
-tagging.l2.top.type = box
-tagging.l2.top.origin = 0.000000 0.000000 0.004833
-tagging.l2.top.xaxis = 0.031200 0.000000 0.000000
-tagging.l2.top.yaxis = 0.000000 0.015600 0.000000
-tagging.l2.top.zaxis = 0.000000 0.000000 0.000167
+tagging.l1.top.zaxis = 0.000000 0.000000 0.001250
