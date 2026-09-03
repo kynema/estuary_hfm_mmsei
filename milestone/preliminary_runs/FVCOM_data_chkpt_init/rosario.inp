@@ -37,16 +37,16 @@ BoundaryPlane.var_names = velocity vof density
 BoundaryPlane.output_format = native
 BoundaryPlane.io_mode = 1
 
-incflo.physics = MultiPhase TerrainDrag
+incflo.physics = MultiPhase TerrainDrag FreeSurfaceDamping
 MultiPhase.density_fluid1 = 1025.
 MultiPhase.density_fluid2 = 1.225
 MultiPhase.water_level = 0.
 
-# FreeSurfaceDamping.time_scale_fraction = 0.2
-# FreeSurfaceDamping.length_xlo = 100.
-# FreeSurfaceDamping.length_xhi = 100.
-# FreeSurfaceDamping.length_ylo = 100.
-# FreeSurfaceDamping.length_yhi = 100.
+FreeSurfaceDamping.time_scale_fraction = 0.2
+FreeSurfaceDamping.length_xlo = 0.
+FreeSurfaceDamping.length_xhi = 0.
+FreeSurfaceDamping.length_ylo = 100.
+FreeSurfaceDamping.length_yhi = 100.
 
 TerrainDrag.terrain_file = "terrain.amrwind"
 
