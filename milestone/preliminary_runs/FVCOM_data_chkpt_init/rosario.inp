@@ -1,0 +1,126 @@
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            SIMULATION STOP            #
+#.......................................#
+time.stop_time               =  7000.       # Max (simulated) time to evolve
+time.max_step                =  -1         # Max number of time steps
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#         TIME STEP COMPUTATION         #
+#.......................................#
+time.initial_dt       =   0.35       
+time.cfl              =   0.95       # CFL factor
+time.use_force_cfl    =   0
+io.outputs = velocity_mueff
+io.restart_file = chk00000
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            INPUT AND OUTPUT           #
+#.......................................#
+time.plot_interval            =  100       # Steps between plot files
+time.checkpoint_interval      =  500        # Steps between checkpoint files
+
+mac_proj.num_pre_smooth = 4
+mac_proj.num_post_smooth = 4
+nodal_proj.num_pre_smooth = 8
+nodal_proj.num_post_smooth = 8
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#               PHYSICS                 #
+#.......................................#
+incflo.gravity        =  0.0  0.0 -9.81  # Gravitational force (3D)
+
+transport.model = TwoPhaseTransport
+turbulence.model = Laminar
+
+incflo.field_boundaries = BoundaryPlane #Flather
+BoundaryPlane.planes =  xlo ylo xhi yhi
+BoundaryPlane.file = bndry_files
+BoundaryPlane.var_names = velocity vof density
+BoundaryPlane.output_format = native
+BoundaryPlane.io_mode = 1
+
+incflo.physics = MultiPhase TerrainDrag FreeSurfaceDamping
+MultiPhase.density_fluid1 = 1025.
+MultiPhase.density_fluid2 = 1.225
+MultiPhase.water_level = 0.
+
+FreeSurfaceDamping.time_scale_fraction = 0.2
+FreeSurfaceDamping.length_xlo = 0.
+FreeSurfaceDamping.length_xhi = 0.
+FreeSurfaceDamping.length_ylo = 100.
+FreeSurfaceDamping.length_yhi = 100.
+
+TerrainDrag.terrain_file = "terrain.amrwind"
+
+ICNS.source_terms = GravityForcing DragForcing
+ICNS.use_perturb_pressure = true
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#        ADAPTIVE MESH REFINEMENT       #
+#.......................................#
+amr.n_cell              = 320 256 32 # Grid cells at coarsest AMRlevel
+amr.max_level           = 2           # Max AMR level in hierarchy
+amr.blocking_factor_z   = 4
+
+tagging.labels = terrain liquid interface #static
+tagging.terrain.type = FieldRefinement
+tagging.terrain.field_name = terrain_blank
+tagging.terrain.grad_error = 0.1 0.1 0.1
+
+tagging.liquid.type = FieldRefinement
+tagging.liquid.field_name = vof
+tagging.liquid.field_error = 0.999 0.999 0.999 0.999
+tagging.liquid.operator = and
+
+tagging.interface.type = FieldRefinement
+tagging.interface.field_name = vof
+tagging.interface.grad_error = 1e-8 1e-8 1e-8
+tagging.interface.operator = or
+
+tagging.static.type = GeometryRefinement
+tagging.static.shapes = b0
+tagging.static.min_level  = 0
+tagging.static.max_level  = 1
+
+tagging.static.b0.type = box
+tagging.static.b0.origin = 0.0 0.0 -5.0
+tagging.static.b0.xaxis = 6000.0 0.0 0.0
+tagging.static.b0.yaxis = 0.0 6000.0 0.0
+tagging.static.b0.zaxis = 0.0 0.0 10.0
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              GEOMETRY                 #
+#.......................................#
+geometry.prob_lo        =   0.       0.  -170.  # Lo corner coordinates
+geometry.prob_hi        =   6400.   5000.  42.  # Hi corner coordinates
+geometry.is_periodic    =   0   0   0   # Periodicity x y z (0/1)
+
+# Boundary conditions
+xlo.type =   "slip_wall"
+xhi.type =   "slip_wall"
+ylo.type =   "mass_inflow"
+ylo.density = 1.225
+ylo.vof     = 0
+yhi.type =   "mass_inflow"
+yhi.density = 1.225
+yhi.vof     = 0
+zlo.type =   "slip_wall"
+zhi.type =   "pressure_outflow"
+
+
+incflo.post_processing = line_sampling
+line_sampling.output_interval     = 10
+line_sampling.output_format        = native
+line_sampling.fields               = velocity vof
+line_sampling.labels               = STBM SS
+line_sampling.STBM.type            = LineSampler
+line_sampling.STBM.num_points      = 121
+line_sampling.STBM.start           = 2798.3098930663546 2510.166347393766 -100.
+line_sampling.STBM.end             = 2798.3098930663546 2510.166347393766 20.
+line_sampling.SS.type              = LineSampler
+line_sampling.SS.num_points        = 121
+line_sampling.SS.start             = 2931.081119452836 2521.688631718047 -100.
+line_sampling.SS.end               = 2931.081119452836 2521.688631718047 20.
+
+
+
