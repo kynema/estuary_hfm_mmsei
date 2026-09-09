@@ -120,7 +120,7 @@ fh1 = figure(1); clf
 subplot(3,1,1), plot(t(inwater),DataUp.Average_Pitch(inwater), '.', t(inwater),DataUp.Average_Roll(inwater), '.'), datetick, legend('pitch','roll'), set(gca,'YLim',[-30 30])
 subplot(3,1,2), plot(t(inwater),DataUp.Average_Heading(inwater), '.'), datetick, legend('heading'), set(gca,'YLim',[0 360])
 subplot(3,1,3), plot(t(inwater),DataUp.Average_Temperature(inwater), '.'), datetick, legend('Temperature'), set(gca,'YLim',[8 12])
-exportgraphics(fh1, fullfile(scriptdir, 'STBM_Sig500up_Rosario_PRH.png'))
+safeExport(fh1, fullfile(scriptdir, 'STBM_Sig500up_Rosario_PRH.png'))
 
 % amplitude
 fh2 = figure(2); clf
@@ -131,7 +131,7 @@ for i=1:4
     plot(t, STBMHeight - blowdown,'k-', 'linewidth', 1), ylabel('z [m]')
     cb = colorbar; cb.Label.String = 'dB';
 end
-exportgraphics(fh2, fullfile(scriptdir, 'STBM_Sig500s_Rosario_Amp.png'))
+safeExport(fh2, fullfile(scriptdir, 'STBM_Sig500s_Rosario_Amp.png'))
 
 % correlation
 fh3 = figure(3); clf
@@ -142,7 +142,7 @@ for i=1:4
     plot(t, STBMHeight - blowdown,'k-', 'linewidth', 1), ylabel('z [m]')
     cb = colorbar; cb.Label.String = '%';
 end
-exportgraphics(fh3, fullfile(scriptdir, 'STBM_Sig500s_Rosario_Cor.png'))
+safeExport(fh3, fullfile(scriptdir, 'STBM_Sig500s_Rosario_Cor.png'))
 
 %  difference in vertical velocity estimates
 fh4 = figure(4); clf
@@ -150,7 +150,7 @@ scatter(tall(:), z(:), 2, Deltaw(:), 'filled' ), datetick, hold on, axis tight, 
 plot(t, STBMHeight - blowdown + maxrange,'r.', 'linewidth', 1)
 plot(t, STBMHeight - blowdown,'k-', 'linewidth', 1), ylabel('z [m]')
 caxis([-0.5 0.5]), cb = colorbar; cb.Label.String = '\Delta w [m/s]';
-exportgraphics(fh4, fullfile(scriptdir, 'STBM_Sig500s_Rosario_Deltaw.png'))
+safeExport(fh4, fullfile(scriptdir, 'STBM_Sig500s_Rosario_Deltaw.png'))
 
 
 %% component and speed plots (pcolors)
@@ -169,14 +169,14 @@ ax(3)=subplot(3,1,3); scatter(tall(:), z(:), 2, u(:), 'filled' ), datetick, hold
 caxis([-2 2]), cb = colorbar; cb.Label.String = 'up [m/s]';
 plot(t, STBMHeight-blowdown,'k-', 'linewidth', 1), ylabel('z [m]')
 linkaxes(ax,'x')
-exportgraphics(fh5, fullfile(scriptdir, 'STBM_Sig500s_Rosario_UVW.png'))
+safeExport(fh5, fullfile(scriptdir, 'STBM_Sig500s_Rosario_UVW.png'))
 
 fh6 = figure(6); clf
 colormap(jet)
 scatter(tall(:), z(:), 2, speed(:) , 'filled'), datetick, hold on, axis tight, set(gca,'YLim',[0 100])
 caxis([0 3.5]), cb = colorbar; cb.Label.String = 'horizontal speed [m/s]';
 plot(t, STBMHeight - blowdown,'k-', 'linewidth', 1), ylabel('z [m]')
-exportgraphics(fh6, fullfile(scriptdir, 'STBM_Sig500s_Rosario_speed.png'))
+safeExport(fh6, fullfile(scriptdir, 'STBM_Sig500s_Rosario_speed.png'))
 
 
 %% tidal ellipses and u,v scatter
@@ -188,7 +188,7 @@ scatter(u(:),v(:), 1, z(:),'filled')
 caxis([0 100]), cb = colorbar; cb.Label.String = 'z [m]';
 xlabel('u, east [m/s]'), ylabel('v, north [m/s]')
 axis([-3 3 -3 3]), grid
-exportgraphics(fh7, fullfile(scriptdir, 'STBM_Sig500s_Rosario_UVscatter.png'))
+safeExport(fh7, fullfile(scriptdir, 'STBM_Sig500s_Rosario_UVscatter.png'))
 
 
 %% vertical profiles (requires gridding for STBM variable z)
@@ -212,7 +212,7 @@ colormap(jet)
 pcolor(t, fixedz, speed_fixedz'), shading flat, datetick, hold on, axis tight, set(gca,'YLim',[0 100])
 plot(t(inwater), STBMHeight-blowdown(inwater),'k-', 'linewidth', 1), ylabel('z [m]')
 caxis([0 3.5]), cb = colorbar; cb.Label.String = 'horizontal speed [m/s]';
-exportgraphics(fh6b, fullfile(scriptdir, 'STBM_Sig500s_Rosario_speed_gridded.png'))
+safeExport(fh6b, fullfile(scriptdir, 'STBM_Sig500s_Rosario_speed_gridded.png'))
 
 
 fh8 = figure(8); clf
@@ -225,7 +225,7 @@ ylabel('z [m]'), xlabel('avg avail. power desnity [W/m^2]'),set(gca,'YLim',[0 10
 subplot(1,3,3), plot( nanmean(360+axis_fixedz), fixedz), hold on, area([300 320],[94 94],83), plot([300 320],(waterdepth - hubdepth)*[1 1],'k--'),
 plot([300 320],(waterdepth - hubdepth+R)*[1 1],'k:'), plot([300 320],(waterdepth - hubdepth-R)*[1 1],'k:'),
 ylabel('z [m]'), xlabel('principal axis [deg M]'),set(gca,'YLim',[0 100])
-exportgraphics(fh8, fullfile(scriptdir, 'STBM_Sig500s_Rosario_profiles.png'))
+safeExport(fh8, fullfile(scriptdir, 'STBM_Sig500s_Rosario_profiles.png'))
 
 
 
@@ -266,12 +266,12 @@ CF = trapz(power) * dt ./ (T * ratedpower) % 0.21 with 2D speed, 0.22 with 3D sp
 fh9 = figure(9); clf
 subplot(1,2,1), hist(hubspeed,[0:.1:4]), xlabel('Speed at hub depth [m/s]'), set(gca,'YLim',[0 1000]), ylabel('10 minute ensembles')
 subplot(1,2,2), hist(power./1000,50), xlabel('turbine model output [kW]'),  set(gca,'YLim',[0 1000]), ylabel('10 minute ensembles')
-exportgraphics(fh9, fullfile(scriptdir, 'STBM_Sig500s_Rosario_hists.png'))
+safeExport(fh9, fullfile(scriptdir, 'STBM_Sig500s_Rosario_hists.png'))
 
 fh10 = figure(10); clf
 plot(t,hubspeed,'k'), grid
 set(gca,'fontsize',16,'fontweight','demi'), datetick, ylabel('U_{hub} [m/s]')
-exportgraphics(fh10, fullfile(scriptdir, 'STBM_Sig500s_Rosario_hubspeed.png'))
+safeExport(fh10, fullfile(scriptdir, 'STBM_Sig500s_Rosario_hubspeed.png'))
 
 
 maxspeed = max(hubspeed) %
@@ -311,7 +311,7 @@ for fi=1:length(flist)
     end
     if plotflag
         datetick, ylabel('hub speed [m/s]'), grid
-        exportgraphics(fh11, fullfile(scriptdir, 'TIplots', ['STBM_Sig500up_Rosario_file_' flist(fi).name(end-8:end-4) '.png']))
+        safeExport(fh11, fullfile(scriptdir, 'TIplots', ['STBM_Sig500up_Rosario_file_' flist(fi).name(end-8:end-4) '.png']))
     end
 end
 
@@ -323,7 +323,7 @@ fh12 = figure(12); clf
 binscatter(hubspeed',TurbInensity)
 axis([0 4 0 0.5])
 xlabel('hub speed [m/s]'), ylabel('Turb. Intensity []'), grid
-exportgraphics(fh12, fullfile(scriptdir, 'STBM_Sig500_Rosario_TI.png'))
+safeExport(fh12, fullfile(scriptdir, 'STBM_Sig500_Rosario_TI.png'))
 
 hubTI = TurbInensity;
 save(fullfile(scriptdir, 'STBM_Sig500s_Rosario.mat'), 'hubTI', '-append')
@@ -344,7 +344,7 @@ save(fullfile(scriptdir, 'STBM_Sig500s_Rosario.mat'), 'Waves', '-append')
 fh21 = figure(21);
 subplot(2,1,1), plot([Waves.time], [Waves.sigwaveheight],'.'), set(gca,'YLim',[0 2]), datetick, ylabel('H_s [m]')
 subplot(2,1,2), plot([Waves.time], [Waves.peakwaveperiod],'.'), set(gca,'YLim',[0 10]), datetick, ylabel('T_p [s]')
-exportgraphics(fh21, fullfile(scriptdir, 'SBTM_waves_timeseries.png'))
+safeExport(fh21, fullfile(scriptdir, 'SBTM_waves_timeseries.png'))
 
 fh22 = figure(22); % wave histogram
 binscatter([Waves.peakwaveperiod],[Waves.sigwaveheight])
@@ -352,7 +352,43 @@ set(gca,'fontsize',16,'fontweight','demi')
 xlabel('Wave T_p [s]')
 ylabel('Wave H_s [s]')
 grid
-exportgraphics(fh22, fullfile(scriptdir, 'SBTM_waves_hist.png'))
+safeExport(fh22, fullfile(scriptdir, 'SBTM_waves_hist.png'))
+
+function safeExport(fh, filepath)
+% Save a figure to filepath as PNG. Prefers exportgraphics, but falls back
+% to print() with the painters (vector) renderer if exportgraphics hits
+% the known Java rendering bug (HGRasterOutputHelper NullPointerException)
+% that can occur on data-dense figures (e.g. large scatter plots). A
+% failed exportgraphics call can sometimes leave the figure handle
+% invalid, so the fallback is itself guarded and will just skip (with a
+% warning) rather than error out the whole script.
+    outdir = fileparts(filepath);
+    if ~isempty(outdir) && ~isfolder(outdir)
+        mkdir(outdir)
+    end
+    if ~isvalid(fh)
+        warning('safeExport:invalidFigure', 'Figure handle is invalid; skipping export of %s', filepath)
+        return
+    end
+    drawnow
+    try
+        exportgraphics(fh, filepath)
+    catch err
+        warning('safeExport:exportgraphicsFailed', ...
+            'exportgraphics failed (%s); falling back to print() for %s', err.message, filepath)
+        if ~isvalid(fh)
+            warning('safeExport:figureInvalidAfterFailure', ...
+                'Figure became invalid after failed export; skipping %s', filepath)
+            return
+        end
+        try
+            print(fh, filepath, '-dpng', '-r150', '-painters')
+        catch err2
+            warning('safeExport:printFailed', ...
+                'print() fallback also failed (%s); skipping %s', err2.message, filepath)
+        end
+    end
+end
 
 
 % max wave conditions

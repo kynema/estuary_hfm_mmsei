@@ -57,7 +57,7 @@ fh1 = figure(1); clf
 subplot(3,1,1), plot(t(inwater),Data.Average_Pitch(inwater), t(inwater),Data.Average_Roll(inwater)), datetick, legend('pitch','roll'), set(gca,'YLim',[-10 10])
 subplot(3,1,2), plot(t(inwater),Data.Average_Heading(inwater)), datetick, legend('heading'), set(gca,'YLim',[0 360])
 subplot(3,1,3), plot(t(inwater),Data.Average_Temperature(inwater)), datetick, legend('Temperature')
-exportgraphics(fh1, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_PRH.png'))
+safeExport(fh1, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_PRH.png'))
 
 % amplitude
 fh2 = figure(2); clf
@@ -67,7 +67,7 @@ for i=1:4
     plot(t, waterdepth,'k-', 'linewidth', 1), ylabel('z [m]')
     cb = colorbar; cb.Label.String = 'dB';
 end
-exportgraphics(fh2, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_Amp.png'))
+safeExport(fh2, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_Amp.png'))
 
 % correlation
 fh3 = figure(3); clf
@@ -77,7 +77,7 @@ for i=1:4
     plot(t, waterdepth,'k-', 'linewidth', 1), ylabel('z [m]')
     cb = colorbar; cb.Label.String = '%';
 end
-exportgraphics(fh3, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_Cor.png'))
+safeExport(fh3, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_Cor.png'))
 
 %  difference in vertical velocity estimates
 fh4 = figure(4); clf
@@ -85,7 +85,7 @@ pcolor(t(inwater), z, (Data.Average_VelUp1(inwater,:) - Data.Average_VelUp2(inwa
 plot(t, z(maxbin),'r.', 'linewidth', 1)
 plot(t, waterdepth,'k-', 'linewidth', 1), ylabel('z [m]')
 caxis([-0.5 0.5]), cb = colorbar; cb.Label.String = '\Delta w [m/s]';
-exportgraphics(fh4, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_Deltaw.png'))
+safeExport(fh4, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_Deltaw.png'))
 
 
 %% component and speed plots (pcolors)
@@ -103,14 +103,14 @@ plot(t, waterdepth,'k-', 'linewidth', 1), ylabel('height above seabed, z [m]')
 subplot(3,1,3), pcolor(t, z, w'), shading flat, datetick, hold on, axis tight
 caxis([-2 2]), cb = colorbar; cb.Label.String = 'up [m/s]';
 plot(t, waterdepth,'k-', 'linewidth', 1), %ylabel('height above seabed, z [m]')
-exportgraphics(fh5, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_UVW.png'))
+safeExport(fh5, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_UVW.png'))
 
 fh6 = figure(6); clf
 colormap(jet)
 pcolor(t, z, speed'), shading flat, datetick, hold on, axis tight
 caxis([0 3.5]), cb = colorbar; cb.Label.String = 'horizontal speed [m/s]';
 plot(t, waterdepth,'k-', 'linewidth', 1), ylabel('z [m]')
-exportgraphics(fh6, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_speed.png'))
+safeExport(fh6, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_speed.png'))
 
 
 %% tidal ellipses and u,v scatter
@@ -123,7 +123,7 @@ scatter(u(:),v(:), 1, allz(:),'filled')
 cb = colorbar; cb.Label.String = 'z [m]';
 xlabel('u, east [m/s]'), ylabel('v, north [m/s]')
 axis([-3 3 -3 3]), grid
-exportgraphics(fh7, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_UVscatter.png'))
+safeExport(fh7, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_UVscatter.png'))
 
 
 %% vertical profiles
@@ -138,7 +138,7 @@ ylabel('z [m]'), xlabel('avg avail. power density [W/m^2]'),
 subplot(1,3,3), plot( 360+principalaxis, z), hold on, area([300 320],[94 94],83), plot([300 320],mean(waterdepth(inwater) - hubdepth)*[1 1],'k--'), 
 plot([300 320],mean(waterdepth(inwater) - hubdepth+R)*[1 1],'k:'), plot([300 320],mean(waterdepth(inwater) - hubdepth-R)*[1 1],'k:'), 
 ylabel('z [m]'), xlabel('principal axis [deg M]')
-exportgraphics(fh8, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_profiles.png'))
+safeExport(fh8, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_profiles.png'))
 
 
 %% AEP estimate for single O2 turbine, based on turbine parameters at top of script, 
@@ -178,7 +178,7 @@ CF = trapz(power) * dt ./ (T * ratedpower) % 0.19
 fh9 = figure(9); clf
 subplot(1,2,1), hist(hubspeed,[0:.1:4]), xlabel('Speed at hub depth [m/s]'), set(gca,'YLim',[0 1000]), ylabel('10 minute ensembles')
 subplot(1,2,2), hist(power./1000,50), xlabel('turbine model output [kW]'),  set(gca,'YLim',[0 1000]), ylabel('10 minute ensembles')
-exportgraphics(fh9, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_hists.png'))
+safeExport(fh9, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_hists.png'))
 
 maxspeed = max(hubspeed) % 3.2 m/s
 
@@ -198,7 +198,7 @@ subplot(1,2,2)
 plot(waterdepth-89, hubspeed,'k.'), axis([-2 4 0 3.5]), grid
 set(gca,'fontsize',14,'fontweight','demi'), xlabel('stage [m]'), ylabel('U_{hub} [m/s]')
 
-exportgraphics(fh10, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_stage.png'))
+safeExport(fh10, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_stage.png'))
 
 
 %% save clean output
@@ -233,7 +233,7 @@ for fi=1:55% 55 total
     end
     if plotflag
         datetick, ylabel('hub speed [m/s]'), grid
-        exportgraphics(fh11, fullfile(scriptdir, 'TIplots', ['SeaSpider_Sig250_Rosario_file' num2str(fi) '.png']))
+        safeExport(fh11, fullfile(scriptdir, 'TIplots', ['SeaSpider_Sig250_Rosario_file' num2str(fi) '.png']))
     end
 end
 
@@ -245,7 +245,43 @@ fh12 = figure(12);
 binscatter(hubspeed',TurbInensity)
 axis([0 4 0 0.5])
 xlabel('hub speed [m/s]'), ylabel('Turb. Intensity []'), grid
-exportgraphics(fh12, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_TI.png'))
+safeExport(fh12, fullfile(scriptdir, 'SeaSpider_Sig250_Rosario_TI.png'))
 
 hubTI = TurbInensity;
-save SeaSpider_Sig250_Rosario.mat u v w t z waterdepth hubspeed hubTI
+save(fname, 'hubTI', '-append')
+
+function safeExport(fh, filepath)
+% Save a figure to filepath as PNG. Prefers exportgraphics, but falls back
+% to print() with the painters (vector) renderer if exportgraphics hits
+% the known Java rendering bug (HGRasterOutputHelper NullPointerException)
+% that can occur on data-dense figures (e.g. large scatter plots). A
+% failed exportgraphics call can sometimes leave the figure handle
+% invalid, so the fallback is itself guarded and will just skip (with a
+% warning) rather than error out the whole script.
+    outdir = fileparts(filepath);
+    if ~isempty(outdir) && ~isfolder(outdir)
+        mkdir(outdir)
+    end
+    if ~isvalid(fh)
+        warning('safeExport:invalidFigure', 'Figure handle is invalid; skipping export of %s', filepath)
+        return
+    end
+    drawnow
+    try
+        exportgraphics(fh, filepath)
+    catch err
+        warning('safeExport:exportgraphicsFailed', ...
+            'exportgraphics failed (%s); falling back to print() for %s', err.message, filepath)
+        if ~isvalid(fh)
+            warning('safeExport:figureInvalidAfterFailure', ...
+                'Figure became invalid after failed export; skipping %s', filepath)
+            return
+        end
+        try
+            print(fh, filepath, '-dpng', '-r150', '-painters')
+        catch err2
+            warning('safeExport:printFailed', ...
+                'print() fallback also failed (%s); skipping %s', err2.message, filepath)
+        end
+    end
+end
