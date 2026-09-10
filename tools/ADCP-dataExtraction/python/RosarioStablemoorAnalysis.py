@@ -93,6 +93,8 @@ def filter_dates(df, time_col, start, stop):
 
 
 def main():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
     d = sio.loadmat(MAT_PATH, simplify_cells=True)
 
     time = matlab_datenum_to_datetime(d["t"])
