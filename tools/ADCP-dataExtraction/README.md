@@ -5,4 +5,4 @@ This directory contains a set of tools for extracting and processing ADCP data f
 The Matlab scripts included in the `Matlab` subdirectory are used to load the raw data files from the `avgd` and `burst` directories within [`Nortek Matlab Raw.zip`](https://mhkdr.openei.org/submissions/609), and produce the .mat files STBM Sig 500.mat and Sea Spider Sig 250.mat in the `data` directory. The scripts will also produce a number of figures that are included in the report.
 
 ## Python Scripts
-The Python scripts included in the `Python` subdirectory are used to load the .mat files STBM Sig 500.mat and Sea Spider Sig 250.mat from the `Matlab/data`, and extract desired data for comparison to the kynema-sgf simulation data at over a specified range of dates.
+The Python scripts included in the `python` subdirectory are used to load the .mat files `STBM Sig 500.mat` and `Sea Spider Sig 250.mat` from `Matlab/data`, and extract desired data for comparison to the kynema-sgf simulation data at over a specified range of dates.
