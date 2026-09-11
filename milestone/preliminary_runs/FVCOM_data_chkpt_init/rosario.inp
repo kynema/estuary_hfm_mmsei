@@ -90,10 +90,12 @@ zlo.type =   "slip_wall"
 zhi.type =   "pressure_outflow"
 
 
-incflo.post_processing = line_sampling
-line_sampling.output_interval     = 10
+incflo.post_processing = line_sampling surface_sampling
+line_sampling.output_interval      = 10
 line_sampling.output_format        = native
 line_sampling.fields               = velocity vof
+line_sampling.int_fields           = terrain_blank
+line_sampling.derived_fields       = mag_strainrate
 line_sampling.labels               = STBM SS
 line_sampling.STBM.type            = LineSampler
 line_sampling.STBM.num_points      = 121
@@ -103,6 +105,15 @@ line_sampling.SS.type              = LineSampler
 line_sampling.SS.num_points        = 121
 line_sampling.SS.start             = 2931.081119452836 2521.688631718047 -100.
 line_sampling.SS.end               = 2931.081119452836 2521.688631718047 20.
-
-
-
+line_sampling.output_interval          = 10
+surface_sampling.output_format         = native
+surface_sampling.fields                = velocity vof
+surface_sampling.labels                = STBM SS
+surface_sampling.STBM.type             = FreeSurfaceSampler
+surface_sampling.STBM.plane_num_points = 1
+surface_sampling.STBM.plane_start      = 2798.3098930663546 2510.166347393766 -100.
+surface_sampling.STBM.plane_end        = 2798.3098930663546 2510.166347393766 20.
+surface_sampling.SS.type               = FreeSurfaceSampler
+surface_sampling.SS.plane_num_points   = 1
+surface_sampling.SS.plane_start        = 2931.081119452836 2521.688631718047 -100.
+surface_sampling.SS.plane_end          = 2931.081119452836 2521.688631718047 20.
