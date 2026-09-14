@@ -206,3 +206,44 @@ def reflection_zone():
     average speed profiles.
     """
     return 83, 94
+
+
+def print_resolution(data):
+    """Print the temporal and spatial resolution of a loaded dataset.
+
+    Temporal resolution is the median spacing between consecutive
+    ensemble/average timestamps. Spatial resolution is the median spacing
+    between adjacent height-above-seafloor bins in "profiles" (the STBM
+    grid is per-ensemble, so bin spacing is computed from a single
+    timestamp's bins).
+    """
+    time = data["time"]
+    dt = np.median(np.diff(time)) if len(time) > 1 else pd.NaT
+
+    first_time = data["profiles"]["time"].iloc[0]
+    z_bins = np.sort(data["profiles"].loc[data["profiles"]["time"] == first_time, "z_m"].to_numpy())
+    dz = np.median(np.diff(z_bins)) if len(z_bins) > 1 else np.nan
+
+    print(f"{data['plot_label']} ({data['unit']}) resolution:")
+    print(f"  temporal: {pd.Timedelta(dt)}")
+    print(f"  spatial:  {dz:.3f} m per bin ({len(z_bins)} bins)")
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Print the temporal and spatial resolution of the Rosario ADCP datasets."
+    )
+    parser.add_argument(
+        "adcp_unit",
+        nargs="?",
+        default="both",
+        choices=["ss", "SS", "stbm", "STBM", "both"],
+        help="Which ADCP unit to report on (default: both).",
+    )
+    args = parser.parse_args()
+
+    units = ["ss", "stbm"] if args.adcp_unit == "both" else [args.adcp_unit]
+    for unit in units:
+        print_resolution(load_adcp_data(unit))
