@@ -8,11 +8,11 @@ import concurrent.futures
 from pathlib import Path
 from data import build_case_dir_name
 
-# Add path to kynema-sgf tools
-#kynema_sgf_tools = Path("/Users/dmontgo2/Documents/Kynema/kynema-sgf/tools")
-kynema_sgf_tools = Path("/scratch/dmontgo2/kynema-manager/environments/env_kynema_sgf/kynema-sgf/tools")
-if kynema_sgf_tools.exists():
-    sys.path.insert(0, str(kynema_sgf_tools))
+# Add path to FVCOM-dataExtraction tools
+estuary_hfm_mmsei = Path(__file__).parent.parent.parent.parent
+fvcom_tools = estuary_hfm_mmsei / "tools" / "FVCOM-dataExtraction"
+if fvcom_tools.exists():
+    sys.path.insert(0, str(fvcom_tools))
 
 # Import the official Kynema utility class
 from amrex_particle import AmrexParticleFile
