@@ -31,6 +31,10 @@ STBM_MAT_PATH = MATLAB_DATA_DIR / "STBM_Sig500s_Rosario.mat"
 
 DATENUM_EPOCH_OFFSET = 719529  # days from 0000-01-01 to 1970-01-01
 
+# Fixed surveyed water depth (m) for the STBM unit; not derivable from STBM
+# pressure data, so it is hardcoded here from the site survey.
+STBM_WATERDEPTH = 90
+
 
 def matlab_datenum_to_datetime(datenum):
     """Convert MATLAB datenum (days since 0000-01-01) to pandas datetime64."""
@@ -101,7 +105,7 @@ def load_ss_data(start_date=None, stop_date=None, start_time=None, mat_path=SS_M
     return {
         "unit": "SS",
         "file_prefix": "SeaSpider_Sig250_Rosario",
-        "plot_label": "Sea Spider",
+        "plot_label": "SS",
         "time": time,
         "scalars": scalars,
         "profiles": profiles,

@@ -64,7 +64,7 @@ start_time = "22:00:00"
 # ---- turbine / site params (Matlab/RosarioSeaSpiderAnalysis.m, Matlab/RosarioStablemoorAnalysis.m) ----
 R = 13.5  # rotor radius (m)
 hubdepth = 3.5 + R  # hub depth below surface (m)
-waterdepth = 90  # m, surveyed depth (not derivable from STBM pressure)
+waterdepth = adcp_data_extraction.STBM_WATERDEPTH  # m, surveyed depth (not derivable from STBM pressure)
 
 # height above seafloor to report a time series for, in addition to hub depth
 near_bottom_height = 3.0  # m
