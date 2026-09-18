@@ -6,12 +6,13 @@ time.max_step                =  -1         # Max number of time steps
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
 #.......................................#
-time.initial_dt       =   0.35       
+time.initial_dt       =   0.1
+time.max_dt           =   0.1       
 time.cfl              =   0.95       # CFL factor
 time.min_dt           =   1e-6
 time.use_force_cfl    =   0
 io.outputs = velocity_mueff
-io.restart_file = ../chk00000
+io.restart_file = spinup_chk10000
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
@@ -68,11 +69,13 @@ tagging.terrain.type = FieldRefinement
 tagging.terrain.field_name = terrain_blank
 tagging.terrain.grad_error = 0.1 0.1 0.1
 
+# Change this
 tagging.liquid.type = FieldRefinement
 tagging.liquid.field_name = vof
 tagging.liquid.field_error = 0.999 0.999 0.999 0.999
 tagging.liquid.operator = and
 
+# Change this
 tagging.interface.type = FieldRefinement
 tagging.interface.field_name = vof
 tagging.interface.grad_error = 1e-8 1e-8 1e-8
@@ -98,12 +101,12 @@ zlo.type =   "slip_wall"
 zhi.type =   "pressure_outflow"
 
 
-incflo.post_processing = line_sampling surface_sampling
+incflo.post_processing = line_sampling surface_sampling plane_sampling_slow plane_sampling_end avg
 line_sampling.output_time_interval = 120
 line_sampling.output_format        = native
-line_sampling.fields               = velocity vof
+line_sampling.fields               = velocity vof # add time-averaged fields
 line_sampling.int_fields           = terrain_blank
-line_sampling.derived_fields       = mag_strainrate
+line_sampling.derived_fields       = mag_strainrate mag_voricity
 line_sampling.labels               = STBM SS
 line_sampling.STBM.type            = LineSampler
 line_sampling.STBM.num_points      = 101
@@ -113,7 +116,8 @@ line_sampling.SS.type              = LineSampler
 line_sampling.SS.num_points        = 101
 line_sampling.SS.start             = 2931.081119452836 2521.688631718047 -90.
 line_sampling.SS.end               = 2931.081119452836 2521.688631718047 10.
-line_sampling.output_time_interval     = 120
+line_sampling.output_time_interval = 120
+
 surface_sampling.output_format         = native
 surface_sampling.fields                = velocity vof
 surface_sampling.labels                = STBM SS
@@ -125,3 +129,37 @@ surface_sampling.SS.type               = FreeSurfaceSampler
 surface_sampling.SS.plane_num_points   = 1 1
 surface_sampling.SS.plane_start        = 2931.081119452836 2521.688631718047 -100.
 surface_sampling.SS.plane_end          = 2931.081119452836 2521.688631718047 20.
+surface_sampling.output_time_interval  = 120
+
+plane_sampling_slow.output_format = native
+plane_sampling_slow.output_time_interval = 1800
+plane_sampling_slow.fields        = velocity velocity_stress_avg velocity_reynolds_stress_avg velocity_mean_avg
+plane_sampling_slow.labels        = ps
+plane_sampling_slow.ps.type       = PlaneSampler
+plane_sampling_slow.ps.origin     = 1600 1600 -31
+plane_sampling_slow.ps.axis1      = 3200 0 0
+plane_sampling_slow.ps.axis2      = 0 3200 0
+plane_sampling_slow.ps.num_points = 320 320
+plane_sampling_slow.ps.offsets    = 14 28
+plane_sampling_slow.ps.offset_vector = 0 0 1
+
+plane_sampling_end.output_format = native
+plane_sampling_end.output_time_interval = 1
+plane_sampling_end.output_time_delay = 41400
+plane_sampling_end.fields        = velocity velocity_stress_avg velocity_reynolds_stress_avg velocity_mean_avg
+plane_sampling_end.labels        = pe
+plane_sampling_end.pe.type       = PlaneSampler
+plane_sampling_end.pe.origin     = 2450 2450 -50
+plane_sampling_end.pe.axis1      = 100 0 0
+plane_sampling_end.pe.axis2      = 0 0 50
+plane_sampling_end.pe.num_points = 200 100
+plane_sampling_end.pe.offsets    = 50 100
+plane_sampling_end.pe.offset_vector = 0 1 0
+
+avg.type = TimeAveraging
+avg.labels = means stress
+avg.averaging_window = 600
+avg.means.fields = velocity
+avg.means.averaging_type = ReAveraging
+avg.stress.fields = velocity
+avg.stress.averaging_type = ReynoldsStress
