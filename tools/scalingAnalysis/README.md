@@ -18,7 +18,7 @@ Printed tables go to stdout; plots are saved to `figures/`.
 ## `mesh_stats.py`
 Utility for computing/reporting basic mesh statistics.
 
-## `submit_autoscale_CPU.sh` / `submit_autoscale_GPU.sh`
+## `submit_autoscale_CPU.sh` 
 Submit a sweep of SLURM jobs at different node/GPU counts to gather the
 run-time data used by `scaling_analysis.py`. Edit the variables near the top
 of each script (`input_file`, `tag`, `n_nodes_values`/`n_gpus_values`, etc.)
