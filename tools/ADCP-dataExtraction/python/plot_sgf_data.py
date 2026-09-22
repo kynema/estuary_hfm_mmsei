@@ -48,10 +48,10 @@ SGF_DATA_DIR = Path(
 # start_time = None  # e.g. "22:00:00", required for plotting ADCP data
 # end_date = None  # optional e.g. "2024-10-23"
 # end_time = None  # optional e.g. "10:00:00"
-start_date = "2024-10-22"
+start_date = "2024-10-02"
 start_time = "22:00:00"
-end_date = "2024-10-23"
-end_time = "01:18:00"
+end_date = "2024-10-03" # or set to None to use the full extent of the SGF data
+end_time = "01:50:00" # or set to None to use the full extent of the SGF data
 plot_adcp_data = True  # Set to False to skip plotting ADCP data
 
 # Specify heights above seafloor for time series plots.
