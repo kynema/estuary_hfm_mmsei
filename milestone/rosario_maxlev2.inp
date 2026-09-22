@@ -1,26 +1,34 @@
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            SIMULATION STOP            #
 #.......................................#
-time.stop_time               =  7000.       # Max (simulated) time to evolve
+time.stop_time               =  45000.       # Max (simulated) time to evolve
 time.max_step                =  -1         # Max number of time steps
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
 #.......................................#
 time.initial_dt       =   0.35       
 time.cfl              =   0.95       # CFL factor
+time.min_dt           =   1e-6
 time.use_force_cfl    =   0
 io.outputs = velocity_mueff
-io.restart_file = chk00000
+io.restart_file = ../chk00000
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
-time.plot_interval            =  100       # Steps between plot files
-time.checkpoint_interval      =  500        # Steps between checkpoint files
+time.plot_interval            =  500       # Steps between plot files
+time.checkpoint_interval      =  20000     # Steps between checkpoint files
 
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              PROJECTIONS              #
+#.......................................#
 mac_proj.num_pre_smooth = 4
 mac_proj.num_post_smooth = 4
-nodal_proj.num_pre_smooth = 8
-nodal_proj.num_post_smooth = 8
+mac_proj.mg_rtol = 1.0e-6
+mac_proj.mg_atol = 1.0e-12
+nodal_proj.do_semicoarsening=1
+nodal_proj.max_semicoarsening_level=30
+nodal_proj.mg_rtol = 1.0e-6
+nodal_proj.mg_atol = 1.0e-12
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #               PHYSICS                 #
@@ -42,7 +50,7 @@ MultiPhase.density_fluid1 = 1025.
 MultiPhase.density_fluid2 = 1.225
 MultiPhase.water_level = 0.
 
-TerrainDrag.terrain_file = "terrain.amrwind"
+TerrainDrag.terrain_file = "../terrain.amrwind"
 
 ICNS.source_terms = GravityForcing DragForcing
 ICNS.use_perturb_pressure = true
@@ -91,21 +99,21 @@ zhi.type =   "pressure_outflow"
 
 
 incflo.post_processing = line_sampling surface_sampling
-line_sampling.output_interval      = 10
+line_sampling.output_time_interval = 120
 line_sampling.output_format        = native
 line_sampling.fields               = velocity vof
 line_sampling.int_fields           = terrain_blank
 line_sampling.derived_fields       = mag_strainrate
 line_sampling.labels               = STBM SS
 line_sampling.STBM.type            = LineSampler
-line_sampling.STBM.num_points      = 121
-line_sampling.STBM.start           = 2798.3098930663546 2510.166347393766 -100.
-line_sampling.STBM.end             = 2798.3098930663546 2510.166347393766 20.
+line_sampling.STBM.num_points      = 101
+line_sampling.STBM.start           = 2798.3098930663546 2510.166347393766 -90.
+line_sampling.STBM.end             = 2798.3098930663546 2510.166347393766 10.
 line_sampling.SS.type              = LineSampler
-line_sampling.SS.num_points        = 121
-line_sampling.SS.start             = 2931.081119452836 2521.688631718047 -100.
-line_sampling.SS.end               = 2931.081119452836 2521.688631718047 20.
-line_sampling.output_interval          = 10
+line_sampling.SS.num_points        = 101
+line_sampling.SS.start             = 2931.081119452836 2521.688631718047 -90.
+line_sampling.SS.end               = 2931.081119452836 2521.688631718047 10.
+line_sampling.output_time_interval     = 120
 surface_sampling.output_format         = native
 surface_sampling.fields                = velocity vof
 surface_sampling.labels                = STBM SS
