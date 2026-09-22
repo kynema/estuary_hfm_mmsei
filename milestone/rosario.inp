@@ -60,26 +60,8 @@ ICNS.use_perturb_pressure = true
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
-amr.n_cell              = 320 256 32 # Grid cells at coarsest AMRlevel
-amr.max_level           = 2           # Max AMR level in hierarchy
-amr.blocking_factor_z   = 4
-
-tagging.labels = terrain liquid interface
-tagging.terrain.type = FieldRefinement
-tagging.terrain.field_name = terrain_blank
-tagging.terrain.grad_error = 0.1 0.1 0.1
-
-# Change this
-tagging.liquid.type = FieldRefinement
-tagging.liquid.field_name = vof
-tagging.liquid.field_error = 0.999 0.999 0.999 0.999
-tagging.liquid.operator = and
-
-# Change this
-tagging.interface.type = FieldRefinement
-tagging.interface.field_name = vof
-tagging.interface.grad_error = 1e-8 1e-8 1e-8
-tagging.interface.operator = or
+FILE = amr_maxlev3.inp
+# FILE = amr_maxlev4_basic.inp
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #              GEOMETRY                 #
