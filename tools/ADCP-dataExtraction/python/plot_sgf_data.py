@@ -34,11 +34,11 @@ OUTPUT_DIR = Path(__file__).parent / "figures"
 
 # ---- SGF ADCP unit ----
 # "ss" for Sea Spider, "stbm" for Stablemoor
-sgf_unit = "stbm"
+sgf_unit = "ss"
 
 # ---- data location ----
 # Directory containing the line_sampling##### folders 
-case_name = "max_lev3"
+case_name = "max_lev3_dmont"
 SGF_DATA_DIR = Path(
    f"/scratch/mkuhn/estuary_flows/milestone/{case_name}/post_processing"
 )
