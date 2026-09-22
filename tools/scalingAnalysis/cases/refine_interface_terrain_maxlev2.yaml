@@ -1,0 +1,53 @@
+# Coarse scaling results, amr.n_cell = 320 256 32. This setup only refines
+# the interface and terrain, no ADCP refinement.
+name: refine_interface_terrain_maxlev2
+final_time_hours: [12.5, 50.0] # 1 and 4 tidal cycles
+
+# CPU scaling with 25 MPI ranks per node
+25 cores/node:
+  mode: CPU
+  single_node_single_proc_time: 1518.52873
+  num_nodes: [8, 12, 16, 20, 24, 28, 32, 36]
+  num_steps: 10
+  run_times: [9.905556598, 7.196470096, 5.860701643, 5.057134351, 4.714074254, 4.3758547, 3.88007136, 3.842270781]
+  num_cores_per_node: 25
+  dt: 0.1
+
+# CPU scaling with 50 MPI ranks per node
+50 cores/node:
+  mode: CPU
+  single_node_single_proc_time: 1518.52873
+  num_nodes: [8, 12, 16, 20, 24]
+  num_steps: 10
+  run_times: [7.874355678, 6.63199767, 5.527729531, 5.289028484, 5.414542702]
+  num_cores_per_node: 50
+  dt: 0.1
+
+# CPU scaling with 75 MPI ranks per node
+75 cores/node:
+  mode: CPU
+  single_node_single_proc_time: 1518.52873
+  num_nodes: [8, 12, 16, 20]
+  num_steps: 10
+  run_times: [9.597169299, 8.59751396, 9.449343221, 9.528957513]
+  num_cores_per_node: 75
+  dt: 0.1
+
+# CPU scaling with 72 MPI ranks per node on the high-bandwidth (hbw) partition
+72 cores/node (hbw):
+  mode: CPU
+  single_node_single_proc_time: 1518.52873
+  num_nodes: [8, 12, 16, 20, 24]
+  num_steps: 10
+  run_times: [5.776542338, 4.496371049, 4.0603789, 3.82656538, 3.585348712]
+  num_cores_per_node: 72
+  dt: 0.1
+
+# GPU scaling, 4 GPUs per node assumed
+GPU:
+  mode: GPU
+  single_node_single_proc_time: 1518.52873
+  gpus: [4, 8, 12]
+  num_steps: 10
+  run_times: [15.53072741, 9.091266339, 6.953929844]
+  dt: 0.1

@@ -1,12 +1,37 @@
+import argparse
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
+import yaml
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
 """
-This script calculates and displays HPC scaling results. Ensembles can be added
-as dictionaries in main()
+This script calculates and displays HPC scaling results. Ensembles are defined
+as YAML files and run via:
+
+    python scaling_analysis.py -i cases/scaling_coarse.yaml
+
+Each YAML file must contain a "name" key plus one or more case entries (see
+`cases/*.yaml` for examples). An optional top-level "final_time_hours" key
+(a single number or a list of numbers) selects the desired simulation end
+time(s) used for the time-to-solution/AUs estimates; if omitted, only
+speedup/efficiency are computed. `--final-time-hours` on the command line
+overrides whatever is in the YAML file.
+
+Figures are always written to a "figures" directory next to this script,
+regardless of the current working directory.
 """
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+FIGURES_DIR = SCRIPT_DIR / "figures"
+
+
+def load_case_file(path):
+    """Load a YAML file describing a scaling ensemble"""
+    with open(path) as f:
+        return yaml.safe_load(f)
 
 
 class HPCScalingResult:
@@ -192,10 +217,11 @@ def run_scaling_analysis(cases, final_time_hours=None):
     "single_node_single_proc_time" key. CPU cases need "num_nodes" and
     "num_cores_per_node". GPU cases need "gpus" (and optionally
     "gpus_per_node", default 4); the number of nodes is computed via
-    `HPCScalingResult.nodes_from_gpus`.
+    `HPCScalingResult.nodes_from_gpus`. Any non-dict entries (e.g. "name" or
+    metadata comments like "_comment") are ignored.
     """
     for label, case in cases.items():
-        if label == "name":
+        if not isinstance(case, dict):
             continue
         mode = case["mode"].upper()
         single_node_single_proc_time = case.get("single_node_single_proc_time")
@@ -234,12 +260,13 @@ def plot_scaling(cases):
 
     case_description = cases["name"]
     final_time_hours = cases[list(cases.keys())[1]]['result'].final_time_hours
+    dt = cases[list(cases.keys())[1]]['result'].dt
 
     fig1, (ax_speedup, ax_eff) = plt.subplots(1, 2, figsize=(12, 5))
     fig2, (ax_time, ax_aus) = plt.subplots(1, 2, figsize=(12, 5))
 
     for label, case in cases.items():
-        if label == "name":
+        if not isinstance(case, dict):
             continue
         df = case["result"].to_dataframe()
         marker = "s" if case["mode"].upper() == "GPU" else "o"
@@ -265,13 +292,13 @@ def plot_scaling(cases):
 
     ax_time.set_xlabel("Nodes")
     ax_time.set_ylabel("Est. Simulation Time (days)")
-    ax_time.set_title(f"Est. Simulation Time vs. Nodes ($t_f$ = {final_time_hours} hrs)")
+    ax_time.set_title(f"Est. Simulation Time vs. Nodes ($t_f$ = {final_time_hours} hrs, dt = {dt} s)")
     ax_time.legend()
     ax_time.grid(True)
 
     ax_aus.set_xlabel("Nodes")
     ax_aus.set_ylabel("Est. AUs to Solution")
-    ax_aus.set_title(f"Est. AUs to Solution vs. Nodes ($t_f$ = {final_time_hours} hrs)")
+    ax_aus.set_title(f"Est. AUs to Solution vs. Nodes ($t_f$ = {final_time_hours} hrs, dt = {dt} s)")
     ax_aus.legend()
     ax_aus.grid(True)
 
@@ -280,93 +307,48 @@ def plot_scaling(cases):
 
     fig1.tight_layout()
     fig2.tight_layout()
-    fig1.savefig(f"{case_description}_performance_tf_{final_time_hours}.png")
-    fig2.savefig(f"{case_description}_estimates_tf_{final_time_hours}.png")
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    fig1.savefig(FIGURES_DIR / f"{case_description}_performance_tf_{final_time_hours}.png")
+    fig2.savefig(FIGURES_DIR / f"{case_description}_estimates_tf_{final_time_hours}.png")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run HPC scaling analysis for an ensemble of cases defined in a YAML file"
+    )
+    parser.add_argument(
+        "-i", "--input", required=True,
+        help=(
+            "Path to a YAML file describing the scaling cases (see cases/*.yaml). "
+            "Relative paths are resolved relative to this script's directory."
+        ),
+    )
+    parser.add_argument(
+        "--final-time-hours", type=float, nargs="+", default=None,
+        help=(
+            "Desired simulation end time(s) in hours, used for time-to-solution/AUs "
+            "estimates. Pass multiple values to run the analysis once per value. "
+            "Overrides any 'final_time_hours' entry in the YAML file."
+        ),
+    )
+    args = parser.parse_args()
 
-    # Coarse case single proc time
-    single_node_single_proc_time = 1518.52873  # seconds
+    input_path = Path(args.input)
+    if not input_path.is_absolute():
+        input_path = SCRIPT_DIR / input_path
 
-    # Coarse case desired final simulation time
-    final_time_hours = 12.5 # 1 tidal cycles
+    cases = load_case_file(input_path)
 
-    # Coarse scaling results amr.n_cell = 320 256 32
-    scaling_coarse = {
-        "name": "scaling_coarse",
-        "25 cores/node": {
-            "mode": "CPU",
-            "single_node_single_proc_time": single_node_single_proc_time,
-            "num_nodes": [8, 12, 16, 20, 24, 28, 32, 36],
-            "num_steps": 10,
-            "run_times": [9.905556598, 7.196470096, 5.860701643, 5.057134351, 4.714074254, 4.3758547, 3.88007136, 3.842270781],
-            "num_cores_per_node": 25,
-            "dt": 0.1,
-        },
-        "50 cores/node": {
-            "mode": "CPU",
-            "single_node_single_proc_time": single_node_single_proc_time,
-            "num_nodes": [8, 12, 16, 20, 24],
-            "num_steps": 10,
-            "run_times": [7.874355678, 6.63199767, 5.527729531, 5.289028484, 5.414542702],
-            "num_cores_per_node": 50,
-            "dt": 0.1,
-        },
-        "75 cores/node": {
-            "mode": "CPU",
-            "single_node_single_proc_time": single_node_single_proc_time,
-            "num_nodes": [8, 12, 16, 20],
-            "num_steps": 10,
-            "run_times": [9.597169299, 8.59751396, 9.449343221, 9.528957513],
-            "num_cores_per_node": 75,
-            "dt": 0.1,
-        },
-        "72 cores/node (hbw)": {
-            "mode": "CPU",
-            "single_node_single_proc_time": single_node_single_proc_time,
-            "num_nodes": [8, 12, 16, 20, 24],
-            "num_steps": 10,
-            "run_times": [5.776542338, 4.496371049, 4.0603789, 3.82656538, 3.585348712],
-            "num_cores_per_node": 72,
-            "dt": 0.1,
-        },
-        "GPU": {
-            "mode": "GPU",
-            "single_node_single_proc_time": single_node_single_proc_time,
-            "gpus": [4, 8, 12],
-            "num_steps": 10,
-            "run_times": [15.53072741, 9.091266339, 6.953929844],
-            "dt": 0.1,
-        },
-    }
+    final_time_hours_values = args.final_time_hours
+    if final_time_hours_values is None:
+        final_time_hours_values = cases.pop("final_time_hours", None)
+        if final_time_hours_values is None:
+            final_time_hours_values = [None]
+        elif not isinstance(final_time_hours_values, list):
+            final_time_hours_values = [final_time_hours_values]
+    else:
+        cases.pop("final_time_hours", None)
 
-    run_scaling_analysis(scaling_coarse, final_time_hours=final_time_hours)
-
-    # Coarse case desired final simulation time
-    final_time_hours = 75 # 6 tidal cycles
-    run_scaling_analysis(scaling_coarse, final_time_hours=final_time_hours)
-
-    # Finer (x2) scaling results amr.n_cell = 640 512 64
-    final_time_hours = 6.25 # 1 tidal cycles
-    scaling_refinebase_x2 = {
-        "name": "scaling_refinebase_x2",
-        "72 cores/node (hbw)": {
-            "mode": "CPU",
-            "num_nodes": [32, 40 , 48, 56, 64,],
-            "num_steps": 10,
-            "run_times": [9.775150472, 9.455099798, 8.06523878, 7.569091588, 7.232029974],
-            "num_cores_per_node": 72,
-            "dt": 0.015,
-        },
-        #"GPU": {
-        #    "mode": "GPU",
-        #    "single_node_single_proc_time": single_node_single_proc_time,
-        #    "gpus": [4, 8, 12],
-        #    "num_steps": 10,
-        #    "run_times": [15.53072741, 9.091266339, 6.953929844],
-        #    "dt": 0.1,
-        #},
-    }
-
-    run_scaling_analysis(scaling_refinebase_x2, final_time_hours=final_time_hours)
+    for final_time_hours in final_time_hours_values:
+        print(f"\n\n\nScaling analysis for final_time_hours = {final_time_hours} hrs")
+        run_scaling_analysis(cases, final_time_hours=final_time_hours)

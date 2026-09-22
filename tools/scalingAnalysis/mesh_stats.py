@@ -2,8 +2,8 @@ import numpy as np
 
 n_cell = np.array([320, 256, 32]) # Base case
 #n_cell = 2*n_cell
-n_cell = 3*n_cell
-max_level = 2           
+n_cell = 1*n_cell
+max_level = 3           
 blocking_factor_z = 4
 
 # Domain 

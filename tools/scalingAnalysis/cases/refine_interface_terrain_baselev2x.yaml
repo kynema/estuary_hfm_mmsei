@@ -1,0 +1,12 @@
+# Finer (x2) scaling results, amr.n_cell = 640 512 64
+name: refine_interface_terrain_baselev2x
+final_time_hours: 6.25
+
+# CPU scaling with 72 MPI ranks per node on the high-bandwidth (hbw) partition
+72 cores/node (hbw):
+  mode: CPU
+  num_nodes: [48, 64, 72, 96, 128]
+  num_steps: 10
+  run_times: [8.148119522, 7.089998845, 6.961202956, 6.660412841, 7.421189418]
+  num_cores_per_node: 72
+  dt: 0.015
