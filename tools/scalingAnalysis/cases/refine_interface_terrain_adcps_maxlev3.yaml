@@ -1,0 +1,13 @@
+# Max level 3 with static interface refinement (rosario_maxlev3_refinement.inp),
+# amr.n_cell = 320 256 32
+name: refine_interface_terrain_adcps_maxlev3
+final_time_hours: 12.5 # 1 tidal cycle
+
+# CPU scaling with 72 MPI ranks per node on the high-bandwidth (hbw) partition
+72 cores/node (hbw):
+  mode: CPU
+  num_nodes: [16, 24, 32, 40, 48, 64]
+  num_steps: 10
+  run_times: [9.891867481, 7.79170053, 7.643009555, 6.623808325, 6.047261914, 6.423092936]
+  num_cores_per_node: 72
+  dt: 0.1
