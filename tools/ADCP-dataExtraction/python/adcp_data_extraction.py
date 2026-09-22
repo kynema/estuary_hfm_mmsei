@@ -50,9 +50,18 @@ def filter_dates(df, time_col, start, stop):
     return df[mask]
 
 
-def _date_bounds(start_date, stop_date, start_time):
+def _date_bounds(start_date, stop_date, start_time, stop_time=None):
+    """Build start/stop timestamp strings for filter_dates.
+
+    If stop_time is not given, it defaults to start_time (preserving the
+    original behavior of applying the same time-of-day to both bounds).
+    Pass stop_time explicitly to specify an independent end timestamp, e.g.
+    to match the end of an SGF simulation's time window.
+    """
+    if stop_time is None:
+        stop_time = start_time
     start = f"{start_date} {start_time}" if start_date is not None and start_time is not None else start_date
-    stop = f"{stop_date} {start_time}" if stop_date is not None and start_time is not None else stop_date
+    stop = f"{stop_date} {stop_time}" if stop_date is not None and stop_time is not None else stop_date
     return start, stop
 
 
@@ -62,7 +71,7 @@ def _title_range(time, start_date, stop_date):
     return f"{display_start} to {display_stop}"
 
 
-def load_ss_data(start_date=None, stop_date=None, start_time=None, mat_path=SS_MAT_PATH):
+def load_ss_data(start_date=None, stop_date=None, start_time=None, stop_time=None, mat_path=SS_MAT_PATH):
     """Load and filter the Sea Spider (SS) dataset.
 
     Returns a dict with keys "time", "scalars", "profiles", "waves" (always
@@ -95,7 +104,7 @@ def load_ss_data(start_date=None, stop_date=None, start_time=None, mat_path=SS_M
     )
     profiles["speed"] = np.hypot(profiles["u"], profiles["v"])
 
-    start, stop = _date_bounds(start_date, stop_date, start_time)
+    start, stop = _date_bounds(start_date, stop_date, start_time, stop_time)
     scalars = filter_dates(scalars, "time", start, stop)
     profiles = filter_dates(profiles, "time", start, stop)
 
@@ -114,7 +123,7 @@ def load_ss_data(start_date=None, stop_date=None, start_time=None, mat_path=SS_M
     }
 
 
-def load_stbm_data(start_date=None, stop_date=None, start_time=None, mat_path=STBM_MAT_PATH):
+def load_stbm_data(start_date=None, stop_date=None, start_time=None, stop_time=None, mat_path=STBM_MAT_PATH):
     """Load and filter the Stablemoor (STBM) dataset.
 
     Returns a dict with keys "time", "scalars", "profiles", "waves" (None if
@@ -147,7 +156,7 @@ def load_stbm_data(start_date=None, stop_date=None, start_time=None, mat_path=ST
         }
     )
 
-    start, stop = _date_bounds(start_date, stop_date, start_time)
+    start, stop = _date_bounds(start_date, stop_date, start_time, stop_time)
     scalars = filter_dates(scalars, "time", start, stop)
     profiles = filter_dates(profiles, "time", start, stop)
 
@@ -174,16 +183,17 @@ def load_stbm_data(start_date=None, stop_date=None, start_time=None, mat_path=ST
     }
 
 
-def load_adcp_data(adcp_unit, start_date=None, stop_date=None, start_time=None):
+def load_adcp_data(adcp_unit, start_date=None, stop_date=None, start_time=None, stop_time=None):
     """Dispatch to load_ss_data or load_stbm_data based on adcp_unit.
 
     adcp_unit is case-insensitive and accepts "ss"/"SS" or "stbm"/"STBM".
+    stop_time defaults to start_time if not given (see _date_bounds).
     """
     unit = adcp_unit.strip().lower()
     if unit == "ss":
-        return load_ss_data(start_date=start_date, stop_date=stop_date, start_time=start_time)
+        return load_ss_data(start_date=start_date, stop_date=stop_date, start_time=start_time, stop_time=stop_time)
     elif unit == "stbm":
-        return load_stbm_data(start_date=start_date, stop_date=stop_date, start_time=start_time)
+        return load_stbm_data(start_date=start_date, stop_date=stop_date, start_time=start_time, stop_time=stop_time)
     else:
         raise ValueError(f"Unknown adcp_unit '{adcp_unit}'; expected 'ss' or 'stbm'.")
 

@@ -53,11 +53,31 @@ _KNOWN_UNITS = {"ss": "SS", "stbm": "STBM"}
 
 
 def _discover_line_sampling_folders(root_dir):
-    """Return a sorted list of line_sampling##### folders under root_dir that
-    contain a sampling_info.yaml file."""
+    """Return a numerically sorted list of line_sampling##### folders under
+    root_dir that contain a sampling_info.yaml file.
+
+    Folders are sorted by the numeric suffix in their name (not lexically,
+    since that suffix is not zero-padded to a fixed width and would
+    otherwise sort e.g. "line_sampling12292" after "line_sampling122229").
+    Folders are then checked, in that numeric (chronological) order. If a
+    PermissionError is encountered while checking a folder (e.g. a newer
+    folder still being written by a running simulation and its permissions
+    haven't been set yet), a warning is printed and any remaining, later
+    folders are skipped, since those are the most likely to be incomplete.
+    """
     pattern = str(Path(root_dir) / "line_sampling*")
-    folders = sorted(f for f in glob.glob(pattern) if Path(f).is_dir())
-    folders = [f for f in folders if (Path(f) / "sampling_info.yaml").exists()]
+    folders = [f for f in glob.glob(pattern) if Path(f).is_dir()]
+    folders = sorted(folders, key=lambda f: int(Path(f).name.removeprefix("line_sampling")))
+    accessible_folders = []
+    for f in folders:
+        try:
+            if (Path(f) / "sampling_info.yaml").exists():
+                accessible_folders.append(f)
+        except PermissionError as e:
+            print(f"\nWarning: permission denied checking {f}: {e}")
+            print("Stopping further folder discovery; remaining folders may still be incomplete.\n")
+            break
+    folders = accessible_folders
     if not folders:
         raise FileNotFoundError(f"No line_sampling folders found in {root_dir}")
     return [Path(f) for f in folders]
@@ -85,9 +105,25 @@ def _load_one_timestep(folder):
 
 def _load_all_timesteps(root_dir):
     """Load and concatenate every line_sampling##### folder under root_dir
-    into a single combined particle DataFrame."""
+    into a single combined particle DataFrame.
+
+    Folders are processed in sorted (chronological) order. If a
+    PermissionError is encountered (e.g. a newer folder is still being
+    written by a running simulation and its permissions haven't been set
+    yet), a warning is printed and any remaining, later folders are skipped
+    rather than raising, since those are the most likely to be incomplete.
+    """
     folders = _discover_line_sampling_folders(root_dir)
-    frames = [_load_one_timestep(folder) for folder in folders]
+    frames = []
+    for folder in folders:
+        try:
+            frames.append(_load_one_timestep(folder))
+        except PermissionError as e:
+            print(f"\nWarning: permission denied reading {folder}: {e}")
+            print("Stopping further folder reads; remaining folders may still be incomplete.\n")
+            break
+    if not frames:
+        raise FileNotFoundError(f"No readable line_sampling folders found in {root_dir}")
     return pd.concat(frames, ignore_index=True)
 
 
