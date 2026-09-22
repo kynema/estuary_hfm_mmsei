@@ -1,0 +1,66 @@
+# This refines the interface and terrain as well as the ADCPs
+# Include this using FILE=mesh_refinment_maxlev3.inp in the main input file
+
+amr.n_cell              = 320 256 32 # Grid cells at coarsest AMRlevel
+amr.max_level           = 3           # Max AMR level in hierarchy
+amr.blocking_factor_z   = 4
+
+#tagging.labels = interface interface_terrain_mask terrain adcps_lev1 adcps_lev2 adcps_lev3
+tagging.labels = interface terrain adcps_lev1 adcps_lev2 adcps_lev3
+tagging.interface.type = GeometryRefinement
+tagging.interface.shapes = box
+# Tag levels 0 and 1, producing refinement through level 2 only
+tagging.interface.min_level = 0
+tagging.interface.max_level = 1
+
+# Domain-wide slab surrounding the free surface at z = 0
+tagging.interface.box.type = box
+tagging.interface.box.origin = 0. 0. -10.
+tagging.interface.box.xaxis = 6400. 0. 0.
+tagging.interface.box.yaxis = 0. 5000. 0.
+tagging.interface.box.zaxis = 0. 0. 20.
+
+# Add terrain-gradient refinement after applying the interface terrain mask
+tagging.terrain.type = FieldRefinement
+tagging.terrain.field_name = terrain_blank
+# Two entries tag levels 0 and 1, producing refinement through level 2 only
+tagging.terrain.grad_error = 0.1 0.1
+# FieldRefinement intersects the gradient criterion with this z < 5 box
+tagging.terrain.box_lo = 0. 0. -170.
+tagging.terrain.box_hi = 6400. 5000. 5.
+
+# Level 1 Refinement around ADCPs (STBM, SS)
+tagging.adcps_lev1.type = GeometryRefinement
+tagging.adcps_lev1.shapes = box
+# Green level = 0: tags level-0 cells for refinement, producing level-1 cells
+tagging.adcps_lev1.level = 0
+
+tagging.adcps_lev1.box.type = box
+tagging.adcps_lev1.box.origin = 1700. 1615. -90.
+tagging.adcps_lev1.box.xaxis = 2350.000000 0.000000 0.000000
+tagging.adcps_lev1.box.yaxis = 0.000000 1800.000000 0.000000
+tagging.adcps_lev1.box.zaxis = 0.000000 0.000000 100.
+
+# Level 2 Refinement around ADCPs (STBM, SS)
+tagging.adcps_lev2.type = GeometryRefinement
+tagging.adcps_lev2.shapes = box
+# level = 1: tags level-1 cells for refinement, producing level-2 cells
+tagging.adcps_lev2.level = 1
+
+tagging.adcps_lev2.box.type = box
+tagging.adcps_lev2.box.origin = 2265. 2065. -90.
+tagging.adcps_lev2.box.xaxis = 1200.000000 0.000000 0.000000
+tagging.adcps_lev2.box.yaxis = 0.000000 900.000000 0.000000
+tagging.adcps_lev2.box.zaxis = 0.000000 0.000000 95.
+
+# Level 3 Refinement around ADCPs (STBM, SS); kept below the free surface (z < 0)
+tagging.adcps_lev3.type = GeometryRefinement
+tagging.adcps_lev3.shapes = box
+# level = 2: tags level-2 cells for refinement, producing level-3 cells
+tagging.adcps_lev3.level = 2
+
+tagging.adcps_lev3.box.type = box
+tagging.adcps_lev3.box.origin = 2650. 2450. -90.
+tagging.adcps_lev3.box.xaxis = 600.000000 0.000000 0.000000
+tagging.adcps_lev3.box.yaxis = 0.000000 300.000000 0.000000
+tagging.adcps_lev3.box.zaxis = 0.000000 0.000000 82.5
