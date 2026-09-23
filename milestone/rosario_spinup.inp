@@ -1,0 +1,91 @@
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            SIMULATION STOP            #
+#.......................................#
+time.stop_time               =  45000.       # Max (simulated) time to evolve
+time.max_step                =  10000         # Max number of time steps
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#         TIME STEP COMPUTATION         #
+#.......................................#
+time.initial_dt       =   0.1
+time.max_dt           =   0.1       
+time.cfl              =   0.95       # CFL factor
+time.min_dt           =   1e-6
+time.use_force_cfl    =   0
+io.outputs = velocity_mueff
+io.restart_file = ../chk00000
+io.check_file = spinup_chk
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            INPUT AND OUTPUT           #
+#.......................................#
+time.plot_interval            =  500       # Steps between plot files
+time.checkpoint_interval      =  20000     # Steps between checkpoint files
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              PROJECTIONS              #
+#.......................................#
+mac_proj.num_pre_smooth = 4
+mac_proj.num_post_smooth = 4
+mac_proj.mg_rtol = 1.0e-6
+mac_proj.mg_atol = 1.0e-12
+nodal_proj.do_semicoarsening=1
+nodal_proj.max_semicoarsening_level=30
+nodal_proj.mg_rtol = 1.0e-6
+nodal_proj.mg_atol = 1.0e-12
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#               PHYSICS                 #
+#.......................................#
+incflo.gravity        =  0.0  0.0 -9.81  # Gravitational force (3D)
+
+transport.model = TwoPhaseTransport
+turbulence.model = Laminar
+
+incflo.field_boundaries = BoundaryPlane Flather
+BoundaryPlane.planes =  xlo ylo xhi yhi
+BoundaryPlane.file = bndry_files
+BoundaryPlane.var_names = velocity vof density
+BoundaryPlane.output_format = native
+BoundaryPlane.io_mode = 1
+BoundaryPlane.is_static = true
+
+incflo.physics = MultiPhase TerrainDrag
+MultiPhase.density_fluid1 = 1025.
+MultiPhase.density_fluid2 = 1.225
+MultiPhase.water_level = 0.
+
+TerrainDrag.terrain_file = "../terrain.amrwind"
+
+ICNS.source_terms = GravityForcing DragForcing
+ICNS.use_perturb_pressure = true
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#        ADAPTIVE MESH REFINEMENT       #
+#.......................................#
+FILE = amr_maxlev3.inp
+# FILE = amr_maxlev4_basic.inp
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              GEOMETRY                 #
+#.......................................#
+geometry.prob_lo        =   0.       0.  -170.  # Lo corner coordinates
+geometry.prob_hi        =   6400.   5000.  42.  # Hi corner coordinates
+geometry.is_periodic    =   0   0   0   # Periodicity x y z (0/1)
+
+# Boundary conditions
+xlo.type =   "slip_wall"
+xhi.type =   "slip_wall"
+ylo.type =   "mass_inflow"
+ylo.density = 1.225
+ylo.vof     = 0
+yhi.type =   "mass_inflow"
+yhi.density = 1.225
+yhi.vof     = 0
+zlo.type =   "slip_wall"
+zhi.type =   "pressure_outflow"
+
+incflo.post_processing = fnorms wenergy
+fnorms.type = FieldNorms
+fnorms.output_interval = 50
+wenergy.type = WaveEnergy
+wenergy.output_interval = 50

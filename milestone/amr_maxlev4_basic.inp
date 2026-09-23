@@ -1,0 +1,32 @@
+amr.n_cell              = 320 256 32 # Grid cells at coarsest AMRlevel
+amr.max_level           = 4           # Max AMR level in hierarchy
+amr.blocking_factor_z   = 4
+
+tagging.labels = terrain interface geom0 geom1
+tagging.terrain.type = FieldRefinement
+tagging.terrain.field_name = terrain_blank
+tagging.terrain.grad_error = 0.1 0.1
+tagging.terrain.box_lo = 0. 200. -120
+tagging.terrain.box_hi = 6400 5000 0
+
+tagging.interface.type = FieldRefinement
+tagging.interface.field_name = vof
+tagging.interface.grad_error = 1e-8 1e-8
+
+tagging.geom0.type = GeometryRefinement
+tagging.geom0.shapes = b0
+tagging.geom0.max_level = 2
+tagging.geom0.b0.type   = box
+tagging.geom0.b0.origin = 2300 1500 -90
+tagging.geom0.b0.xaxis =  1000 0 0
+tagging.geom0.b0.yaxis =  0 2000 0
+tagging.geom0.b0.zaxis = 0 0 80
+
+tagging.geom1.type = GeometryRefinement
+tagging.geom1.shapes = b1
+tagging.geom1.level = 3
+tagging.geom1.b1.type   = box
+tagging.geom1.b1.origin = 2550 2000 -60
+tagging.geom1.b1.xaxis =  500 0 0
+tagging.geom1.b1.yaxis =  0 1000 0
+tagging.geom1.b1.zaxis = 0 0 55
