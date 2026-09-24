@@ -7,7 +7,7 @@ time.max_step                =  -1         # Max number of time steps
 #         TIME STEP COMPUTATION         #
 #.......................................#
 time.initial_dt       =   0.1
-time.max_dt           =   0.1       
+time.max_dt           =   0.2       
 time.cfl              =   0.95       # CFL factor
 time.min_dt           =   1e-6
 time.use_force_cfl    =   0
@@ -60,8 +60,8 @@ ICNS.use_perturb_pressure = true
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
-FILE = amr_maxlev3.inp
-# FILE = amr_maxlev4_basic.inp
+# FILE = amr_maxlev3.inp
+FILE = amr_maxlev4_basic.inp
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #              GEOMETRY                 #

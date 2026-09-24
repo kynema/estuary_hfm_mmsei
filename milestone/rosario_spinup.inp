@@ -14,6 +14,7 @@ time.use_force_cfl    =   0
 io.outputs = velocity_mueff
 io.restart_file = ../chk00000
 io.check_file = spinup_chk
+io.plot_file  = spinup_plt
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
@@ -62,8 +63,8 @@ ICNS.use_perturb_pressure = true
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
-FILE = amr_maxlev3.inp
-# FILE = amr_maxlev4_basic.inp
+# FILE = amr_maxlev3.inp
+FILE = amr_maxlev4_basic.inp
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #              GEOMETRY                 #
