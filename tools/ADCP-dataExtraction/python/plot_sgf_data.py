@@ -42,7 +42,7 @@ adcp_unit = "ss"
 
 # ---- SGF data location ----
 # Directory containing the line_sampling##### folders 
-case_name = "max_lev4"
+case_name = "max_lev1"
 SGF_DATA_DIR = Path(
    f"/scratch/mkuhn/estuary_flows/milestone/{case_name}/post_processing"
 )
