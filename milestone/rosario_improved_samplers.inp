@@ -1,0 +1,166 @@
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            SIMULATION STOP            #
+#.......................................#
+time.stop_time               =  45000.       # Max (simulated) time to evolve
+time.max_step                =  -1         # Max number of time steps
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#         TIME STEP COMPUTATION         #
+#.......................................#
+time.initial_dt       =   0.1
+time.max_dt           =   0.2       
+time.cfl              =   0.95       # CFL factor
+time.min_dt           =   1e-6
+time.use_force_cfl    =   0
+io.outputs = velocity_mueff
+io.restart_file = spinup_chk10000
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            INPUT AND OUTPUT           #
+#.......................................#
+time.plot_interval            =  500       # Steps between plot files
+time.checkpoint_interval      =  20000     # Steps between checkpoint files
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              PROJECTIONS              #
+#.......................................#
+mac_proj.num_pre_smooth = 4
+mac_proj.num_post_smooth = 4
+mac_proj.mg_rtol = 1.0e-6
+mac_proj.mg_atol = 1.0e-12
+nodal_proj.do_semicoarsening=1
+nodal_proj.max_semicoarsening_level=30
+nodal_proj.mg_rtol = 1.0e-6
+nodal_proj.mg_atol = 1.0e-12
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#               PHYSICS                 #
+#.......................................#
+incflo.gravity        =  0.0  0.0 -9.81  # Gravitational force (3D)
+
+transport.model = TwoPhaseTransport
+turbulence.model = Laminar
+
+incflo.field_boundaries = BoundaryPlane Flather
+BoundaryPlane.planes =  xlo ylo xhi yhi
+BoundaryPlane.file = bndry_files
+BoundaryPlane.var_names = velocity vof density
+BoundaryPlane.output_format = native
+BoundaryPlane.io_mode = 1
+
+incflo.physics = MultiPhase TerrainDrag
+MultiPhase.density_fluid1 = 1025.
+MultiPhase.density_fluid2 = 1.225
+MultiPhase.water_level = 0.
+
+TerrainDrag.terrain_file = "../terrain.amrwind"
+
+ICNS.source_terms = GravityForcing DragForcing
+ICNS.use_perturb_pressure = true
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#        ADAPTIVE MESH REFINEMENT       #
+#.......................................#
+# FILE = amr_maxlev3.inp
+FILE = amr_maxlev4_basic.inp
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              GEOMETRY                 #
+#.......................................#
+geometry.prob_lo        =   0.       0.  -170.  # Lo corner coordinates
+geometry.prob_hi        =   6400.   5000.  42.  # Hi corner coordinates
+geometry.is_periodic    =   0   0   0   # Periodicity x y z (0/1)
+
+# Boundary conditions
+xlo.type =   "slip_wall"
+xhi.type =   "slip_wall"
+ylo.type =   "mass_inflow"
+ylo.density = 1.225
+ylo.vof     = 0
+yhi.type =   "mass_inflow"
+yhi.density = 1.225
+yhi.vof     = 0
+zlo.type =   "slip_wall"
+zhi.type =   "pressure_outflow"
+
+
+incflo.post_processing = line_sampling surface_sampling plane_sampling_slow plane_sampling_end avg
+line_sampling.output_time_interval = 120
+line_sampling.output_format        = native
+line_sampling.fields               = velocity vof velocity_stress_avg velocity_reynolds_stress_avg velocity_mean_avg
+line_sampling.int_fields           = terrain_blank
+line_sampling.derived_fields       = mag_strainrate mag_vorticity
+line_sampling.labels               = STBM SS
+line_sampling.STBM.type            = LineSampler
+line_sampling.STBM.num_points      = 101
+line_sampling.STBM.start           = 2798.3098930663546 2510.166347393766 -90.
+line_sampling.STBM.end             = 2798.3098930663546 2510.166347393766 10.
+line_sampling.SS.type              = LineSampler
+line_sampling.SS.num_points        = 101
+line_sampling.SS.start             = 2931.081119452836 2521.688631718047 -90.
+line_sampling.SS.end               = 2931.081119452836 2521.688631718047 10.
+line_sampling.output_time_interval = 120
+
+surface_sampling.output_format         = native
+surface_sampling.fields                = velocity vof
+surface_sampling.labels                = STBM SS
+surface_sampling.STBM.type             = FreeSurfaceSampler
+surface_sampling.STBM.plane_num_points = 1 1
+surface_sampling.STBM.plane_start      = 2798.3098930663546 2510.166347393766 -100.
+surface_sampling.STBM.plane_end        = 2798.3098930663546 2510.166347393766 20.
+surface_sampling.SS.type               = FreeSurfaceSampler
+surface_sampling.SS.plane_num_points   = 1 1
+surface_sampling.SS.plane_start        = 2931.081119452836 2521.688631718047 -100.
+surface_sampling.SS.plane_end          = 2931.081119452836 2521.688631718047 20.
+surface_sampling.output_time_interval  = 120
+
+plane_sampling_slow.output_format = native
+plane_sampling_slow.output_time_interval = 900
+plane_sampling_slow.fields        = velocity velocity_stress_avg velocity_reynolds_stress_avg velocity_mean_avg
+plane_sampling_slow.int_fields    = terrain_blank
+plane_sampling_slow.labels        = ps
+plane_sampling_slow.ps.type       = PlaneSampler
+plane_sampling_slow.ps.origin     = 1500 500 -31
+plane_sampling_slow.ps.axis1      = 3800 0 0
+plane_sampling_slow.ps.axis2      = 0 4000 0
+plane_sampling_slow.ps.num_points = 380 400
+plane_sampling_slow.ps.offsets    = 0 14 28
+plane_sampling_slow.ps.offset_vector = 0 0 1
+
+plane_sampling_end.output_format = native
+plane_sampling_end.output_time_interval = 1
+plane_sampling_end.output_time_delay = 41400
+plane_sampling_end.fields        = vof velocity velocity_stress_avg velocity_reynolds_stress_avg velocity_mean_avg
+plane_sampling_end.int_fields    = terrain_blank
+plane_sampling_end.labels        = xy xz yz
+
+plane_sampling_end.xy.type       = PlaneSampler
+plane_sampling_end.xy.origin     = 2400 2000 -31
+plane_sampling_end.xy.axis1      = 1000 0 0
+plane_sampling_end.xy.axis2      = 0 1000 0
+plane_sampling_end.xy.num_points = 400 400
+plane_sampling_end.xy.offsets    = 0 14 28
+plane_sampling_end.xy.offset_vector = 0 0 1
+
+plane_sampling_end.xz.type       = PlaneSampler
+plane_sampling_end.xz.origin     = 2200 2000 -50
+plane_sampling_end.xz.axis1      = 1300 0 0
+plane_sampling_end.xz.axis2      = 0 0 60
+plane_sampling_end.xz.num_points = 750 120
+plane_sampling_end.xz.offsets    = 0 500 1000
+plane_sampling_end.xz.offset_vector = 0 1 0
+
+plane_sampling_end.yz.type       = PlaneSampler
+plane_sampling_end.yz.origin     = 2500 2000 -50
+plane_sampling_end.yz.axis1      = 1000 0 0
+plane_sampling_end.yz.axis2      = 0 0 60
+plane_sampling_end.yz.num_points = 500 120
+plane_sampling_end.yz.offsets    = 0 400 800
+plane_sampling_end.yz.offset_vector = 1 0 0
+
+avg.type = TimeAveraging
+avg.labels = means stress
+avg.averaging_window = 600
+avg.means.fields = velocity
+avg.means.averaging_type = ReAveraging
+avg.stress.fields = velocity
+avg.stress.averaging_type = ReynoldsStress
