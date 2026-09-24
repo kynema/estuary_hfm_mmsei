@@ -198,6 +198,25 @@ def load_adcp_data(adcp_unit, start_date=None, stop_date=None, start_time=None, 
         raise ValueError(f"Unknown adcp_unit '{adcp_unit}'; expected 'ss' or 'stbm'.")
 
 
+def map_adcp_to_timeline(data, target_start, adcp_start):
+    """Shift loaded ADCP timestamps so ``adcp_start`` maps to ``target_start``.
+
+    The input data dictionary is updated in place and returned for convenient
+    use in comparison plots with model datasets on another calendar period.
+    """
+    offset = pd.Timestamp(target_start) - pd.Timestamp(adcp_start)
+    for key in ("scalars", "profiles", "waves"):
+        frame = data.get(key)
+        if frame is not None and "time" in frame:
+            frame["time"] = frame["time"] + offset
+    data["time"] = pd.DatetimeIndex(data["time"]) + offset
+    data["title_range"] = (
+        f"{data['scalars']['time'].min():%Y-%m-%d %H:%M:%S} to "
+        f"{data['scalars']['time'].max():%Y-%m-%d %H:%M:%S}"
+    )
+    return data
+
+
 def hub_height_above_seafloor(data, hubdepth, waterdepth):
     """Compute the hub height above the seafloor for a loaded dataset.
 

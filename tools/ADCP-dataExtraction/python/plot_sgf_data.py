@@ -75,19 +75,11 @@ FVCOM_REDUCED_DATA_DIR = Path(
 # Include "avg" to plot the column-averaged speed
 time_series_heights = [15, 73, "avg"]
 
-
-def _map_adcp_to_shared_time(adcp_data, shared_start, adcp_start):
-    """Shift ADCP timestamps onto the shared SGF/FVCOM timeline."""
-    offset = pd.Timestamp(shared_start) - pd.Timestamp(adcp_start)
-    for key in ("scalars", "profiles", "waves"):
-        frame = adcp_data.get(key)
-        if frame is not None and "time" in frame:
-            frame["time"] = frame["time"] + offset
-    adcp_data["time"] = pd.DatetimeIndex(adcp_data["time"]) + offset
-    adcp_data["title_range"] = (
-        f"{adcp_data['scalars']['time'].min():%Y-%m-%d %H:%M:%S} to "
-        f"{adcp_data['scalars']['time'].max():%Y-%m-%d %H:%M:%S}"
-    )
+# ---- Plot font sizes ----
+X_LABEL_FONT_SIZE = 16
+Y_LABEL_FONT_SIZE = 16
+TICK_LABEL_FONT_SIZE = 14
+TITLE_FONT_SIZE = 14
 
 
 def main():
@@ -129,12 +121,13 @@ def main():
         if start_date is None or start_time is None:
             print("plot_fvcom_data is True but start_date/start_time are not set; skipping FVCOM overlay.")
         else:
-            fvcom_start_timestamp = pd.Timestamp(f"{start_date} {start_time}")
-            fvcom_duration_hours = (comparison_stop_timestamp - fvcom_start_timestamp).total_seconds() / 3600.0
-            if fvcom_duration_hours <= 0:
-                raise ValueError("The FVCOM comparison window must end after start_date/start_time.")
-            fvcom_start_mjd = fvcom_data_extraction.utc_datetime_to_fvcom_mjd(
-                start_date, start_time
+            fvcom_start_mjd, fvcom_duration_hours, _ = (
+                fvcom_data_extraction.resolve_fvcom_window(
+                    start_date=start_date,
+                    start_time=start_time,
+                    end_date=comparison_stop_timestamp.strftime("%Y-%m-%d"),
+                    end_time=comparison_stop_timestamp.strftime("%H:%M:%S"),
+                )
             )
             print(f"Loading {fvcom_duration_hours:.2f} hours of FVCOM data...")
             fvcom_data = fvcom_data_extraction.load_fvcom_column(
@@ -179,7 +172,7 @@ def main():
                 start_time=adcp_start_timestamp.strftime("%H:%M:%S"),
                 stop_time=adcp_stop_timestamp.strftime("%H:%M:%S"),
             )
-            _map_adcp_to_shared_time(
+            adcp_data_extraction.map_adcp_to_timeline(
                 adcp_data, shared_start_timestamp, adcp_start_timestamp
             )
 
@@ -197,7 +190,6 @@ def main():
             plot_title_range = adcp_data["title_range"]
     if not plot_labels:
         raise ValueError("No requested dataset could be plotted with the current time configuration.")
-    plot_title_label = " / ".join(plot_labels)
     output_prefix = (
         data["file_prefix"] if plot_sgf_data else
         fvcom_data["file_prefix"] if fvcom_data is not None else
@@ -205,10 +197,10 @@ def main():
     )
 
     # ---- average speed profile vs height above seafloor ----
-    fig, ax = plt.subplots(figsize=(4.5, 8))
+    fig, ax = plt.subplots(figsize=(5.25, 8))
     if plot_sgf_data:
         avg_profile = data["profiles"].groupby("z_m")["speed"].mean().sort_index()
-        ax.plot(avg_profile.values, avg_profile.index, "b-", linewidth=3, label=data["plot_label"])
+        ax.plot(avg_profile.values, avg_profile.index, "-", linewidth=3, color="tab:blue", label=data["plot_label"])
     if fvcom_data is not None:
         fvcom_by_level = fvcom_data["profiles"].groupby("sigma_level")
         fvcom_avg_profile = fvcom_by_level["speed"].mean()
@@ -219,19 +211,20 @@ def main():
             fvcom_avg_z.values[fvcom_order],
             linestyle=":",
             linewidth=3,
-            color="b",
+            color="tab:orange",
             label=fvcom_data["plot_label"],
         )
     if adcp_data is not None:
         adcp_avg_profile = adcp_data["profiles"].groupby("z_m")["speed"].mean().sort_index()
-        ax.plot(adcp_avg_profile.values, adcp_avg_profile.index, "o", markerfacecolor="none", label="ADCP")
+        ax.plot(adcp_avg_profile.values, adcp_avg_profile.index, "o", markerfacecolor="none", color="black", label="ADCP")
     if fvcom_data is not None or adcp_data is not None:
         ax.legend()
-    ax.set_xlabel("avg speed [m/s]")
-    ax.set_ylabel("height above seafloor [m]")
+    ax.set_xlabel("avg speed [m/s]", fontsize=X_LABEL_FONT_SIZE)
+    ax.set_ylabel("height above seafloor [m]", fontsize=Y_LABEL_FONT_SIZE)
     ax.set_xlim(left=0)
     ax.set_ylim(bottom=0)
-    ax.set_title(f"{plot_title_label} avg speed profile\n{plot_title_range}")
+    ax.set_title(plot_title_range, fontsize=TITLE_FONT_SIZE)
+    ax.tick_params(axis="both", labelsize=TICK_LABEL_FONT_SIZE)
     fig.tight_layout()
     figname = f"{output_prefix}_profile_{case_name}.png"
     fig.savefig(OUTPUT_DIR / figname, dpi=150)
@@ -254,7 +247,7 @@ def main():
         squeeze=False,
     )
     axes = axes[:, 0]
-    colors = {"sgf": "tab:blue", "fvcom": "tab:orange", "adcp": "tab:green"}
+    colors = {"sgf": "tab:blue", "fvcom": "tab:orange", "adcp": "black"}
 
     for ax, h in zip(axes, time_series_heights):
         if h == "avg":
@@ -294,12 +287,13 @@ def main():
             subplot_label = "; ".join(height_labels)
 
         ax.set_ylim(bottom=0)
-        ax.set_ylabel("speed [m/s]")
-        ax.set_title(subplot_label)
+        ax.set_ylabel("speed [m/s]", fontsize=Y_LABEL_FONT_SIZE)
+        ax.set_title(subplot_label, fontsize=TITLE_FONT_SIZE)
+        ax.tick_params(axis="both", labelsize=TICK_LABEL_FONT_SIZE)
 
     axes[0].legend(loc="upper right")
-    axes[-1].set_xlabel("time")
-    fig.suptitle(f"{plot_title_label} speed time series\n{plot_title_range}")
+    axes[-1].set_xlabel("time", fontsize=X_LABEL_FONT_SIZE)
+    fig.suptitle(plot_title_range, fontsize=TITLE_FONT_SIZE)
     fig.autofmt_xdate()
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     figname = f"{output_prefix}_timeseries_{case_name}.png"

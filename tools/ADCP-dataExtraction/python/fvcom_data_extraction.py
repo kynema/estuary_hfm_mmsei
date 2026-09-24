@@ -49,6 +49,64 @@ def utc_datetime_to_fvcom_mjd(date, time=None):
     return datetime_to_mjd(timestamp - pd.Timedelta(hours=FVCOM_TO_UTC_HOURS))
 
 
+def resolve_fvcom_window(
+    *,
+    start_mjd=None,
+    end_mjd=None,
+    duration_hours=None,
+    start_date=None,
+    start_time=None,
+    end_date=None,
+    end_time=None,
+):
+    """Resolve an exclusive native-MJD or UTC FVCOM time window.
+
+    Return ``(raw_start_mjd, duration_hours, utc_start)``.  UTC windows
+    require complete start and end date/time values and are converted to the
+    raw FVCOM MJD convention. MJD windows require ``start_mjd`` and exactly
+    one of ``end_mjd`` or ``duration_hours``. ``utc_start`` is ``None`` for
+    MJD windows.
+    """
+    has_mjd = start_mjd is not None or end_mjd is not None
+    utc_values = (start_date, start_time, end_date, end_time)
+    has_utc = any(value is not None for value in utc_values)
+
+    if has_mjd and has_utc:
+        raise ValueError(
+            "Specify the FVCOM window with either MJD values or UTC "
+            "start_date/start_time/end_date/end_time, not both."
+        )
+
+    if has_utc:
+        if any(value is None for value in utc_values):
+            raise ValueError(
+                "UTC FVCOM windows require start_date, start_time, end_date, "
+                "and end_time."
+            )
+        utc_start = pd.Timestamp(f"{start_date} {start_time}")
+        utc_end = pd.Timestamp(f"{end_date} {end_time}")
+        duration = (utc_end - utc_start).total_seconds() / 3600.0
+        if duration <= 0:
+            raise ValueError("The UTC FVCOM end timestamp must be after the start timestamp.")
+        return utc_datetime_to_fvcom_mjd(utc_start), duration, utc_start
+
+    if start_mjd is None:
+        raise ValueError(
+            "Set start_mjd for an MJD window, or provide a complete UTC window."
+        )
+    if end_mjd is not None and duration_hours is not None:
+        raise ValueError("Set either end_mjd or duration_hours for an MJD window, not both.")
+    if end_mjd is not None:
+        duration = (end_mjd - start_mjd) * 24.0
+    elif duration_hours is not None:
+        duration = duration_hours
+    else:
+        raise ValueError("An MJD FVCOM window requires end_mjd or duration_hours.")
+    if duration <= 0:
+        raise ValueError("The MJD FVCOM end timestamp must be after the start timestamp.")
+    return start_mjd, duration, None
+
+
 def load_fvcom_column(unit, reduced_dir, start_mjd, duration_hours,
                       start_date=None, start_time=None):
     """Extract the FVCOM column nearest a deployment location.
