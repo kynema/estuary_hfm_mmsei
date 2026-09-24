@@ -37,7 +37,7 @@ from amrex_particle import AmrexParticleFile
 OUTPUT_DIR = Path(__file__).parent / "figures"
 
 # ---- data location ----
-case_name = "max_lev3_dmont"
+case_name = "max_lev2"
 PLANE_DATA_DIR = Path(
     f"/scratch/mkuhn/estuary_flows/milestone/{case_name}/post_processing"
 )
@@ -46,10 +46,12 @@ PLANE_DATA_DIR = Path(
 # PlaneSampler within that group.
 sampling_group = "plane_sampling_slow"
 sampler_label = "ps"
+# sampling_group = "plane_sampling_end"
+# sampler_label = "pe"
 
 # ---- output times to plot ----
 # "last", "all", or a list of indices into the sorted output folders
-output_selection = "last"
+output_selection = "all"
 
 # ---- field to contour ----
 # A particle column name (e.g. "velocityx", "vof") or "speed" for the
@@ -71,6 +73,9 @@ start_date = "2024-10-02"
 start_time = "22:00:00"
 
 AXIS_NAMES = {"xco": "x", "yco": "y", "zco": "z"}
+
+STBM_loc = [2798.3098930663546, 2510.166347393766]
+SS_loc = [2931.081119452836, 2521.688631718047]
 
 
 def discover_output_folders(root_dir, group):
@@ -151,6 +156,11 @@ def plot_plane(df, sim_time_s, folder_name):
     fig, ax = plt.subplots(figsize=(9, 7))
     contour = ax.contourf(x, y, values, levels=n_levels, cmap=color_map, vmin=vmin, vmax=vmax)
     fig.colorbar(contour, ax=ax, label=field)
+    ax.plot(STBM_loc[0], STBM_loc[1], "ro", label="STBM")
+    ax.plot(SS_loc[0], SS_loc[1], "bo", label="SS")
+    # ax.vlines(STBM_loc[0], ymin=y.min(), ymax=y.max(), colors="r", linestyles="--", label="STBM, y+" + str(normal_position-STBM_loc[1]) + "m")
+    # ax.vlines(SS_loc[0], ymin=y.min(), ymax=y.max(), colors="b", linestyles="--", label="SS, y+" + str(normal_position-SS_loc[1]) + "m")
+    ax.legend()
     ax.set_xlabel(f"{AXIS_NAMES[first]} [m]")
     ax.set_ylabel(f"{AXIS_NAMES[second]} [m]")
     ax.set_aspect(aspect)
@@ -165,8 +175,9 @@ def plot_plane(df, sim_time_s, folder_name):
     )
     fig.tight_layout()
 
-    figname = f"{sampling_group}_{sampler_label}_{field}_{folder_name}_{case_name}.png"
+    figname = f"{folder_name}_off{offset_index}_{case_name}_{field}.png"
     fig.savefig(OUTPUT_DIR / figname, dpi=150)
+    plt.close(fig)
     return figname
 
 
