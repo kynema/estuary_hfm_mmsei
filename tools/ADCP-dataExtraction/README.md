@@ -16,3 +16,6 @@ The Python scripts included in the `python` subdirectory are used to load the .m
 
 - `adcp_data_extraction.py` / `plot_adcp_data.py`: load and plot the Rosario ADCP datasets (SS and STBM).
 - `sgf_data_extraction.py` / `plot_sgf_data.py`: load and plot Kynema-SGF simulation line-sampling output (SS and STBM LineSamplers) for comparison to the ADCP data. Kynema-SGF defines z=0 at the water surface, so `sgf_data_extraction.py` shifts the sampled z-coordinates by the local still-water depth (STBM uses the fixed surveyed depth, SS uses the mean measured ADCP waterdepth) so that both datasets share a common z=0 at the seafloor. Edit the `sgf_unit`, `SGF_DATA_DIR`, `start_date`, and `start_time` constants at the top of `plot_sgf_data.py` to select the unit, the simulation's `post_processing` directory, and (optionally) the real-world UTC datetime corresponding to simulation time=0.
+- `fvcom_data_extraction.py` / `plot_fvcom_data.py`: load and plot reduced FVCOM velocity fields at the Rosario deployment locations.
+- `plot_multiple_sgf_data.py`: compare multiple Kynema-SGF cases, with optional FVCOM and ADCP overlays.
+

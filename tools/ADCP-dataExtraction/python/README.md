@@ -1,17 +1,24 @@
-# ADCP and SGF Data Extraction — Python Post-Processing
+# ADCP, SGF, and FVCOM Data Extraction — Python Post-Processing
 
-This directory contains Python ports of a subset of the Matlab analysis scripts in `../Matlab/`, for producing plots from the "clean" summary `.mat` files that those Matlab scripts generate. Run with the `kynema-env` conda environment.
+This directory contains a collection of Python scripts for post-processing and plotting ADCP, Kynema-SGF, and FVCOM data. The scripts are designed to be run in the `kynema-env` conda environment (see `estuary_hfm_mmsei/environment.yml`).
 
 These scripts output figures that are written to `figures/`.
 
-## ADCP data extraction 
-### adcp_data_extraction.py
+## FVCOM MJD and UTC Time Windows
 
-Reusable data-loading module, not intended to be run directly. Loads and
-filters either of the two Rosario ADCP datasets and returns a common dict
-shape (`unit`, `file_prefix`, `plot_label`, `time`, `scalars`, `profiles`,
-`waves`, `title_range`) so downstream scripts don't need to special-case the
-underlying `.mat` file layout.
+The reduced FVCOM data `PS_time.npy` values use raw Modified Julian Days (MJD),
+measured in days from 1858-11-17 00:00:00 UTC. The FVCOM comparison workflow
+uses an additional 8-hour FVCOM-to-UTC offset: a raw FVCOM timestamp is 8
+hours behind the UTC time used for SGF/FVCOM/ADCP comparison plots. This is
+handled by `fvcom_data_extraction.utc_datetime_to_fvcom_mjd()`.
+
+## ADCP data extraction 
+
+There are two scripts associated with ADCP data extraction and plotting:
+- `adcp_data_extraction.py` — reusable data-loading module, not intended to be run directly. Loads and filters either of the two Rosario ADCP datasets and returns a common dict shape (`unit`, `file_prefix`, `plot_label`, `time`, `scalars`, `profiles`, `waves`, `title_range`) so downstream scripts don't need to special-case the underlying `.mat` file layout.
+- `plot_adcp_data.py` — plotting script that calls into `adcp_data_extraction.py`. Produces average speed profile vs. height above seafloor, time series of speed at specified heights, and (for STBM only) surface wave time series and wave height vs. peak period scatter. User-editable inputs are near the top of the script.
+
+#### `adcp_data_extraction.py`
 
 - `load_ss_data(...)` — loads `../Matlab/data/SeaSpider_Sig250_Rosario.mat`
   (Sea Spider seafloor tripod, uplooking Sig250). `profiles` speed is the
@@ -41,7 +48,7 @@ underlying `.mat` file layout.
   the profile plots, matching the `area([...],[94 94],83)` shading in the
   Matlab scripts.
 
-### plot_adcp_data.py
+#### `plot_adcp_data.py`
 
 Plotting script that calls into `adcp_data_extraction.py`. Produces:
 
@@ -73,7 +80,7 @@ Near the top of `plot_adcp_data.py`:
   `near_bottom_height`, and `time_series_heights`.
 
 ## SGF data extraction
-### sgf_data_extraction.py
+#### `sgf_data_extraction.py`
 
 Reusable data-loading module, not intended to be run directly. Loads
 Kynema-SGF simulation line-sampling output (particle data written to
@@ -112,7 +119,7 @@ shape used by `adcp_data_extraction.py` (`unit`, `file_prefix`,
   datetimes comparable to the ADCP timestamps. If omitted, `time` stays as
   raw simulation seconds.
 
-### plot_sgf_data.py
+#### `plot_sgf_data.py`
 
 Plotting script that calls into `sgf_data_extraction.py`, mirroring
 `plot_adcp_data.py`. Produces:
@@ -135,3 +142,15 @@ Near the top of `plot_sgf_data.py`:
   simulation seconds.
 - `time_series_heights` — heights above seafloor (m) to plot in the time
   series, plus optionally `"avg"` for the column-averaged speed.
+
+#### `plot_multiple_sgf_data.py`
+
+Compare the cases in `case_names` using a shared UTC window, with optional
+FVCOM and ADCP overlays. Cases are read from
+`SGF_CASES_DIR / case_name / "post_processing"`.
+
+## FVCOM data extraction
+
+- `fvcom_data_extraction.py` loads reduced FVCOM columns and provides the
+  MJD/UTC conversion helpers.
+- `plot_fvcom_data.py` plots one FVCOM column, optionally with ADCP data.

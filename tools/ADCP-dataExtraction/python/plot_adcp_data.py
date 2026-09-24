@@ -125,9 +125,9 @@ def main():
             ax.plot(series["time"], series["speed"], label=f"z = {nearest_z:.1f} m above seafloor", linewidth=3)
     ax.set_ylabel("speed [m/s]")
     ax.set_title(f"{data['plot_label']} speed time series\n{data['title_range']}")
-    ax.legend()
+    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), borderaxespad=0)
     fig.autofmt_xdate()
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 0.90, 1))
     fig.savefig(OUTPUT_DIR / f"{data['file_prefix']}_timeseries.png", dpi=150)
 
     written = [f"{data['file_prefix']}_profile.png", f"{data['file_prefix']}_timeseries.png"]
