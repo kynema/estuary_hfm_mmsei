@@ -1,0 +1,171 @@
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            SIMULATION STOP            #
+#.......................................#
+time.stop_time               =  5400.       # Max (simulated) time to evolve
+time.max_step                =  -1         # Max number of time steps
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#         TIME STEP COMPUTATION         #
+#.......................................#
+time.fixed_dt         =   0.05
+time.cfl              =   0.95       # CFL factor
+time.min_dt           =   1e-6
+time.use_force_cfl    =   0
+io.outputs = velocity_mueff actuator_src_term
+io.restart_file = ../../max_lev4/chk10000?????????
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            INPUT AND OUTPUT           #
+#.......................................#
+time.plot_interval            =  500       # Steps between plot files
+time.checkpoint_interval      =  20000     # Steps between checkpoint files
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              PROJECTIONS              #
+#.......................................#
+mac_proj.num_pre_smooth = 4
+mac_proj.num_post_smooth = 4
+mac_proj.mg_rtol = 1.0e-6
+mac_proj.mg_atol = 1.0e-12
+nodal_proj.do_semicoarsening=1
+nodal_proj.max_semicoarsening_level=30
+nodal_proj.mg_rtol = 1.0e-6
+nodal_proj.mg_atol = 1.0e-12
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#               PHYSICS                 #
+#.......................................#
+incflo.gravity        =  0.0  0.0 -9.81  # Gravitational force (3D)
+
+transport.model = TwoPhaseTransport
+turbulence.model = Laminar
+
+incflo.field_boundaries = BoundaryPlane Flather
+BoundaryPlane.planes =  xlo ylo xhi yhi
+BoundaryPlane.file = ../../max_lev4/bndry_files
+BoundaryPlane.var_names = velocity vof density
+BoundaryPlane.output_format = native
+BoundaryPlane.io_mode = 1
+
+incflo.physics = MultiPhase TerrainDrag Actuator
+MultiPhase.density_fluid1 = 1025.
+MultiPhase.density_fluid2 = 1.225
+MultiPhase.water_level = 0.
+
+TerrainDrag.terrain_file = "../../terrain.amrwind"
+
+ICNS.source_terms = GravityForcing DragForcing ActuatorForcing
+ICNS.use_perturb_pressure = true
+
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#        ADAPTIVE MESH REFINEMENT       #
+#.......................................#
+# FILE = amr_maxlev3.inp
+FILE = ../amr_maxlev4_basic.inp
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              GEOMETRY                 #
+#.......................................#
+geometry.prob_lo        =   0.       0.  -170.  # Lo corner coordinates
+geometry.prob_hi        =   6400.   5000.  42.  # Hi corner coordinates
+geometry.is_periodic    =   0   0   0   # Periodicity x y z (0/1)
+
+# Boundary conditions
+xlo.type =   "slip_wall"
+xhi.type =   "slip_wall"
+ylo.type =   "mass_inflow"
+ylo.density = 1.225
+ylo.vof     = 0
+yhi.type =   "mass_inflow"
+yhi.density = 1.225
+yhi.vof     = 0
+zlo.type =   "slip_wall"
+zhi.type =   "pressure_outflow"
+
+
+incflo.post_processing = surface_sampling plane_sampling_slow plane_sampling avg
+
+surface_sampling.output_format         = native
+surface_sampling.fields                = velocity vof
+surface_sampling.labels                = fs
+surface_sampling.fs.type               = FreeSurfaceSampler
+surface_sampling.fs.plane_num_points   = 400 400
+surface_sampling.fs.plane_start        = 2400 2000 0
+surface_sampling.fs.plane_end          = 3400 3000 0
+surface_sampling.output_time_interval  = 15
+
+plane_sampling_slow.output_format = native
+plane_sampling_slow.output_time_interval = 60
+plane_sampling_slow.fields        = velocity velocity_stress_avg velocity_reynolds_stress_avg velocity_mean_avg
+plane_sampling_slow.int_fields    = terrain_blank
+plane_sampling_slow.labels        = ps
+plane_sampling_slow.ps.type       = PlaneSampler
+plane_sampling_slow.ps.origin     = 1500 500 -31
+plane_sampling_slow.ps.axis1      = 3800 0 0
+plane_sampling_slow.ps.axis2      = 0 4000 0
+plane_sampling_slow.ps.num_points = 380 400
+plane_sampling_slow.ps.offsets    = 0 14 28
+plane_sampling_slow.ps.offset_vector = 0 0 1
+
+plane_sampling.output_format = native
+plane_sampling.output_time_interval = 1
+plane_sampling.fields        = vof velocity velocity_stress_avg velocity_reynolds_stress_avg velocity_mean_avg
+plane_sampling.int_fields    = terrain_blank
+plane_sampling.labels        = xy xz yz
+
+plane_sampling.xy.type       = PlaneSampler
+plane_sampling.xy.origin     = 2400 2000 -31
+plane_sampling.xy.axis1      = 1000 0 0
+plane_sampling.xy.axis2      = 0 1000 0
+plane_sampling.xy.num_points = 400 400
+plane_sampling.xy.offsets    = 0 14 28
+plane_sampling.xy.offset_vector = 0 0 1
+
+plane_sampling.xz.type       = PlaneSampler
+plane_sampling.xz.origin     = 2200 2000 -50
+plane_sampling.xz.axis1      = 1300 0 0
+plane_sampling.xz.axis2      = 0 0 60
+plane_sampling.xz.num_points = 750 120
+plane_sampling.xz.offsets    = 0 500 1000
+plane_sampling.xz.offset_vector = 0 1 0
+
+plane_sampling.yz.type       = PlaneSampler
+plane_sampling.yz.origin     = 2500 2000 -50
+plane_sampling.yz.axis1      = 1000 0 0
+plane_sampling.yz.axis2      = 0 0 60
+plane_sampling.yz.num_points = 500 120
+plane_sampling.yz.offsets    = 0 400 800
+plane_sampling.yz.offset_vector = 1 0 0
+
+avg.type = TimeAveraging
+avg.labels = means stress
+avg.averaging_window = 600
+avg.means.fields = velocity
+avg.means.averaging_type = ReAveraging
+avg.stress.fields = velocity
+avg.stress.averaging_type = ReynoldsStress
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              TURBINES                 #
+#.......................................#
+
+Actuator.type                      = TurbineKynemaFMBLine     
+Actuator.labels                    = T0
+Actuator.T0.decouple_structure_from_aero_loading = 1
+
+Actuator.T0.base_position          = 2865. 2515. -41.8
+Actuator.T0.epsilon                = 3.0
+Actuator.T0.epsilon_tower          = 0.0
+Actuator.T0.kynema_fmb_input_file  = ../RM1_windio-aero2.yaml
+Actuator.T0.num_struct_nodes_blade = 11
+Actuator.T0.num_struct_nodes_tower = 11
+Actuator.T0.num_points_blade       = 50
+Actuator.T0.num_points_tower       = 0
+Actuator.T0.rot_speed_rpm          = 11.5
+Actuator.T0.dt                     = 0.05
+Actuator.T0.fllc                   = false
+Actuator.T0.density                = 1025
+Actuator.T0.nacelle_drag_coeff     = 0.0
+Actuator.T0.nacelle_area           = 0.0                 
+Actuator.T0.output_frequency       = 1                   
+Actuator.T0.num_blades             = 2
+Actuator.T0.yaw_deg                = 90
