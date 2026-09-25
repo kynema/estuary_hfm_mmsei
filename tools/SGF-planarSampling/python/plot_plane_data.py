@@ -68,9 +68,19 @@ color_map = "viridis"
 color_limits = (0.0, 0.5) if field == "perturb_speed" else (0.0, 2.0)  # e.g. (0.0, 2.0) to fix the color scale across times
 
 # ---- optional real-world time ----
-# UTC datetime corresponding to simulation time = 0, used only for titles.
-start_date = "2024-10-02"
-start_time = "22:00:00"
+# Shared native SGF/FVCOM UTC datetime corresponding to simulation time = 0,
+# used only for titles. This is the simulation's own native calendar (e.g.
+# matching the FVCOM initialization used to start the Kynema-SGF run), not
+# the real-world ADCP measurement calendar -- see
+# adcp_data_extraction.map_adcp_to_timeline() and plot_sgf_data.py's
+# start_date/adcp_start_date for how the two calendars are related.
+start_date = "2015-04-07"
+start_time = "01:00:00"
+
+# Real-world ADCP measurement UTC datetime that start_date/start_time (sim
+# time = 0) corresponds to, used to also show the matching ADCP calendar date.
+adcp_start_date = "2024-10-04"
+adcp_start_time = "12:00:00"
 
 # ---- deployment-location velocity arrows ----
 plot_deployment_arrows = True
@@ -230,7 +240,10 @@ def plot_plane(df, sim_time_s, folder_name):
 
     if start_date is not None and start_time is not None:
         stamp = pd.Timestamp(f"{start_date} {start_time}") + pd.to_timedelta(sim_time_s, unit="s")
-        time_label = f"{stamp:%Y-%m-%d %H:%M:%S} (t = {sim_time_s:.1f} s)"
+        time_label = f"FVCOM: {stamp:%Y-%m-%d %H:%M:%S} (t = {sim_time_s:.1f} s)"
+        if adcp_start_date is not None and adcp_start_time is not None:
+            adcp_stamp = pd.Timestamp(f"{adcp_start_date} {adcp_start_time}") + pd.to_timedelta(sim_time_s, unit="s")
+            time_label += f"\nADCP: {adcp_stamp:%Y-%m-%d %H:%M:%S}"
     else:
         time_label = f"t = {sim_time_s:.1f} s"
     ax.set_title(
