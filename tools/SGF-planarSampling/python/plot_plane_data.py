@@ -56,7 +56,7 @@ output_selection = "all"
 # ---- field to contour ----
 # A particle column name (e.g. "velocityx", "vof") or "speed" for the
 # horizontal speed hypot(velocityx, velocityy).
-field = "speed"
+field = "average_speed"
 
 # ---- which plane of a multi-offset PlaneSampler ----
 # Index into the sorted unique positions along the plane normal.
@@ -65,12 +65,17 @@ offset_index = 0
 # ---- contour appearance ----
 n_levels = 40
 color_map = "viridis"
-color_limits = None  # e.g. (0.0, 2.0) to fix the color scale across times
+color_limits = (0.0, 0.5) if field == "perturb_speed" else (0.0, 2.0)  # e.g. (0.0, 2.0) to fix the color scale across times
 
 # ---- optional real-world time ----
 # UTC datetime corresponding to simulation time = 0, used only for titles.
 start_date = "2024-10-02"
 start_time = "22:00:00"
+
+# ---- deployment-location velocity arrows ----
+plot_deployment_arrows = True
+arrow_length_scale = 500.  # matplotlib quiver "scale"; None lets matplotlib auto-scale
+arrow_max_distance = None  # skip a location if no sampled point is within this distance (m); None disables the check
 
 AXIS_NAMES = {"xco": "x", "yco": "y", "zco": "z"}
 
@@ -134,9 +139,31 @@ def select_offset(df, normal, index):
 def field_values(df, name):
     if name == "speed":
         return np.hypot(df["velocityx"], df["velocityy"])
+    if name == "average_speed":
+        return np.hypot(df["velocity_mean_avgx"], df["velocity_mean_avgy"])
+    if name == "perturb_speed":
+            return np.hypot(df["velocityx"]-df["velocity_mean_avgx"], df["velocityy"]-df["velocity_mean_avgy"])
     if name not in df.columns:
         raise ValueError(f"Field '{name}' not found; available: {sorted(df.columns)}")
     return df[name]
+
+
+def nearest_deployment_points(df, first, second):
+    """For each deployment location, find the sampled point (row of df)
+    nearest in the plane's in-plane coordinates. Returns a dict of
+    label -> (row, distance).
+    """
+    locations = {"STBM": STBM_loc, "SS": SS_loc}
+    points = df[[first, second]].to_numpy()
+    nearest = {}
+    for label, location in locations.items():
+        distances = np.hypot(points[:, 0] - location[0], points[:, 1] - location[1])
+        i = int(np.argmin(distances))
+        if arrow_max_distance is not None and distances[i] > arrow_max_distance:
+            print(f"Skipping {label} arrow: nearest sampled point is {distances[i]:.1f} m away (> arrow_max_distance).")
+            continue
+        nearest[label] = (df.iloc[i], distances[i])
+    return nearest
 
 
 def plot_plane(df, sim_time_s, folder_name):
@@ -154,12 +181,48 @@ def plot_plane(df, sim_time_s, folder_name):
     aspect = "equal" if normal == "zco" else "auto"
 
     fig, ax = plt.subplots(figsize=(9, 7))
-    contour = ax.contourf(x, y, values, levels=n_levels, cmap=color_map, vmin=vmin, vmax=vmax)
+    levels = np.linspace(vmin, vmax, n_levels+1)
+    contour = ax.contourf(x, y, values, levels=levels, cmap=color_map, vmin=vmin, vmax=vmax)
     fig.colorbar(contour, ax=ax, label=field)
     ax.plot(STBM_loc[0], STBM_loc[1], "ro", label="STBM")
     ax.plot(SS_loc[0], SS_loc[1], "bo", label="SS")
     # ax.vlines(STBM_loc[0], ymin=y.min(), ymax=y.max(), colors="r", linestyles="--", label="STBM, y+" + str(normal_position-STBM_loc[1]) + "m")
     # ax.vlines(SS_loc[0], ymin=y.min(), ymax=y.max(), colors="b", linestyles="--", label="SS, y+" + str(normal_position-SS_loc[1]) + "m")
+
+    if plot_deployment_arrows:
+        # velocityx/y/z are in AMR-Wind's fixed x/y/z frame, so project onto
+        # whichever two components correspond to the plane's in-plane axes.
+        vel_component = {"xco": "velocityx", "yco": "velocityy", "zco": "velocityz"}
+        avg_vel_component = {"xco": "velocity_mean_avgx", "yco": "velocity_mean_avgy", "zco": "velocity_mean_avgz"}
+        i = 0
+        for label, (row, distance) in nearest_deployment_points(df, first, second).items():
+            uavg = row[avg_vel_component[first]]
+            vavg = row[avg_vel_component[second]]
+            u = row[vel_component[first]]
+            v = row[vel_component[second]]
+            if (field == "perturb_speed"):
+                u -= uavg
+                v -= vavg
+            if (i == 0):
+                l_str = "perturb velocity" if (field == "perturb_speed") else "velocity"
+                avgl_str = "avg velocity"
+            else:
+                l_str = ""
+                avgl_str = ""
+            i += 1
+            # scale=1/arrow_length_scale with scale_units="xy" makes plotted arrow
+            # length (in data units) equal speed * arrow_length_scale.
+            ax.quiver(
+                row[first], row[second], uavg, vavg,
+                color="w", scale=1.0 / arrow_length_scale, scale_units="xy",
+                angles="xy", zorder=5, label=avgl_str
+            )
+            ax.quiver(
+                row[first], row[second], u, v,
+                color="k", scale=1.0 / arrow_length_scale, scale_units="xy",
+                angles="xy", zorder=5, label=l_str
+            )
+
     ax.legend()
     ax.set_xlabel(f"{AXIS_NAMES[first]} [m]")
     ax.set_ylabel(f"{AXIS_NAMES[second]} [m]")
