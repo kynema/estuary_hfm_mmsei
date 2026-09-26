@@ -1,7 +1,7 @@
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            SIMULATION STOP            #
 #.......................................#
-time.stop_time               =  5400.       # Max (simulated) time to evolve
+time.stop_time               =  43720.       # Max (simulated) time to evolve
 time.max_step                =  -1         # Max number of time steps
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
@@ -11,7 +11,7 @@ time.cfl              =   0.95       # CFL factor
 time.min_dt           =   1e-6
 time.use_force_cfl    =   0
 io.outputs = velocity_mueff actuator_src_term
-io.restart_file = ../../max_lev4/chk10000?????????
+io.restart_file = ../../max_lev4/chk300000
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
