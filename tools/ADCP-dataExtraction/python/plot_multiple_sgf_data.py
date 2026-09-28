@@ -59,6 +59,7 @@ X_LABEL_FONT_SIZE = 16
 Y_LABEL_FONT_SIZE = 16
 TICK_LABEL_FONT_SIZE = 14
 TITLE_FONT_SIZE = 14
+LEGEND_FONT_SIZE = 14
 
 
 def _truncate_to_end(data, end_timestamp, case_name):
@@ -159,7 +160,7 @@ def main():
         raise ValueError("time_series_heights must contain at least one height or 'avg'.")
 
     sgf_colors = plt.get_cmap("tab10").colors
-    case_tag = "_".join(case_names)
+    output_prefix = f"SGF_{adcp_unit.upper()}"
 
     # ---- average speed profile vs. height above seafloor ----
     fig, ax = plt.subplots(figsize=(5.25, 8))
@@ -187,7 +188,7 @@ def main():
             avg_profile.values, avg_profile.index, "o", markerfacecolor="none",
             color="black", label="ADCP",
         )
-    ax.legend()
+    ax.legend(fontsize=LEGEND_FONT_SIZE)
     ax.set_xlabel("avg speed [m/s]", fontsize=X_LABEL_FONT_SIZE)
     ax.set_ylabel("height above seafloor [m]", fontsize=Y_LABEL_FONT_SIZE)
     ax.set_xlim(left=0)
@@ -195,7 +196,7 @@ def main():
     ax.set_title(title_range, fontsize=TITLE_FONT_SIZE)
     ax.tick_params(axis="both", labelsize=TICK_LABEL_FONT_SIZE)
     fig.tight_layout()
-    fig.savefig(OUTPUT_DIR / f"multiple_sgf_{case_tag}_profile.png", dpi=150)
+    fig.savefig(OUTPUT_DIR / f"{output_prefix}_profile_multiple.png", dpi=150)
 
     # ---- time series at specified heights ----
     fig, axes = plt.subplots(
@@ -267,15 +268,23 @@ def main():
         ax.set_title(subplot_label, fontsize=TITLE_FONT_SIZE)
         ax.tick_params(axis="both", labelsize=TICK_LABEL_FONT_SIZE)
 
-    axes[0].legend(loc="upper right")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="lower center",
+        ncol=3,
+        bbox_to_anchor=(0.5, 0.01),
+        fontsize=LEGEND_FONT_SIZE,
+    )
     axes[-1].set_xlabel("hours", fontsize=X_LABEL_FONT_SIZE)
     fig.suptitle(title_range, fontsize=TITLE_FONT_SIZE)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(OUTPUT_DIR / f"multiple_sgf_{case_tag}_timeseries.png", dpi=150)
+    fig.tight_layout(rect=(0, 0.1, 1, 0.94))
+    fig.savefig(OUTPUT_DIR / f"{output_prefix}_timeseries_multiple.png", dpi=150)
 
     print(
-        f"Wrote multiple_sgf_{case_tag}_profile.png and "
-        f"multiple_sgf_{case_tag}_timeseries.png to {OUTPUT_DIR}"
+        f"Wrote {output_prefix}_profile_multiple.png and "
+        f"{output_prefix}_timeseries_multiple.png to {OUTPUT_DIR}"
     )
     plt.show()
 
