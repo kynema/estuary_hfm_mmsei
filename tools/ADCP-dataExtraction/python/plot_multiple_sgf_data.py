@@ -187,14 +187,15 @@ def main():
             avg_profile.values, avg_profile.index, "o", markerfacecolor="none",
             color="black", label="ADCP",
         )
-    ax.legend()
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0.01))
     ax.set_xlabel("avg speed [m/s]", fontsize=X_LABEL_FONT_SIZE)
     ax.set_ylabel("height above seafloor [m]", fontsize=Y_LABEL_FONT_SIZE)
     ax.set_xlim(left=0)
     ax.set_ylim(bottom=0)
     ax.set_title(title_range, fontsize=TITLE_FONT_SIZE)
     ax.tick_params(axis="both", labelsize=TICK_LABEL_FONT_SIZE)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
     fig.savefig(OUTPUT_DIR / f"multiple_sgf_{case_tag}_profile.png", dpi=150)
 
     # ---- time series at specified heights ----
@@ -267,10 +268,11 @@ def main():
         ax.set_title(subplot_label, fontsize=TITLE_FONT_SIZE)
         ax.tick_params(axis="both", labelsize=TICK_LABEL_FONT_SIZE)
 
-    axes[0].legend(loc="upper right")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0.01))
     axes[-1].set_xlabel("hours", fontsize=X_LABEL_FONT_SIZE)
     fig.suptitle(title_range, fontsize=TITLE_FONT_SIZE)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.tight_layout(rect=(0, 0.1, 1, 0.94))
     fig.savefig(OUTPUT_DIR / f"multiple_sgf_{case_tag}_timeseries.png", dpi=150)
 
     print(
