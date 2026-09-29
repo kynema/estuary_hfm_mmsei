@@ -9,25 +9,26 @@ user_email="david.montgomery@nlr.gov"
 exe="kynema_sgf"
 kynema_manager_dir="/scratch/dmontgo2/kynema-manager"
 kynema_env_dir="/scratch/dmontgo2/kynema-manager/environments/env_kynema_sgf"
-input_file="rosario_maxlev3_refinement.inp"
-tag="maxlev3_noAndNot" # added to job name to distinguish from other runs
-max_steps=1010
 
-# Where to look for checkpoint files to restart from
-data_dir="/projects/hfm/dmontgomery/milestone/max_lev2/refine_maxlev3_noAndNot"
+case_name="max_lev3"
+case_dir="/scratch/mkuhn/estuary_flows/milestone/${case_name}"
+input_file="rosario_${case_name}.inp"
+output_dir="/projects/hfm/dmontgomery/estuary_hfm_mmsei/tools/scalingAnalysis"
+tag="${case_name}" # added to job name to distinguish from other runs
+max_steps=20010
 
 # Find the latest checkpoint file in the data directory
-latest_chk=$(ls -1v "${data_dir}" | grep "chk" | tail -1)
-if [ -n "$latest_chk" ]; then
-     extra_args="io.restart_file=${data_dir}/${latest_chk}"
-else
-     echo "No checkpoint files found in ${data_dir}. Starting from initial conditions."
-     extra_args=""
-fi
+latest_chk="chk20000"
+extra_args="io.restart_file=${case_dir}/${latest_chk}"
 extra_args+=" time.max_step=${max_steps} time.plot_interval=-1 time.checkpoint_interval=-1"
+extra_args+=" io.plot_file=${output_dir}/${case_name}/plt io.check_file=${output_dir}/${case_name}/chk"
+
+# Turn off all sampling
+#extra_args+=" incflo.post_processing=line_sampling line_sampling.output_time_interval=-1"
 
 # Array of node counts to scale over
-n_nodes_values=(16 24 32 40)
+n_nodes_values=(16)
+#n_nodes_values=(32 40 48 56 64)
 ntasks_per_node=72
 
 # Temp workspace for generated slurm scripts
@@ -45,7 +46,7 @@ for n in "${n_nodes_values[@]}"; do
 #SBATCH --job-name=${job_name}
 #SBATCH --account=${allocation}
 #SBATCH --exclusive
-##SBATCH --qos=high
+#SBATCH --qos=high
 #SBATCH -p hbw
 #SBATCH --time=00:10:00
 #SBATCH --nodes=${n}
