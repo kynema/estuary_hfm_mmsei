@@ -153,10 +153,17 @@ def load_fvcom_column(unit, reduced_dir, start_mjd, duration_hours,
 
     sigma = siglay[:, column]
     seafloor = h_bathymetry[column]
+    print("FVCOM column {}: seafloor depth {:.1f} m, sigma layers {}".format(
+        column, seafloor, sigma
+    ))
     surface = zeta[window, column]
-    z = seafloor - (surface[:, None] - seafloor) * sigma[None, :]
+    # FVCOM ocean_sigma/general_coordinate has sigma=0 at the free surface
+    # and sigma=-1 at the seafloor.  h_bathymetry is stored as an elevation
+    # here (negative below sea level), so surface - seafloor is water depth.
+    z = surface[:, None] + sigma[None, :] * (surface[:, None] - seafloor)
     z_above_seafloor = z - seafloor
 
+    print(f"z = {z}, z_above_seafloor = {z_above_seafloor}")
     u_col = u[window, :, column]
     v_col = v[window, :, column]
     n_time, n_sigma = u_col.shape
