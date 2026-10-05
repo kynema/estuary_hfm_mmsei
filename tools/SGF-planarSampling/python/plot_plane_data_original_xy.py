@@ -37,7 +37,7 @@ from amrex_particle import AmrexParticleFile
 OUTPUT_DIR = Path(__file__).parent / "figures"
 
 # ---- data location ----
-case_name = "max_lev2"
+case_name = "max_lev1"
 PLANE_DATA_DIR = Path(
     f"/scratch/mkuhn/estuary_flows/milestone/{case_name}/post_processing"
 )
@@ -56,7 +56,7 @@ output_selection = "all"
 # ---- field to contour ----
 # A particle column name (e.g. "velocityx", "vof") or "speed" for the
 # horizontal speed hypot(velocityx, velocityy).
-field = "average_speed"
+field = "tke"
 
 # ---- which plane of a multi-offset PlaneSampler ----
 # Index into the sorted unique positions along the plane normal.
@@ -65,7 +65,7 @@ offset_index = 0
 # ---- contour appearance ----
 n_levels = 40
 color_map = "viridis"
-color_limits = (0.0, 0.5) if field == "perturb_speed" else (0.0, 2.0)  # e.g. (0.0, 2.0) to fix the color scale across times
+color_limits = (0.0, 0.5) if field == "perturb_speed" else ((0.0, 0.3) if field == "tke" else (0.0, 2.0))  # e.g. (0.0, 2.0) to fix the color scale across times
 
 # ---- optional real-world time ----
 # Shared native SGF/FVCOM UTC datetime corresponding to simulation time = 0,
@@ -152,7 +152,9 @@ def field_values(df, name):
     if name == "average_speed":
         return np.hypot(df["velocity_mean_avgx"], df["velocity_mean_avgy"])
     if name == "perturb_speed":
-            return np.hypot(df["velocityx"]-df["velocity_mean_avgx"], df["velocityy"]-df["velocity_mean_avgy"])
+        return np.hypot(df["velocityx"]-df["velocity_mean_avgx"], df["velocityy"]-df["velocity_mean_avgy"])
+    if name == "tke":
+        return (0.5 * (np.power(df["velocityx"]-df["velocity_mean_avgx"],2) + np.power(df["velocityy"]-df["velocity_mean_avgy"],2) + np.power(df["velocityz"]-df["velocity_mean_avgz"],2)))
     if name not in df.columns:
         raise ValueError(f"Field '{name}' not found; available: {sorted(df.columns)}")
     return df[name]
@@ -240,14 +242,14 @@ def plot_plane(df, sim_time_s, folder_name):
 
     if start_date is not None and start_time is not None:
         stamp = pd.Timestamp(f"{start_date} {start_time}") + pd.to_timedelta(sim_time_s, unit="s")
-        time_label = f"FVCOM: {stamp:%Y-%m-%d %H:%M:%S} (t = {sim_time_s:.1f} s)"
+        time_label = f"(t = {sim_time_s:.1f} s)\nFVCOM: {stamp:%Y-%m-%d %H:%M:%S}"
         if adcp_start_date is not None and adcp_start_time is not None:
             adcp_stamp = pd.Timestamp(f"{adcp_start_date} {adcp_start_time}") + pd.to_timedelta(sim_time_s, unit="s")
             time_label += f"\nADCP: {adcp_stamp:%Y-%m-%d %H:%M:%S}"
     else:
         time_label = f"t = {sim_time_s:.1f} s"
     ax.set_title(
-        f"{sampling_group}.{sampler_label} {field} at {AXIS_NAMES[normal]} = {normal_position:.1f} m\n{time_label}"
+        f"{field} at {AXIS_NAMES[normal]} = {normal_position:.1f} m {time_label}"
     )
     fig.tight_layout()
 

@@ -130,7 +130,7 @@ plane_sampling.xz.offset_vector = 0 1 0
 
 plane_sampling.yz.type       = PlaneSampler
 plane_sampling.yz.origin     = 2500 2000 -50
-plane_sampling.yz.axis1      = 1000 0 0
+plane_sampling.yz.axis1      = 0 1000 0
 plane_sampling.yz.axis2      = 0 0 60
 plane_sampling.yz.num_points = 500 120
 plane_sampling.yz.offsets    = 0 400 800

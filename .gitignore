@@ -7,3 +7,6 @@ bndry_plane
 .DS_Store
 *.out
 *.err
+run_cpu.sh
+run_gpu.sh
+
