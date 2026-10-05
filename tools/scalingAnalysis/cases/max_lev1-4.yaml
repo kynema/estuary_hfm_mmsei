@@ -1,0 +1,34 @@
+name: max_lev1-4
+final_time_hours: 12.5
+
+max_lev1:
+  mode: CPU
+  num_nodes: [4, 8, 16, 24, 32]
+  num_steps: 10
+  run_times: [4.588149571, 3.307432947, 2.586320695, 2.577711923, 2.589990332]
+  num_cores_per_node: 72
+  dt: 0.3
+
+max_lev2:
+  mode: CPU
+  num_nodes: [8, 16, 24, 32, 40, 48]
+  num_steps: 10
+  run_times: [8.50489661, 5.187959629, 4.732693273, 4.530126694, 4.708931522, 4.448239358]
+  num_cores_per_node: 72
+  dt: 0.15
+
+max_lev3:
+  mode: CPU
+  num_nodes: [16, 24, 32, 40, 48, 56]
+  num_steps: 10
+  run_times: [9.213299101, 7.711503529, 7.728211374, 7.048571795, 6.128018544, 5.681199107]
+  num_cores_per_node: 72
+  dt: 0.125
+
+max_lev4:
+  mode: CPU
+  num_nodes: [32, 40, 48, 56, 64]
+  num_steps: 10
+  run_times: [10.7533773, 9.109791203, 8.505570623, 9.892822255, 7.902487588]
+  num_cores_per_node: 72
+  dt: 0.12

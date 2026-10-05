@@ -292,13 +292,13 @@ def plot_scaling(cases):
 
     ax_time.set_xlabel("Nodes")
     ax_time.set_ylabel("Est. Simulation Time (days)")
-    ax_time.set_title(f"Est. Simulation Time vs. Nodes ($t_f$ = {final_time_hours} hrs, dt = {dt} s)")
+    ax_time.set_title(f"Est. Simulation Time vs. Nodes ($t_f$ = {final_time_hours} hrs)")
     ax_time.legend()
     ax_time.grid(True)
 
     ax_aus.set_xlabel("Nodes")
     ax_aus.set_ylabel("Est. AUs to Solution")
-    ax_aus.set_title(f"Est. AUs to Solution vs. Nodes ($t_f$ = {final_time_hours} hrs, dt = {dt} s)")
+    ax_aus.set_title(f"Est. AUs to Solution vs. Nodes ($t_f$ = {final_time_hours} hrs)")
     ax_aus.legend()
     ax_aus.grid(True)
 
